@@ -8,6 +8,14 @@ export type ChatMessage = {
   content: string;
   timestamp: Date;
   status?: 'sending' | 'sent' | 'error';
+  contentType?: 'text' | 'trends' | 'topics' | 'summary';
+  structuredData?: any;
+  metadata?: {
+    trendId?: string;
+    trendName?: string;
+    topicId?: string;
+    topicName?: string;
+  };
 };
 
 export type SendMessageParams = {
@@ -32,15 +40,16 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
         event: 'messages.upsert',
         data: {
           key: {
-            remoteJid: `${params.userEmail}@web.newsdigest`
+            remoteJid: `web:${params.userEmail}`
           },
           web: params.userEmail,
+          telegram: null,
           message: {
             conversation: params.message
           }
         },
         date_time: new Date().toISOString(),
-        source: 'web'
+        source: 'web-app'
       }
     ];
 
