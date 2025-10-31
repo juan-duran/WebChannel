@@ -67,7 +67,7 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
       if (error.name === 'AbortError') {
         return {
           success: false,
-          error: 'Request timed out. Please try again.'
+          error: 'Tempo esgotado. Por favor, tente novamente.'
         };
       }
       return {
@@ -77,7 +77,7 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
     }
     return {
       success: false,
-      error: 'An unexpected error occurred'
+      error: 'Ocorreu um erro inesperado'
     };
   }
 }

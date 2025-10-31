@@ -15,8 +15,8 @@ export function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile</h2>
-        <p className="text-gray-600">Manage your account</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Perfil</h2>
+        <p className="text-gray-600">Gerencie sua conta</p>
       </div>
 
       <div className="space-y-6">
@@ -26,26 +26,26 @@ export function ProfilePage() {
               <User className="w-8 h-8 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Account Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Informações da Conta</h3>
               <p className="text-gray-600 text-sm mb-4">{user?.email}</p>
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
+                Sair
               </button>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">About</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Sobre</h3>
           <div className="space-y-2 text-sm text-gray-600">
-            <p>AI Assistant Chat provides conversational access to your news digest, trends, and topics.</p>
-            <p>Ask questions about trends, explore topics, and get personalized news insights through natural conversation.</p>
+            <p>QUENTY Agente oferece acesso conversacional aos seus resumos de notícias, assuntos quentes e tópicos.</p>
+            <p>Faça perguntas sobre assuntos quentes, explore tópicos e obtenha insights personalizados de notícias por meio de conversa natural.</p>
             <p className="pt-2">
-              <span className="font-medium text-gray-900">Version:</span> 1.0.0
+              <span className="font-medium text-gray-900">Versão:</span> 1.0.0
             </p>
           </div>
         </div>

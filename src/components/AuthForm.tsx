@@ -23,7 +23,7 @@ export function AuthForm() {
           password,
         });
         if (error) throw error;
-        setMessage('Account created! You can now sign in.');
+        setMessage('Conta criada! Você já pode entrar.');
         setIsSignUp(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -33,7 +33,7 @@ export function AuthForm() {
         if (error) throw error;
       }
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
+      setError(err.message || 'Ocorreu um erro');
     } finally {
       setLoading(false);
     }
@@ -48,10 +48,10 @@ export function AuthForm() {
               <Mail className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              News Digest
+              QUENTY - Agente
             </h1>
             <p className="text-gray-600">
-              Your personalized daily news feed
+              Seu resumo de notícias personalizado
             </p>
           </div>
 
@@ -109,7 +109,7 @@ export function AuthForm() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-              {loading ? 'Please wait...' : isSignUp ? 'Sign Up' : 'Sign In'}
+              {loading ? 'Aguarde...' : isSignUp ? 'Cadastrar' : 'Entrar'}
             </button>
           </form>
 
@@ -122,7 +122,7 @@ export function AuthForm() {
               }}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              {isSignUp ? 'Já tem uma conta? Entrar' : 'Não tem uma conta? Cadastrar'}
             </button>
           </div>
         </div>

@@ -19,9 +19,9 @@ export function TypingIndicator({ startTime }: TypingIndicatorProps) {
   }, [startTime]);
 
   const getEstimatedTime = () => {
-    if (elapsed < 30) return 'Processing your request...';
-    if (elapsed < 60) return 'Still working on it...';
-    return 'Almost there...';
+    if (elapsed < 30) return 'Processando sua solicitação...';
+    if (elapsed < 60) return 'Ainda trabalhando nisso...';
+    return 'Quase lá...';
   };
 
   const progress = Math.min((elapsed / 90) * 100, 100);
@@ -49,7 +49,7 @@ export function TypingIndicator({ startTime }: TypingIndicatorProps) {
         </div>
         {elapsed > 0 && (
           <div className="text-xs text-gray-500 mt-1.5 ml-2">
-            {elapsed}s elapsed
+            {elapsed}s decorridos
           </div>
         )}
       </div>

@@ -14,7 +14,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
   const navItems = [
     { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
-    { id: 'profile' as const, icon: User, label: 'Profile' },
+    { id: 'profile' as const, icon: User, label: 'Perfil' },
   ];
 
   return (
@@ -26,7 +26,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
                 <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">AI Assistant</h1>
+              <h1 className="text-xl font-bold text-gray-900">QUENTY - Agente</h1>
             </div>
 
             <button
