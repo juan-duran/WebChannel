@@ -1,11 +1,11 @@
 import { ReactNode, useState } from 'react';
-import { TrendingUp, Grid3x3, User, Bell, Menu, X, MessageCircle } from 'lucide-react';
+import { MessageCircle, User, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: 'trends' | 'topics' | 'profile' | 'notifications' | 'chat';
-  onNavigate: (page: 'trends' | 'topics' | 'profile' | 'notifications' | 'chat') => void;
+  currentPage: 'chat' | 'profile';
+  onNavigate: (page: 'chat' | 'profile') => void;
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -13,10 +13,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [showMenu, setShowMenu] = useState(false);
 
   const navItems = [
-    { id: 'trends' as const, icon: TrendingUp, label: 'Trends' },
-    { id: 'topics' as const, icon: Grid3x3, label: 'Topics' },
     { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
-    { id: 'notifications' as const, icon: Bell, label: 'Alerts' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
   ];
 
@@ -26,10 +23,10 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
+                <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">News Digest</h1>
+              <h1 className="text-xl font-bold text-gray-900">AI Assistant</h1>
             </div>
 
             <button
