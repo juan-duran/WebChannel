@@ -7,9 +7,10 @@ import { TopicsPage } from './pages/TopicsPage';
 import { TopicDetailPage } from './pages/TopicDetailPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ChatPage } from './pages/ChatPage';
 import { Loader2 } from 'lucide-react';
 
-type Page = 'trends' | 'topics' | 'topic-detail' | 'profile' | 'notifications';
+type Page = 'trends' | 'topics' | 'topic-detail' | 'profile' | 'notifications' | 'chat';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -19,7 +20,7 @@ function AppContent() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
   const [selectedTopicName, setSelectedTopicName] = useState<string | null>(null);
 
-  const handleNavigate = (page: 'trends' | 'topics' | 'profile' | 'notifications') => {
+  const handleNavigate = (page: 'trends' | 'topics' | 'profile' | 'notifications' | 'chat') => {
     setCurrentPage(page);
     if (page === 'trends') {
       setSelectedTrendId(null);
@@ -92,6 +93,7 @@ function AppContent() {
           onBack={handleBackToTopics}
         />
       )}
+      {currentPage === 'chat' && <ChatPage />}
       {currentPage === 'notifications' && <NotificationsPage />}
       {currentPage === 'profile' && <ProfilePage />}
     </Layout>

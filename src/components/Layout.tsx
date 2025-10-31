@@ -1,11 +1,11 @@
 import { ReactNode, useState } from 'react';
-import { TrendingUp, Grid3x3, User, Bell, Menu, X } from 'lucide-react';
+import { TrendingUp, Grid3x3, User, Bell, Menu, X, MessageCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: 'trends' | 'topics' | 'profile' | 'notifications';
-  onNavigate: (page: 'trends' | 'topics' | 'profile' | 'notifications') => void;
+  currentPage: 'trends' | 'topics' | 'profile' | 'notifications' | 'chat';
+  onNavigate: (page: 'trends' | 'topics' | 'profile' | 'notifications' | 'chat') => void;
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -15,6 +15,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const navItems = [
     { id: 'trends' as const, icon: TrendingUp, label: 'Trends' },
     { id: 'topics' as const, icon: Grid3x3, label: 'Topics' },
+    { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
     { id: 'notifications' as const, icon: Bell, label: 'Alerts' },
     { id: 'profile' as const, icon: User, label: 'Profile' },
   ];
