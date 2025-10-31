@@ -1,3 +1,5 @@
+import { getStoredWixToken } from './wixAuthService';
+
 const WEBHOOK_URL = 'https://brian-jado.app.n8n.cloud/webhook/1475aa73-fde6-481b-9a13-58d50ac83b41/chat';
 
 export type ChatMessage = {
@@ -11,6 +13,7 @@ export type ChatMessage = {
 export type SendMessageParams = {
   message: string;
   userEmail: string;
+  authToken?: string;
 };
 
 export type SendMessageResponse = {
@@ -21,6 +24,9 @@ export type SendMessageResponse = {
 
 export async function sendMessageToAgent(params: SendMessageParams): Promise<SendMessageResponse> {
   try {
+    const wixUser = getStoredWixToken();
+    const authToken = params.authToken || wixUser?.token;
+
     const payload = [
       {
         event: 'messages.upsert',
@@ -41,11 +47,17 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(payload),
       signal: controller.signal
     });
