@@ -1,9 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import {
+  WixUser,
+  getStoredWixToken,
+  clearWixToken,
+  shouldRefreshToken,
+  refreshWixToken
+} from '../lib/wixAuthService';
 
 type AuthContextType = {
-  user: User | null;
+  user: WixUser | null;
   loading: boolean;
   signOut: () => Promise<void>;
 };
@@ -11,26 +16,44 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<WixUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    const storedUser = getStoredWixToken();
+    setUser(storedUser);
+    setLoading(false);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      (async () => {
-        setUser(session?.user ?? null);
-      })();
-    });
+    if (storedUser && shouldRefreshToken(storedUser)) {
+      refreshWixToken(storedUser.email).then(refreshedUser => {
+        if (refreshedUser) {
+          setUser(refreshedUser);
+        } else {
+          clearWixToken();
+          setUser(null);
+        }
+      });
+    }
 
-    return () => subscription.unsubscribe();
+    const interval = setInterval(() => {
+      const currentUser = getStoredWixToken();
+      if (currentUser && shouldRefreshToken(currentUser)) {
+        refreshWixToken(currentUser.email).then(refreshedUser => {
+          if (refreshedUser) {
+            setUser(refreshedUser);
+          } else {
+            clearWixToken();
+            setUser(null);
+          }
+        });
+      }
+    }, 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    clearWixToken();
     setUser(null);
   };
 
