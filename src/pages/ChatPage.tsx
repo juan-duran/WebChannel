@@ -79,7 +79,7 @@ export function ChatPage() {
 
         setMessages(prev => [...prev, aiMessage]);
       } else {
-        setError(response.error || 'Failed to get response from AI agent');
+        setError(response.error || 'Falha ao obter resposta do agente IA');
         setMessages(prev =>
           prev.map(msg =>
             msg.id === userMessage.id ? { ...msg, status: 'error' as const } : msg
@@ -89,7 +89,7 @@ export function ChatPage() {
     } catch (err) {
       setIsProcessing(false);
       setProcessingStartTime(undefined);
-      setError('An unexpected error occurred. Please try again.');
+      setError('Ocorreu um erro inesperado. Por favor, tente novamente.');
       setMessages(prev =>
         prev.map(msg =>
           msg.id === userMessage.id ? { ...msg, status: 'error' as const } : msg
@@ -122,9 +122,9 @@ export function ChatPage() {
               <MessageCircle className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">AI Assistant</h1>
+              <h1 className="text-lg font-bold text-gray-900">QUENTY Agente</h1>
               <p className="text-xs text-gray-500">
-                {isProcessing ? 'Processing...' : 'Ready to help'}
+                {isProcessing ? 'Processando...' : 'Pronto para ajudar'}
               </p>
             </div>
           </div>
@@ -134,7 +134,7 @@ export function ChatPage() {
               disabled={isProcessing}
               className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Clear
+              Limpar
             </button>
           )}
         </div>
@@ -152,10 +152,10 @@ export function ChatPage() {
                 <MessageCircle className="w-10 h-10 text-blue-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome to AI Assistant
+                Bem-vindo ao QUENTY Agente
               </h2>
               <p className="text-gray-600 mb-8 max-w-md">
-                Ask me anything about your news digest, trends, and topics. I'm here to help!
+                Pergunte-me qualquer coisa sobre notícias, assuntos quentes e tópicos. Estou aqui para ajudar!
               </p>
               <QuickActions onSelect={handleSendMessage} disabled={isProcessing} />
             </div>
@@ -173,7 +173,7 @@ export function ChatPage() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-red-900 font-medium mb-1">Error</p>
+                    <p className="text-sm text-red-900 font-medium mb-1">Erro</p>
                     <p className="text-sm text-red-700">{error}</p>
                     <button
                       onClick={handleRetry}
@@ -181,7 +181,7 @@ export function ChatPage() {
                       className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Retry
+                      Tentar Novamente
                     </button>
                   </div>
                 </div>
@@ -196,7 +196,7 @@ export function ChatPage() {
       <MessageInput
         onSend={handleSendMessage}
         disabled={isProcessing}
-        placeholder={isProcessing ? 'Please wait...' : 'Type a message...'}
+        placeholder={isProcessing ? 'Aguarde...' : 'Digite uma mensagem...'}
       />
     </div>
   );

@@ -8,18 +8,18 @@ type QuickActionsProps = {
 const suggestions = [
   {
     icon: TrendingUp,
-    label: "Today's Trends",
-    message: "Show me today's top trends"
+    label: 'Assuntos Quentes',
+    message: 'Mostre os assuntos quentes de hoje'
   },
   {
     icon: Grid3x3,
-    label: 'Browse Topics',
-    message: 'What topics are available?'
+    label: 'Tópicos',
+    message: 'Quais tópicos estão disponíveis?'
   },
   {
     icon: Sparkles,
-    label: "What's New",
-    message: "What's new and interesting today?"
+    label: 'Assuntos Quentíssimos do Dia',
+    message: 'O que há de novo e interessante hoje?'
   }
 ];
 
@@ -28,7 +28,7 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
     <div className="px-4 py-6">
       <div className="max-w-4xl mx-auto">
         <h3 className="text-sm font-medium text-gray-500 mb-3 text-center">
-          Quick Actions
+          Ações Rápidas
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {suggestions.map((suggestion) => {

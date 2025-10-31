@@ -9,10 +9,10 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   const isError = message.status === 'error';
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
+    return date.toLocaleTimeString('pt-BR', {
       hour: 'numeric',
       minute: '2-digit',
-      hour12: true
+      hour12: false
     });
   };
 
@@ -38,8 +38,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           }`}
         >
           {formatTime(message.timestamp)}
-          {message.status === 'sending' && ' • Sending...'}
-          {message.status === 'error' && ' • Failed'}
+          {message.status === 'sending' && ' • Enviando...'}
+          {message.status === 'error' && ' • Falhou'}
         </div>
       </div>
     </div>
