@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    clearWixToken();
+    await clearWixToken();
     setUser(null);
   };
 
