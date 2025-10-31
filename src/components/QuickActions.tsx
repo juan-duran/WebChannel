@@ -1,4 +1,4 @@
-import { TrendingUp, Grid3x3, Sparkles } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 type QuickActionsProps = {
   onSelect: (message: string) => void;
@@ -9,17 +9,7 @@ const suggestions = [
   {
     icon: TrendingUp,
     label: 'Assuntos Quentes',
-    message: 'Mostre os assuntos quentes de hoje'
-  },
-  {
-    icon: Grid3x3,
-    label: 'Tópicos',
-    message: 'Quais tópicos estão disponíveis?'
-  },
-  {
-    icon: Sparkles,
-    label: 'Assuntos Quentíssimos do Dia',
-    message: 'O que há de novo e interessante hoje?'
+    message: 'assuntos'
   }
 ];
 
@@ -28,9 +18,9 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
     <div className="px-4 py-6">
       <div className="max-w-4xl mx-auto">
         <h3 className="text-sm font-medium text-gray-500 mb-3 text-center">
-          Ações Rápidas
+          Comece Aqui
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex justify-center">
           {suggestions.map((suggestion) => {
             const Icon = suggestion.icon;
             return (

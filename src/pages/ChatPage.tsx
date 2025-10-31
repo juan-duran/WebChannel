@@ -5,7 +5,11 @@ import { MessageBubble } from '../components/MessageBubble';
 import { MessageInput } from '../components/MessageInput';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { QuickActions } from '../components/QuickActions';
+import { TrendsList, Trend } from '../components/TrendsList';
+import { TopicsList, Topic } from '../components/TopicsList';
+import { TopicSummary } from '../components/TopicSummary';
 import { ChatMessage, sendMessageToAgent, generateMessageId } from '../lib/chatService';
+import { parseAgentResponse, extractResponseText } from '../lib/responseParser';
 
 export function ChatPage() {
   const { user } = useAuth();
@@ -13,6 +17,7 @@ export function ChatPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStartTime, setProcessingStartTime] = useState<Date | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -56,25 +61,17 @@ export function ChatPage() {
       setProcessingStartTime(undefined);
 
       if (response.success && response.data) {
-        let aiContent = '';
-
-        if (typeof response.data === 'string') {
-          aiContent = response.data;
-        } else if (response.data.message) {
-          aiContent = response.data.message;
-        } else if (response.data.response) {
-          aiContent = response.data.response;
-        } else if (response.data.content) {
-          aiContent = response.data.content;
-        } else {
-          aiContent = JSON.stringify(response.data, null, 2);
-        }
+        const aiContent = extractResponseText(response.data);
+        const parsed = parseAgentResponse(aiContent, currentContext);
 
         const aiMessage: ChatMessage = {
           id: generateMessageId(),
           role: 'assistant',
           content: aiContent,
-          timestamp: new Date()
+          timestamp: new Date(),
+          contentType: parsed.type,
+          structuredData: parsed.type === 'trends' ? parsed.trends : parsed.type === 'topics' ? parsed.topics : undefined,
+          metadata: parsed.metadata
         };
 
         setMessages(prev => [...prev, aiMessage]);
@@ -111,6 +108,34 @@ export function ChatPage() {
     setError(null);
     setIsProcessing(false);
     setProcessingStartTime(undefined);
+    setCurrentContext({});
+  };
+
+  const handleTrendSelect = (trend: Trend) => {
+    setCurrentContext({ trendName: trend.name });
+    handleSendMessage(`Assunto #${trend.number}`);
+  };
+
+  const handleTopicSelect = (topic: Topic) => {
+    setCurrentContext(prev => ({ ...prev, topicName: topic.name }));
+    handleSendMessage(`Tópico #${topic.number}`);
+  };
+
+  const handleBackToTrends = () => {
+    setCurrentContext({});
+    handleSendMessage('assuntos');
+  };
+
+  const handleBackToTopics = () => {
+    const trendName = currentContext.trendName;
+    setCurrentContext({ trendName });
+
+    const lastTrendMessage = [...messages].reverse().find(
+      msg => msg.role === 'user' && msg.content.match(/^Assunto #\d+$/)
+    );
+    if (lastTrendMessage) {
+      handleSendMessage(lastTrendMessage.content);
+    }
   };
 
   return (
@@ -161,9 +186,60 @@ export function ChatPage() {
             </div>
           )}
 
-          {messages.map(message => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
+          {messages.map(message => {
+            if (message.role === 'assistant') {
+              if (message.contentType === 'trends' && message.structuredData) {
+                return (
+                  <div key={message.id} className="mb-4">
+                    <MessageBubble message={{ ...message, content: '' }} />
+                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
+                      <TrendsList
+                        trends={message.structuredData as Trend[]}
+                        onSelect={handleTrendSelect}
+                        disabled={isProcessing}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              if (message.contentType === 'topics' && message.structuredData) {
+                return (
+                  <div key={message.id} className="mb-4">
+                    <MessageBubble message={{ ...message, content: '' }} />
+                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
+                      <TopicsList
+                        topics={message.structuredData as Topic[]}
+                        trendName={message.metadata?.trendName || currentContext.trendName || 'Assunto'}
+                        onSelect={handleTopicSelect}
+                        onBack={handleBackToTrends}
+                        disabled={isProcessing}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+
+              if (message.contentType === 'summary') {
+                return (
+                  <div key={message.id} className="mb-4">
+                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
+                      <TopicSummary
+                        topicName={currentContext.topicName || 'Tópico'}
+                        trendName={currentContext.trendName || 'Assunto'}
+                        content={message.content}
+                        date={message.timestamp.toLocaleDateString('pt-BR')}
+                        onBack={handleBackToTopics}
+                        disabled={isProcessing}
+                      />
+                    </div>
+                  </div>
+                );
+              }
+            }
+
+            return <MessageBubble key={message.id} message={message} />;
+          })}
 
           {isProcessing && <TypingIndicator startTime={processingStartTime} />}
 
