@@ -1,12 +1,73 @@
+import { supabase } from './supabase';
+
 export interface WixUser {
+  id: string;
   email: string;
+  fullName?: string;
   token: string;
-  subscriptionStatus: 'active' | 'expired' | 'trial';
+  subscriptionStatus: 'active' | 'trial' | 'inactive' | 'canceled';
   expiresAt: number;
+  wixCustomerId?: string;
 }
 
 const TOKEN_KEY = 'wix_auth_token';
+const SESSION_KEY = 'wix_session_id';
 const WIX_VELO_ENDPOINT = import.meta.env.VITE_WIX_AUTH_ENDPOINT || 'https://your-wix-site.com/_functions/validateSubscription';
+
+async function upsertWebUser(email: string, data: any): Promise<string> {
+  const { data: existing, error: selectError } = await supabase
+    .from('web_users')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (selectError) throw selectError;
+
+  if (existing) {
+    const { error: updateError } = await supabase
+      .from('web_users')
+      .update({
+        full_name: data.fullName,
+        subscription_status: data.subscriptionStatus || 'active',
+        wix_customer_id: data.wixCustomerId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existing.id);
+
+    if (updateError) throw updateError;
+    return existing.id;
+  } else {
+    const { data: inserted, error: insertError } = await supabase
+      .from('web_users')
+      .insert({
+        email,
+        full_name: data.fullName,
+        subscription_status: data.subscriptionStatus || 'active',
+        wix_customer_id: data.wixCustomerId
+      })
+      .select('id')
+      .single();
+
+    if (insertError) throw insertError;
+    return inserted.id;
+  }
+}
+
+async function createWebSession(userId: string, token: string, expiresAt: number): Promise<string> {
+  const { data, error } = await supabase
+    .from('web_sessions')
+    .insert({
+      user_id: userId,
+      access_token: token,
+      expires_at: new Date(expiresAt).toISOString(),
+      user_agent: navigator.userAgent
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
 
 export async function requestWixToken(email: string): Promise<WixUser> {
   try {
@@ -29,14 +90,27 @@ export async function requestWixToken(email: string): Promise<WixUser> {
       throw new Error('Token inválido recebido do servidor');
     }
 
+    const userId = await upsertWebUser(email, {
+      fullName: data.fullName,
+      subscriptionStatus: data.subscriptionStatus || 'active',
+      wixCustomerId: data.wixCustomerId
+    });
+
+    const expiresAt = data.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000;
+    const sessionId = await createWebSession(userId, data.token, expiresAt);
+
     const user: WixUser = {
+      id: userId,
       email: data.email || email,
+      fullName: data.fullName,
       token: data.token,
       subscriptionStatus: data.subscriptionStatus || 'active',
-      expiresAt: data.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000,
+      expiresAt,
+      wixCustomerId: data.wixCustomerId
     };
 
     storeWixToken(user);
+    localStorage.setItem(SESSION_KEY, sessionId);
     return user;
   } catch (error) {
     throw error;
@@ -65,8 +139,16 @@ export function getStoredWixToken(): WixUser | null {
   }
 }
 
-export function clearWixToken(): void {
+export async function clearWixToken(): Promise<void> {
+  const sessionId = localStorage.getItem(SESSION_KEY);
+  if (sessionId) {
+    await supabase
+      .from('web_sessions')
+      .delete()
+      .eq('id', sessionId);
+  }
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(SESSION_KEY);
 }
 
 export function parseJWT(token: string): any {
@@ -116,8 +198,10 @@ export function getSubscriptionStatus(token: string): string | null {
 
 export async function refreshWixToken(email: string): Promise<WixUser | null> {
   try {
-    return await requestWixToken(email);
+    const refreshed = await requestWixToken(email);
+    return refreshed;
   } catch {
+    await clearWixToken();
     return null;
   }
 }

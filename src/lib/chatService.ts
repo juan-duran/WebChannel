@@ -1,6 +1,21 @@
 import { getStoredWixToken } from './wixAuthService';
+import { supabase } from './supabase';
 
 const WEBHOOK_URL = 'https://brian-jado.app.n8n.cloud/webhook/1475aa73-fde6-481b-9a13-58d50ac83b41/chat';
+
+async function logMessage(userId: string, direction: 'in' | 'out', payload: any): Promise<void> {
+  try {
+    await supabase
+      .from('web_messages')
+      .insert({
+        user_id: userId,
+        direction,
+        payload
+      });
+  } catch (error) {
+    console.error('Failed to log message:', error);
+  }
+}
 
 export type ChatMessage = {
   id: string;
@@ -34,6 +49,18 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
   try {
     const wixUser = getStoredWixToken();
     const authToken = params.authToken || wixUser?.token;
+    const userId = wixUser?.id;
+
+    const requestPayload = {
+      action: params.message.startsWith('Assunto #') ? 'get_topicos' :
+              params.message.startsWith('Tópico #') ? 'get_resumo' :
+              params.message === 'assuntos' ? 'get_assuntos' : 'chat',
+      message: params.message
+    };
+
+    if (userId) {
+      await logMessage(userId, 'in', requestPayload);
+    }
 
     const payload = [
       {
@@ -78,6 +105,13 @@ export async function sendMessageToAgent(params: SendMessageParams): Promise<Sen
     }
 
     const data = await response.json();
+
+    if (userId) {
+      await logMessage(userId, 'out', {
+        response: data,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     return {
       success: true,
