@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthForm } from './components/AuthForm';
 import { Layout } from './components/Layout';
-import { ChatPage } from './pages/ChatPage';
+import { ChatPageWebSocket } from './pages/ChatPageWebSocket';
 import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
 
@@ -30,7 +30,7 @@ function AppContent() {
 
   return (
     <Layout currentPage={currentPage} onNavigate={handleNavigate}>
-      {currentPage === 'chat' && <ChatPage />}
+      {currentPage === 'chat' && <ChatPageWebSocket />}
       {currentPage === 'profile' && <ProfilePage />}
     </Layout>
   );
