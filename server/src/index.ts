@@ -1,0 +1,86 @@
+import express from 'express';
+import cors from 'cors';
+import { WebSocketServer } from 'ws';
+import { createServer } from 'http';
+import { config, validateConfig } from './config/index.js';
+import { logger } from './utils/logger.js';
+import { WebSocketService } from './services/websocket.js';
+import { sessionManager } from './services/session.js';
+import { apiRateLimit } from './middleware/rateLimit.js';
+
+import messagesRouter from './routes/messages.js';
+import adminRouter from './routes/admin.js';
+import healthRouter from './routes/health.js';
+
+async function startServer() {
+  try {
+    validateConfig();
+
+    const app = express();
+    const server = createServer(app);
+
+    app.use(cors({
+      origin: config.server.corsOrigins,
+      credentials: true,
+    }));
+
+    app.use(express.json({ limit: '10mb' }));
+
+    app.use((req, res, next) => {
+      logger.debug({ method: req.method, path: req.path }, 'HTTP request');
+      next();
+    });
+
+    app.use(apiRateLimit);
+
+    app.use('/', healthRouter);
+    app.use('/api/messages', messagesRouter);
+    app.use('/admin', adminRouter);
+
+    const wss = new WebSocketServer({
+      server,
+      path: config.server.path,
+    });
+
+    new WebSocketService(wss);
+
+    server.listen(config.server.port, () => {
+      logger.info(
+        {
+          port: config.server.port,
+          wsPath: config.server.path,
+          corsOrigins: config.server.corsOrigins,
+        },
+        'WebChannel server started'
+      );
+    });
+
+    const gracefulShutdown = () => {
+      logger.info('Shutting down gracefully...');
+
+      server.close(() => {
+        logger.info('HTTP server closed');
+      });
+
+      wss.close(() => {
+        logger.info('WebSocket server closed');
+      });
+
+      sessionManager.shutdown();
+
+      setTimeout(() => {
+        logger.warn('Forcing shutdown after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
+
+  } catch (error) {
+    logger.error({ error }, 'Failed to start server');
+    process.exit(1);
+  }
+}
+
+startServer();
