@@ -8,8 +8,16 @@ import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
-import { ChatMessage, sendMessageToAgent, generateMessageId } from '../lib/chatService';
+import {
+  ChatMessage,
+  sendMessageToAgent,
+  generateMessageId,
+  saveMessageToDatabase,
+  loadMessagesFromDatabase,
+  getOrCreateDefaultChannel
+} from '../lib/chatService';
 import { parseAgentResponse, extractResponseText } from '../lib/responseParser';
+import { supabase } from '../lib/supabase';
 
 export function ChatPage() {
   const { user } = useAuth();
@@ -18,6 +26,8 @@ export function ChatPage() {
   const [processingStartTime, setProcessingStartTime] = useState<Date | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
+  const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -29,8 +39,70 @@ export function ChatPage() {
     scrollToBottom();
   }, [messages, isProcessing]);
 
+  useEffect(() => {
+    const initializeChannel = async () => {
+      if (!user?.id) return;
+
+      setIsLoadingHistory(true);
+      const channelId = await getOrCreateDefaultChannel(user.id);
+
+      if (channelId) {
+        setCurrentChannelId(channelId);
+        const history = await loadMessagesFromDatabase(channelId);
+        setMessages(history);
+      }
+
+      setIsLoadingHistory(false);
+    };
+
+    initializeChannel();
+  }, [user]);
+
+  useEffect(() => {
+    if (!currentChannelId) return;
+
+    const subscription = supabase
+      .channel(`chat_messages:${currentChannelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `channel_id=eq.${currentChannelId}`
+        },
+        (payload) => {
+          (async () => {
+            const newMessage = payload.new;
+
+            const chatMessage: ChatMessage = {
+              id: newMessage.id,
+              role: newMessage.role as 'user' | 'assistant',
+              content: newMessage.content,
+              timestamp: new Date(newMessage.created_at),
+              status: newMessage.status as 'sending' | 'sent' | 'error',
+              contentType: newMessage.content_type as 'text' | 'trends' | 'topics' | 'summary',
+              structuredData: newMessage.structured_data,
+              metadata: newMessage.metadata
+            };
+
+            setMessages(prev => {
+              const exists = prev.some(msg => msg.id === chatMessage.id);
+              if (exists) return prev;
+              return [...prev, chatMessage];
+            });
+          })();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [currentChannelId]);
+
   const handleSendMessage = async (content: string) => {
-    if (!user?.email || isProcessing) return;
+    if (!user?.id || isProcessing || !currentChannelId) return;
 
     setError(null);
 
@@ -44,6 +116,13 @@ export function ChatPage() {
 
     setMessages(prev => [...prev, userMessage]);
 
+    await saveMessageToDatabase(
+      currentChannelId,
+      user.id,
+      'user',
+      content
+    );
+
     setMessages(prev =>
       prev.map(msg => (msg.id === userMessage.id ? { ...msg, status: 'sent' as const } : msg))
     );
@@ -54,7 +133,8 @@ export function ChatPage() {
     try {
       const response = await sendMessageToAgent({
         message: content,
-        userEmail: user.email
+        channelId: currentChannelId,
+        userId: user.id
       });
 
       setIsProcessing(false);
@@ -74,9 +154,20 @@ export function ChatPage() {
           metadata: parsed.metadata
         };
 
+        await saveMessageToDatabase(
+          currentChannelId,
+          null,
+          'assistant',
+          aiContent,
+          parsed.type,
+          aiMessage.structuredData,
+          aiMessage.metadata,
+          response.data
+        );
+
         setMessages(prev => [...prev, aiMessage]);
       } else {
-        setError(response.error || 'Falha ao obter resposta do agente IA');
+        setError(response.error || 'Failed to get response from agent');
         setMessages(prev =>
           prev.map(msg =>
             msg.id === userMessage.id ? { ...msg, status: 'error' as const } : msg
@@ -86,7 +177,7 @@ export function ChatPage() {
     } catch (err) {
       setIsProcessing(false);
       setProcessingStartTime(undefined);
-      setError('Ocorreu um erro inesperado. Por favor, tente novamente.');
+      setError('An unexpected error occurred. Please try again.');
       setMessages(prev =>
         prev.map(msg =>
           msg.id === userMessage.id ? { ...msg, status: 'error' as const } : msg
@@ -138,6 +229,17 @@ export function ChatPage() {
     }
   };
 
+  if (isLoadingHistory) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
+          <p className="text-gray-600">Loading chat history...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm">
@@ -147,9 +249,9 @@ export function ChatPage() {
               <MessageCircle className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">QUENTY Agente</h1>
+              <h1 className="text-lg font-bold text-gray-900">WebChannel</h1>
               <p className="text-xs text-gray-500">
-                {isProcessing ? 'Processando...' : 'Pronto para ajudar'}
+                {isProcessing ? 'Processing...' : 'Ready to help'}
               </p>
             </div>
           </div>
@@ -159,7 +261,7 @@ export function ChatPage() {
               disabled={isProcessing}
               className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Limpar
+              Clear
             </button>
           )}
         </div>
@@ -177,10 +279,10 @@ export function ChatPage() {
                 <MessageCircle className="w-10 h-10 text-blue-600" />
               </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Bem-vindo ao QUENTY Agente
+                Welcome to WebChannel
               </h2>
               <p className="text-gray-600 mb-8 max-w-md">
-                Pergunte-me qualquer coisa sobre notícias, assuntos quentes e tópicos. Estou aqui para ajudar!
+                Ask me anything! I'm here to help you with your questions.
               </p>
               <QuickActions onSelect={handleSendMessage} disabled={isProcessing} />
             </div>
@@ -249,7 +351,7 @@ export function ChatPage() {
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm text-red-900 font-medium mb-1">Erro</p>
+                    <p className="text-sm text-red-900 font-medium mb-1">Error</p>
                     <p className="text-sm text-red-700">{error}</p>
                     <button
                       onClick={handleRetry}
@@ -257,7 +359,7 @@ export function ChatPage() {
                       className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Tentar Novamente
+                      Retry
                     </button>
                   </div>
                 </div>
@@ -272,7 +374,7 @@ export function ChatPage() {
       <MessageInput
         onSend={handleSendMessage}
         disabled={isProcessing}
-        placeholder={isProcessing ? 'Aguarde...' : 'Digite uma mensagem...'}
+        placeholder={isProcessing ? 'Please wait...' : 'Type a message...'}
       />
     </div>
   );

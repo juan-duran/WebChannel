@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { MessageCircle, User, Menu, X } from 'lucide-react';
+import { MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
@@ -9,7 +9,7 @@ type LayoutProps = {
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { user, signOut } = useAuth();
+  const { signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
   const navItems = [
@@ -26,7 +26,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
                 <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">QUENTY - Agente</h1>
+              <h1 className="text-xl font-bold text-gray-900">WebChannel</h1>
             </div>
 
             <button
@@ -37,6 +37,13 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </button>
 
             <nav className="hidden lg:flex items-center gap-1">
+              <button
+                onClick={signOut}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-600 hover:bg-gray-100"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Logout</span>
+              </button>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
