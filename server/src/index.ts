@@ -48,7 +48,7 @@ async function startServer() {
     app.use(express.static(distPath));
 
     // fallback: qualquer rota "normal" devolve index.html
-    app.get('*', (_req, res) => {
+    app.get('/*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
 
