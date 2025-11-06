@@ -44,13 +44,7 @@ async function startServer() {
 
     // --- servir FRONT (dist do Vite) ---
     const distPath = path.join(process.cwd(), 'dist');
-
-    app.use(express.static(distPath));
-
-    // fallback: qualquer rota "normal" devolve index.html
-    app.get('/*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    app.use(express.static(distPath)); // isso já serve / -> index.html
 
     // WebSocket
     const wss = new WebSocketServer({
