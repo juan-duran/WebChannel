@@ -1,6 +1,13 @@
 import { supabase } from './supabase';
 
-export type WebSocketMessageType = 'connected' | 'message' | 'typing_start' | 'typing_stop' | 'error' | 'ping' | 'pong';
+export type WebSocketMessageType =
+  | 'connected'
+  | 'message'
+  | 'typing_start'
+  | 'typing_stop'
+  | 'error'
+  | 'ping'
+  | 'pong';
 
 export interface WebSocketMessage {
   type: WebSocketMessageType;
@@ -36,7 +43,9 @@ export class WebSocketService {
   constructor(private wsUrl: string) {}
 
   async connect(): Promise<void> {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('No active session');
     }
@@ -95,14 +104,18 @@ export class WebSocketService {
   }
 
   private notifyHandlers(type: WebSocketMessageType, message: WebSocketMessage) {
+    // Handlers específicos do tipo
     const handlers = this.handlers.get(type);
     if (handlers) {
-      handlers.forEach(handler => handler(message));
+      handlers.forEach((handler) => handler(message));
     }
 
+    // "Handlers genéricos" registrados em 'message' — usados como um tipo de "all events"
+    // MAS evitamos chamar de novo quando o próprio tipo já é 'message',
+    // pra não duplicar processamento.
     const allHandlers = this.handlers.get('message' as WebSocketMessageType);
-    if (allHandlers && type !== 'ping' && type !== 'pong') {
-      allHandlers.forEach(handler => handler(message));
+    if (allHandlers && type !== 'ping' && type !== 'pong' && type !== 'message') {
+      allHandlers.forEach((handler) => handler(message));
     }
   }
 
@@ -149,10 +162,12 @@ export class WebSocketService {
   sendReadReceipt(messageId: string) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
 
-    this.ws.send(JSON.stringify({
-      type: 'read_receipt',
-      messageId,
-    }));
+    this.ws.send(
+      JSON.stringify({
+        type: 'read_receipt',
+        messageId,
+      }),
+    );
   }
 
   private startHeartbeat() {
@@ -177,12 +192,15 @@ export class WebSocketService {
     }
 
     this.reconnectAttempts++;
-    const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1), 30000);
+    const delay = Math.min(
+      this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
+      30000,
+    );
 
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      this.connect().catch(error => {
+      this.connect().catch((error) => {
         console.error('Reconnection failed:', error);
       });
     }, delay);
