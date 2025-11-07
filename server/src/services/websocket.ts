@@ -155,42 +155,25 @@ export class WebSocketService {
     }
 
     try {
-      const response = await n8nService.sendMessage(userEmail, message.content, sessionId, correlationId, userId);
-
-      const responseText = this.extractResponseText(response);
+      // Dispara o workflow no n8n, mas NÃO usa a resposta HTTP como mensagem de chat.
+      // A resposta limpa é enviada pela tool ResponderChat via /api/messages/send.
+      await n8nService.sendMessage(userEmail, message.content, sessionId, correlationId, userId);
 
       if (session) {
         session.ws.send(JSON.stringify({
           type: 'typing_stop',
         }));
-
-        session.ws.send(JSON.stringify({
-          type: 'message',
-          role: 'assistant',
-          content: responseText,
-          correlationId,
-          webhookResponse: response,
-        }));
       }
 
+      // Mantém um log de saída simples para auditoria
       await supabaseService.logAuditMessage(userId, 'out', {
-        response,
+        response: 'n8n workflow triggered',
         correlationId,
         timestamp: new Date().toISOString(),
       });
 
-      if (channelId) {
-        await supabaseService.saveMessage(
-          channelId,
-          null,
-          'assistant',
-          responseText,
-          'text',
-          undefined,
-          undefined,
-          response
-        );
-      }
+      // NÃO salva mensagem de assistant aqui.
+      // As mensagens do assistant passam a vir apenas via /api/messages/send.
 
     } catch (error: any) {
       logger.error({ sessionId, correlationId, error }, 'Error processing message');
