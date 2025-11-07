@@ -241,7 +241,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -269,7 +269,7 @@ export function ChatPage() {
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-6"
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-6"
         style={{ scrollBehavior: 'smooth' }}
       >
         <div className="max-w-4xl mx-auto">
