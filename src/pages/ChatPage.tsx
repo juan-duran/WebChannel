@@ -231,7 +231,7 @@ export function ChatPage() {
 
   if (isLoadingHistory) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex-1 min-h-0 flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="text-center">
           <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
           <p className="text-gray-600">Loading chat history...</p>
@@ -241,7 +241,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex flex-1 min-h-0 flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
