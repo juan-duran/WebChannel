@@ -38,9 +38,12 @@
   }
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 @supports (-webkit-touch-callout: none) {
