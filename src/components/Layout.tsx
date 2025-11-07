@@ -93,8 +93,16 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         )}
       </header>
 
-      <main className="flex-1 min-h-0 overflow-auto">
-        {children}
+      <main className="flex-1 min-h-0 flex flex-col">
+        <div
+          className={`flex-1 min-h-0 ${
+            currentPage === 'chat'
+              ? 'flex flex-col overflow-hidden'
+              : 'overflow-y-auto'
+          }`}
+        >
+          {children}
+        </div>
       </main>
 
       <nav className="lg:hidden bg-white border-t border-gray-200 sticky bottom-0">
