@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { TapNavigationStructuredData } from '../types/tapNavigation';
 
 const WEBHOOK_URL = 'https://brian-jado.app.n8n.cloud/webhook/1475aa73-fde6-481b-9a13-58d50ac83b41/chat';
 
@@ -23,7 +24,7 @@ export type ChatMessage = {
   timestamp: Date;
   status?: 'sending' | 'sent' | 'error';
   contentType?: 'text' | 'trends' | 'topics' | 'summary';
-  structuredData?: any;
+  structuredData?: TapNavigationStructuredData | null;
   metadata?: {
     trendId?: string;
     trendName?: string;
@@ -141,7 +142,7 @@ export async function saveMessageToDatabase(
   role: 'user' | 'assistant',
   content: string,
   contentType: string = 'text',
-  structuredData?: any,
+  structuredData?: TapNavigationStructuredData | null,
   metadata?: any,
   webhookResponse?: any
 ): Promise<string | null> {
@@ -191,7 +192,7 @@ export async function loadMessagesFromDatabase(
       timestamp: new Date(msg.created_at),
       status: msg.status as 'sending' | 'sent' | 'error',
       contentType: msg.content_type as 'text' | 'trends' | 'topics' | 'summary',
-      structuredData: msg.structured_data,
+      structuredData: (msg.structured_data as TapNavigationStructuredData | null) ?? null,
       metadata: msg.metadata
     }));
   } catch (error) {
