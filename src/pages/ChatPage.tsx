@@ -358,8 +358,6 @@ export function ChatPage() {
             return <MessageBubble key={message.id} message={message} />;
           })}
 
-          {isProcessing && <TypingIndicator startTime={processingStartTime} />}
-
           {error && (
             <div className="flex justify-center mb-4 animate-fadeIn">
               <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 shadow-sm max-w-[85%] sm:max-w-[75%]">
@@ -386,11 +384,14 @@ export function ChatPage() {
         </div>
       </div>
 
-      <MessageInput
-        onSend={handleSendMessage}
-        disabled={isProcessing}
-        placeholder={isProcessing ? 'Please wait...' : 'Type a message...'}
-      />
+      <div className="px-4 pt-2">
+        {isProcessing && <TypingIndicator startTime={processingStartTime} />}
+        <MessageInput
+          onSend={handleSendMessage}
+          disabled={isProcessing}
+          placeholder={isProcessing ? 'Please wait...' : 'Type a message...'}
+        />
+      </div>
     </div>
   );
 }
