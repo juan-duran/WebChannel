@@ -1,6 +1,11 @@
 import { websocketService } from './websocket';
 import { cacheStorage } from './cacheStorage';
-import { TrendData, TopicData, SummaryData } from '../types/tapNavigation';
+import {
+  TrendData,
+  TopicData,
+  SummaryData,
+  TapNavigationStructuredData,
+} from '../types/tapNavigation';
 
 export interface TapNavigationResponse {
   success: boolean;
@@ -46,14 +51,15 @@ class TapNavigationService {
         };
       }
 
-      const data = await this.requestFromAgent('assuntos');
+      const payload = await this.requestFromAgent('assuntos');
 
-      if (data && Array.isArray(data)) {
-        await cacheStorage.setTrends(data as TrendData[]);
+      if (Array.isArray(payload.trends)) {
+        await cacheStorage.setTrends(payload.trends as TrendData[]);
         return {
           success: true,
-          data: data as TrendData[],
+          data: payload.trends as TrendData[],
           fromCache: false,
+          metadata: payload.metadata ?? undefined,
         };
       }
 
@@ -90,9 +96,9 @@ class TapNavigationService {
 
   private async refreshTrendsInBackground(): Promise<void> {
     try {
-      const data = await this.requestFromAgent('assuntos');
-      if (data && Array.isArray(data)) {
-        await cacheStorage.setTrends(data as TrendData[]);
+      const payload = await this.requestFromAgent('assuntos');
+      if (Array.isArray(payload.trends)) {
+        await cacheStorage.setTrends(payload.trends as TrendData[]);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -132,14 +138,15 @@ class TapNavigationService {
         };
       }
 
-      const data = await this.requestFromAgent(`Assunto #${trendRank}`);
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`);
 
-      if (data && Array.isArray(data)) {
-        await cacheStorage.setTopics(trendRank, data as TopicData[]);
+      if (Array.isArray(payload.topics)) {
+        await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
         return {
           success: true,
-          data: data as TopicData[],
+          data: payload.topics as TopicData[],
           fromCache: false,
+          metadata: payload.metadata ?? undefined,
         };
       }
 
@@ -176,9 +183,9 @@ class TapNavigationService {
 
   private async refreshTopicsInBackground(trendRank: number): Promise<void> {
     try {
-      const data = await this.requestFromAgent(`Assunto #${trendRank}`);
-      if (data && Array.isArray(data)) {
-        await cacheStorage.setTopics(trendRank, data as TopicData[]);
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`);
+      if (Array.isArray(payload.topics)) {
+        await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -218,14 +225,15 @@ class TapNavigationService {
         };
       }
 
-      const data = await this.requestFromAgent(`Tópico #${topicRank}`);
+      const payload = await this.requestFromAgent(`Tópico #${topicRank}`);
 
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        await cacheStorage.setSummary(topicRank, userId, data as SummaryData);
+      if (payload.summary) {
+        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
         return {
           success: true,
-          data: data as SummaryData,
+          data: payload.summary as SummaryData,
           fromCache: false,
+          metadata: payload.metadata ?? undefined,
         };
       }
 
@@ -262,16 +270,16 @@ class TapNavigationService {
 
   private async refreshSummaryInBackground(topicRank: number, userId: string): Promise<void> {
     try {
-      const data = await this.requestFromAgent(`Tópico #${topicRank}`);
-      if (data && typeof data === 'object' && !Array.isArray(data)) {
-        await cacheStorage.setSummary(topicRank, userId, data as SummaryData);
+      const payload = await this.requestFromAgent(`Tópico #${topicRank}`);
+      if (payload.summary) {
+        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
     }
   }
 
-  private async requestFromAgent(message: string): Promise<any> {
+  private async requestFromAgent(message: string): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let timeout: NodeJS.Timeout;
       let resolved = false;
@@ -286,8 +294,8 @@ class TapNavigationService {
           websocketService.off('message', handleMessage);
           websocketService.off('error', handleError);
 
-          if (response.structuredData) {
-            resolve(response.structuredData);
+          if (response.structuredData && this.isValidStructuredData(response.structuredData)) {
+            resolve(this.normalizeStructuredData(response.structuredData));
           } else {
             reject(new Error('No structured data in response'));
           }
@@ -329,6 +337,31 @@ class TapNavigationService {
         reject(error);
       });
     });
+  }
+
+  private isValidStructuredData(data: any): data is TapNavigationStructuredData {
+    if (!data || typeof data !== 'object') {
+      return false;
+    }
+
+    if (!['trends', 'topics', 'summary'].includes(data.layer)) {
+      return false;
+    }
+
+    return 'trends' in data && 'topics' in data && 'summary' in data;
+  }
+
+  private normalizeStructuredData(data: TapNavigationStructuredData): TapNavigationStructuredData {
+    return {
+      layer: data.layer,
+      trends: Array.isArray(data.trends) ? data.trends : null,
+      topics: Array.isArray(data.topics) ? data.topics : null,
+      summary:
+        data.summary && typeof data.summary === 'object' && !Array.isArray(data.summary)
+          ? data.summary
+          : null,
+      metadata: data.metadata ?? null,
+    };
   }
 
   async clearCache(): Promise<void> {

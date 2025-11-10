@@ -37,6 +37,14 @@ export interface SummaryData {
   whyItMatters: string;
 }
 
+export interface TapNavigationStructuredData {
+  layer: 'trends' | 'topics' | 'summary';
+  trends: TrendData[] | null;
+  topics: TopicData[] | null;
+  summary: SummaryData | null;
+  metadata?: Record<string, any> | null;
+}
+
 export interface CachedEntry<T> {
   data: T;
   timestamp: number;
