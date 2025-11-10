@@ -1,6 +1,11 @@
 import { supabase } from './supabase';
 import { TapNavigationStructuredData } from '../types/tapNavigation';
 
+export type WebSocketButton = {
+  label: string;
+  value: string;
+};
+
 export type WebSocketMessageType =
   | 'connected'
   | 'message'
@@ -17,7 +22,7 @@ export interface WebSocketMessage {
   role?: 'user' | 'assistant';
   content?: string;
   contentType?: 'text' | 'image' | 'video' | 'link' | 'trends' | 'topics' | 'summary';
-  structuredData?: TapNavigationStructuredData;
+  structuredData?: TapNavigationStructuredData | any;
   metadata?: any;
   mediaUrl?: string;
   mediaType?: string;
@@ -27,6 +32,7 @@ export interface WebSocketMessage {
   message?: string;
   error?: string;
   messageId?: string;
+  buttons?: WebSocketButton[];
 }
 
 export type WebSocketEventHandler = (message: WebSocketMessage) => void;

@@ -5,6 +5,7 @@ export type Trend = {
   number: number;
   name: string;
   description?: string;
+  value?: string;
 };
 
 type TrendsListProps = {
