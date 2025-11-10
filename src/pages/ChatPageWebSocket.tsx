@@ -237,8 +237,8 @@ export function ChatPageWebSocket() {
     <div className="flex flex-1 min-h-0 flex-col bg-gradient-to-b from-blue-50 to-white">
       <ConnectionStatus status={connectionStatus} onReconnect={handleReconnect} />
 
-      <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
+        <div className="max-w-screen-md w-full mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
               <MessageCircle className="w-6 h-6 text-white" />
@@ -264,10 +264,10 @@ export function ChatPageWebSocket() {
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-6"
+        className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-none"
         style={{ scrollBehavior: 'smooth' }}
       >
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-screen-md w-full mx-auto">
           {messages.length === 0 && !isProcessing && (
             <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
               <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
