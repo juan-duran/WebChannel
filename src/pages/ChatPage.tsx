@@ -8,6 +8,7 @@ import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
+import { MediaMessage } from '../components/MediaMessage';
 import {
   ChatMessage,
   sendMessageToAgent,
@@ -31,6 +32,13 @@ export function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const isUserNearBottomRef = useRef(true);
+
+  const formatTimestamp = (date: Date) =>
+    date.toLocaleTimeString('pt-BR', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: false
+    });
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -304,6 +312,29 @@ export function ChatPage() {
           )}
 
           {messages.map(message => {
+            if (message.mediaUrl) {
+              const alignment = message.role === 'user' ? 'justify-end' : 'justify-start';
+              const timestampColor = message.role === 'user' ? 'text-blue-100 text-right' : 'text-gray-500 text-left';
+
+              return (
+                <div key={message.id} className={`mb-4 flex ${alignment} animate-fadeIn`}>
+                  <div className="max-w-[85%] sm:max-w-[75%]">
+                    <MediaMessage
+                      mediaUrl={message.mediaUrl}
+                      mediaType={message.mediaType}
+                      mediaCaption={message.mediaCaption}
+                      content={message.content}
+                    />
+                    <div className={`text-xs mt-2 ${timestampColor}`}>
+                      {formatTimestamp(message.timestamp)}
+                      {message.status === 'sending' && ' • Enviando...'}
+                      {message.status === 'error' && ' • Falhou'}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             if (message.role === 'assistant') {
               if (message.contentType === 'trends' && message.structuredData) {
                 return (

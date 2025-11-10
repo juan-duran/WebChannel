@@ -101,6 +101,9 @@ export function ChatPageWebSocket() {
           contentType: message.contentType || parsed.type,
           structuredData: message.structuredData || (parsed.type === 'trends' ? parsed.trends : parsed.type === 'topics' ? parsed.topics : undefined),
           metadata: message.metadata || parsed.metadata,
+          mediaUrl: message.mediaUrl,
+          mediaType: message.mediaType,
+          mediaCaption: message.mediaCaption,
         };
 
         setMessages(prev => [...prev, aiMessage]);
@@ -135,7 +138,7 @@ export function ChatPageWebSocket() {
   }, []);
 
   const handleSendMessage = async (content: string) => {
-    if (!user?.id || isProcessing || connectionStatus !== 'connected') return;
+    if (!user?.id || isProcessing || connectionStatus !== 'connected' || !currentChannelId) return;
 
     setError(null);
 
@@ -284,6 +287,33 @@ export function ChatPageWebSocket() {
           )}
 
           {messages.map(message => {
+            if (message.mediaUrl) {
+              const alignment = message.role === 'user' ? 'justify-end' : 'justify-start';
+              const timestampColor = message.role === 'user' ? 'text-blue-100 text-right' : 'text-gray-500 text-left';
+
+              return (
+                <div key={message.id} className={`mb-4 flex ${alignment} animate-fadeIn`}>
+                  <div className="max-w-[85%] sm:max-w-[75%]">
+                    <MediaMessage
+                      mediaUrl={message.mediaUrl}
+                      mediaType={message.mediaType}
+                      mediaCaption={message.mediaCaption}
+                      content={message.content}
+                    />
+                    <div className={`text-xs mt-2 ${timestampColor}`}>
+                      {message.timestamp.toLocaleTimeString('pt-BR', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: false,
+                      })}
+                      {message.status === 'sending' && ' • Enviando...'}
+                      {message.status === 'error' && ' • Falhou'}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             if (message.role === 'assistant') {
               if (message.contentType === 'trends' && message.structuredData) {
                 return (

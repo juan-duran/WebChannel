@@ -30,6 +30,9 @@ export type ChatMessage = {
     topicId?: string;
     topicName?: string;
   };
+  mediaUrl?: string;
+  mediaType?: string;
+  mediaCaption?: string;
 };
 
 export type SendMessageParams = {
@@ -143,7 +146,10 @@ export async function saveMessageToDatabase(
   contentType: string = 'text',
   structuredData?: any,
   metadata?: any,
-  webhookResponse?: any
+  webhookResponse?: any,
+  mediaUrl?: string,
+  mediaType?: string,
+  mediaCaption?: string
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
@@ -157,7 +163,10 @@ export async function saveMessageToDatabase(
         structured_data: structuredData,
         metadata,
         webhook_response: webhookResponse,
-        status: 'sent'
+        status: 'sent',
+        media_url: mediaUrl,
+        media_type: mediaType,
+        media_caption: mediaCaption
       })
       .select('id')
       .single();
@@ -192,7 +201,10 @@ export async function loadMessagesFromDatabase(
       status: msg.status as 'sending' | 'sent' | 'error',
       contentType: msg.content_type as 'text' | 'trends' | 'topics' | 'summary',
       structuredData: msg.structured_data,
-      metadata: msg.metadata
+      metadata: msg.metadata,
+      mediaUrl: msg.media_url || undefined,
+      mediaType: msg.media_type || undefined,
+      mediaCaption: msg.media_caption || undefined
     }));
   } catch (error) {
     console.error('Failed to load messages from database:', error);
