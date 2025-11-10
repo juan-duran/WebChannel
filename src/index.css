@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html,
+  body {
+    @apply text-sm sm:text-base;
+  }
+}
+
 @layer utilities {
   @keyframes fadeIn {
     from {
@@ -59,6 +66,15 @@
 
   .transition-250 {
     transition-duration: 250ms;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }
 
