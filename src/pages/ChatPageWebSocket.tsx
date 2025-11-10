@@ -73,6 +73,9 @@ export function ChatPageWebSocket() {
         await websocketService.connect();
         setConnectionStatus('connected');
       } catch (error) {
+        if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
+          return;
+        }
         console.error('Failed to connect WebSocket:', error);
         setConnectionStatus('error');
       }
@@ -150,7 +153,7 @@ export function ChatPageWebSocket() {
     setMessages(prev => [...prev, userMessage]);
 
     try {
-      websocketService.sendMessage(content);
+      await websocketService.sendMessage(content);
 
       setMessages(prev =>
         prev.map(msg => (msg.id === userMessage.id ? { ...msg, status: 'sent' as const } : msg))
