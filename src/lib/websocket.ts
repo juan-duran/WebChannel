@@ -39,55 +39,110 @@ export class WebSocketService {
   private handlers: Map<WebSocketMessageType, Set<WebSocketEventHandler>> = new Map();
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
+  private connectionPromise: Promise<void> | null = null;
 
   constructor(private wsUrl: string) {}
 
+  private clearConnectionPromise() {
+    this.connectionPromise = null;
+  }
+
   async connect(): Promise<void> {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
-      throw new Error('No active session');
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      if (this.ws.readyState === WebSocket.CONNECTING && this.connectionPromise) {
+        return this.connectionPromise;
+      }
     }
 
-    const token = session.access_token;
-    const url = `${this.wsUrl}?token=${encodeURIComponent(token)}`;
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
 
-    return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(url);
+    this.isIntentionallyClosed = false;
 
-      this.ws.onopen = () => {
-        console.log('WebSocket connected');
-        this.reconnectAttempts = 0;
-        this.reconnectDelay = 1000;
-        this.startHeartbeat();
-        resolve();
-      };
+    const connectionPromise = (async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
 
-      this.ws.onmessage = (event) => {
-        try {
-          const message: WebSocketMessage = JSON.parse(event.data);
-          this.handleMessage(message);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
+      const token = session.access_token;
+      const url = `${this.wsUrl}?token=${encodeURIComponent(token)}`;
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        reject(error);
-      };
+      await new Promise<void>((resolve, reject) => {
+        const ws = new WebSocket(url);
+        this.ws = ws;
+        let isOpen = false;
 
-      this.ws.onclose = () => {
-        console.log('WebSocket closed');
-        this.stopHeartbeat();
-        this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
+        ws.onopen = () => {
+          isOpen = true;
+          console.log('WebSocket connected');
+          this.reconnectAttempts = 0;
+          this.reconnectDelay = 1000;
+          this.startHeartbeat();
+          resolve();
+        };
 
-        if (!this.isIntentionallyClosed) {
-          this.attemptReconnect();
-        }
-      };
+        ws.onmessage = (event) => {
+          try {
+            const message: WebSocketMessage = JSON.parse(event.data);
+            this.handleMessage(message);
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+
+        ws.onerror = (event) => {
+          console.error('WebSocket error:', event);
+
+          const error =
+            event instanceof ErrorEvent
+              ? event.error || new Error(event.message)
+              : new Error('WebSocket connection error');
+
+          this.notifyHandlers('error', {
+            type: 'error',
+            error: event instanceof ErrorEvent ? event.message : 'Connection error',
+          });
+
+          if (!isOpen) {
+            reject(error);
+          }
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket closed');
+          this.stopHeartbeat();
+          this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
+          this.ws = null;
+
+          if (!isOpen) {
+            const error = this.isIntentionallyClosed
+              ? new Error('WebSocket connection intentionally closed')
+              : new Error('WebSocket connection closed before opening');
+            reject(error);
+          }
+
+          if (!this.isIntentionallyClosed) {
+            this.attemptReconnect();
+          }
+        };
+      });
+    })();
+
+    const guardedPromise = connectionPromise.finally(() => {
+      this.clearConnectionPromise();
     });
+
+    this.connectionPromise = guardedPromise;
+
+    return guardedPromise;
   }
 
   private handleMessage(message: WebSocketMessage) {
@@ -133,9 +188,24 @@ export class WebSocketService {
     }
   }
 
-  sendMessage(content: string, metadata?: any) {
+  private async ensureConnected() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    if (this.connectionPromise) {
+      await this.connectionPromise;
+      return;
+    }
+
+    await this.connect();
+  }
+
+  async sendMessage(content: string, metadata?: any) {
+    await this.ensureConnected();
+
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not connected');
+      throw new Error('Unable to establish WebSocket connection');
     }
 
     const message: WebSocketMessage = {
@@ -214,6 +284,8 @@ export class WebSocketService {
       this.ws.close();
       this.ws = null;
     }
+
+    this.clearConnectionPromise();
 
     this.sessionId = null;
     this.handlers.clear();

@@ -38,6 +38,9 @@ export function TapNavigationPage() {
     if (!user) return;
 
     websocketService.connect().catch((error) => {
+      if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
+        return;
+      }
       console.error('Failed to connect WebSocket:', error);
     });
 
@@ -194,7 +197,7 @@ export function TapNavigationPage() {
     });
   };
 
-  const handleChatMessage = (content: string) => {
+  const handleChatMessage = async (content: string) => {
     if (!user?.id || isChatProcessing) return;
 
     const userMessage: ChatMessage = {
@@ -209,9 +212,16 @@ export function TapNavigationPage() {
     setIsChatProcessing(true);
 
     try {
-      websocketService.sendMessage(content);
+      await websocketService.sendMessage(content);
+
+      setChatMessages((prev) =>
+        prev.map((msg) => (msg.id === userMessage.id ? { ...msg, status: 'sent' as const } : msg))
+      );
     } catch (err) {
       console.error('Error sending message:', err);
+      setChatMessages((prev) =>
+        prev.map((msg) => (msg.id === userMessage.id ? { ...msg, status: 'error' as const } : msg))
+      );
       setIsChatProcessing(false);
     }
   };
