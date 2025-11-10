@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { TapNavigationStructuredData } from '../types/tapNavigation';
 
 export type WebSocketMessageType =
   | 'connected'
@@ -16,7 +17,7 @@ export interface WebSocketMessage {
   role?: 'user' | 'assistant';
   content?: string;
   contentType?: 'text' | 'image' | 'video' | 'link' | 'trends' | 'topics' | 'summary';
-  structuredData?: any;
+  structuredData?: TapNavigationStructuredData;
   metadata?: any;
   mediaUrl?: string;
   mediaType?: string;
