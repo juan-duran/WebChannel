@@ -5,9 +5,15 @@ type MessageInputProps = {
   onSend: (message: string) => void;
   disabled?: boolean;
   placeholder?: string;
+  onFocus?: () => void;
 };
 
-export function MessageInput({ onSend, disabled = false, placeholder = 'Type a message...' }: MessageInputProps) {
+export function MessageInput({
+  onSend,
+  disabled = false,
+  placeholder = 'Type a message...',
+  onFocus,
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,9 +43,16 @@ export function MessageInput({ onSend, disabled = false, placeholder = 'Type a m
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   };
 
+  const handleFocus = () => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    onFocus?.();
+  };
+
   return (
-    <div className="border-t border-gray-200 bg-white px-4 sm:px-6 lg:px-8 py-4 safe-bottom">
-      <div className="max-w-screen-md w-full mx-auto">
+    <div className="border-t border-gray-200 bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div className="max-w-4xl mx-auto">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
             <textarea
@@ -47,6 +60,7 @@ export function MessageInput({ onSend, disabled = false, placeholder = 'Type a m
               value={message}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
+              onFocus={handleFocus}
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
