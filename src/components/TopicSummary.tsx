@@ -22,7 +22,7 @@ export function TopicSummary({
       <button
         onClick={onBack}
         disabled={disabled}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 lg:hidden"
       >
         <ArrowLeft className="w-4 h-4" />
         Voltar para Tópicos

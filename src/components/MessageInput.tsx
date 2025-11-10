@@ -64,7 +64,7 @@ export function MessageInput({
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
-              className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-[15px] leading-relaxed max-h-[120px] overflow-y-auto"
+              className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-[15px] leading-relaxed max-h-[120px] overflow-y-auto scrollbar-none"
               style={{ minHeight: '48px' }}
             />
             <div className="absolute bottom-3 right-3 text-xs text-gray-400">

@@ -64,7 +64,7 @@ export function FloatingChat({
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                className="min-w-[44px] min-h-[44px] p-2 flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-white hover:text-gray-900 active:text-gray-900"
                 aria-label="Close"
               >
                 <X className="w-5 h-5" />
@@ -96,12 +96,12 @@ export function FloatingChat({
                   {messages.map((message) => (
                     <MessageBubble key={message.id} message={message} />
                   ))}
-                  {isProcessing && <TypingIndicator />}
                 </div>
               )}
             </div>
 
             <div className="p-4 border-t border-gray-200 bg-gray-50">
+              {isProcessing && <TypingIndicator />}
               <MessageInput
                 onSend={handleSend}
                 disabled={isProcessing}
