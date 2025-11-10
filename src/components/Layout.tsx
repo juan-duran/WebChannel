@@ -31,7 +31,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+              className="lg:hidden min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              aria-label="Toggle menu"
             >
               {showMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>

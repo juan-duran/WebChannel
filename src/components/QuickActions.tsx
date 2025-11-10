@@ -20,7 +20,7 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
         <h3 className="text-sm font-medium text-gray-500 mb-3 text-center">
           Comece Aqui
         </h3>
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-2 flex-wrap">
           {suggestions.map((suggestion) => {
             const Icon = suggestion.icon;
             return (
