@@ -53,7 +53,7 @@ export function SummaryOverlay({
           <div className="flex items-center gap-3 mb-2">
             <button
               onClick={onClose}
-              className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+              className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors text-white hover:text-gray-900 active:text-gray-900"
               aria-label="Close"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -76,7 +76,7 @@ export function SummaryOverlay({
               <button
                 onClick={onRefresh}
                 disabled={disabled || isRefreshing}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-gray-900 active:text-gray-900"
                 aria-label="Refresh"
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -84,7 +84,7 @@ export function SummaryOverlay({
               <button
                 onClick={onShare}
                 disabled={disabled}
-                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-gray-900 active:text-gray-900"
                 aria-label="Share"
               >
                 <Share2 className="w-4 h-4" />
@@ -93,7 +93,7 @@ export function SummaryOverlay({
                 <button
                   onClick={handleSave}
                   disabled={disabled}
-                  className="p-1.5 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-50"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-white hover:text-gray-900 active:text-gray-900"
                   aria-label={isSaved ? 'Unsave' : 'Save'}
                 >
                   <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
