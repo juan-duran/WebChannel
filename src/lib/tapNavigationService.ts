@@ -319,9 +319,7 @@ class TapNavigationService {
         reject(new Error('Request timeout'));
       }, 60000);
 
-      try {
-        websocketService.sendMessage(message);
-      } catch (error) {
+      websocketService.sendMessage(message).catch((error) => {
         if (resolved) return;
 
         resolved = true;
@@ -329,7 +327,7 @@ class TapNavigationService {
         websocketService.off('message', handleMessage);
         websocketService.off('error', handleError);
         reject(error);
-      }
+      });
     });
   }
 
