@@ -30,14 +30,28 @@ export function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isUserNearBottomRef = useRef(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isProcessing]);
+    if (isUserNearBottomRef.current) {
+      scrollToBottom();
+    }
+  }, [messages.length, isProcessing]);
+
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+    isUserNearBottomRef.current = distanceFromBottom < 100;
+  };
 
   useEffect(() => {
     const initializeChannel = async () => {
@@ -342,8 +356,6 @@ export function ChatPage() {
 
             return <MessageBubble key={message.id} message={message} />;
           })}
-
-          {isProcessing && <TypingIndicator startTime={processingStartTime} />}
 
           {error && (
             <div className="flex justify-center mb-4 animate-fadeIn">
