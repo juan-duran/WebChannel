@@ -96,12 +96,12 @@ export function FloatingChat({
                   {messages.map((message) => (
                     <MessageBubble key={message.id} message={message} />
                   ))}
-                  {isProcessing && <TypingIndicator />}
                 </div>
               )}
             </div>
 
             <div className="p-4 border-t border-gray-200 bg-gray-50">
+              {isProcessing && <TypingIndicator />}
               <MessageInput
                 onSend={handleSend}
                 disabled={isProcessing}
