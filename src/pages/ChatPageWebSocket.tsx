@@ -4,19 +4,18 @@ import { useAuth } from '../contexts/AuthContext';
 import { MessageBubble } from '../components/MessageBubble';
 import { MessageInput } from '../components/MessageInput';
 import { TypingIndicator } from '../components/TypingIndicator';
-import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
 import { ConnectionStatus } from '../components/ConnectionStatus';
-import { MediaMessage } from '../components/MediaMessage';
 import {
   ChatMessage,
+  MessageButton,
   generateMessageId,
   loadMessagesFromDatabase,
   getOrCreateDefaultChannel
 } from '../lib/chatService';
-import { parseAgentResponse } from '../lib/responseParser';
+import { safeJsonParse } from '../lib/safeJsonParse';
 import { websocketService, WebSocketMessage } from '../lib/websocket';
 
 export function ChatPageWebSocket() {
@@ -25,8 +24,6 @@ export function ChatPageWebSocket() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStartTime, setProcessingStartTime] = useState<Date | undefined>();
   const [error, setError] = useState<string | null>(null);
-  const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
-  const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -53,7 +50,6 @@ export function ChatPageWebSocket() {
       const channelId = await getOrCreateDefaultChannel(user.id);
 
       if (channelId) {
-        setCurrentChannelId(channelId);
         const history = await loadMessagesFromDatabase(channelId);
         setMessages(history);
       }
@@ -87,32 +83,101 @@ export function ChatPageWebSocket() {
       if (message.type === 'typing_start') {
         setIsProcessing(true);
         setProcessingStartTime(new Date());
-      } else if (message.type === 'typing_stop') {
+        return;
+      }
+
+      if (message.type === 'typing_stop') {
         setIsProcessing(false);
         setProcessingStartTime(undefined);
-      } else if (message.type === 'message' && message.role === 'assistant') {
-        setIsProcessing(false);
-        setProcessingStartTime(undefined);
+        return;
+      }
 
-        const parsed = parseAgentResponse(message.content || '', currentContext);
-
-        const aiMessage: ChatMessage = {
-          id: message.correlationId || generateMessageId(),
-          role: 'assistant',
-          content: message.content || '',
-          timestamp: new Date(),
-          contentType: message.contentType || parsed.type,
-          structuredData: message.structuredData || (parsed.type === 'trends' ? parsed.trends : parsed.type === 'topics' ? parsed.topics : undefined),
-          metadata: message.metadata || parsed.metadata,
-        };
-
-        setMessages(prev => [...prev, aiMessage]);
-        setError(null);
-      } else if (message.type === 'error') {
+      if (message.type === 'error') {
         setIsProcessing(false);
         setProcessingStartTime(undefined);
         setError(message.error || 'An error occurred');
+        return;
       }
+
+      if (message.type !== 'message' || message.role !== 'assistant') {
+        return;
+      }
+
+      setIsProcessing(false);
+      setProcessingStartTime(undefined);
+
+      const parsedContent = safeJsonParse<any>(message.content);
+      const parsedType = typeof parsedContent?.type === 'string' ? parsedContent.type : undefined;
+      const allowedTypes: ChatMessage['contentType'][] = ['text', 'trends', 'topics', 'summary'];
+      const resolvedContentType =
+        (message.contentType && (allowedTypes as string[]).includes(message.contentType)
+          ? (message.contentType as ChatMessage['contentType'])
+          : undefined) ||
+        (parsedType && (allowedTypes as string[]).includes(parsedType)
+          ? (parsedType as ChatMessage['contentType'])
+          : 'text');
+
+      const primaryButtons = parsedContent?.buttons ?? undefined;
+      const fallbackButtons = message.buttons ?? undefined;
+
+      const normalizeButtons = (buttons: any): MessageButton[] => {
+        if (!Array.isArray(buttons)) {
+          return [];
+        }
+
+        return buttons
+          .map((button) => {
+            if (!button) return null;
+
+            if (typeof button === 'string') {
+              return { label: button, value: button };
+            }
+
+            if (typeof button === 'object') {
+              const label =
+                (button as any).label || (button as any).title || (button as any).text || (button as any).name;
+              const value = (button as any).value || (button as any).payload || (button as any).action;
+
+              if (typeof label === 'string' && typeof value === 'string') {
+                return { label, value };
+              }
+            }
+
+            return null;
+          })
+          .filter((button): button is MessageButton => Boolean(button));
+      };
+
+      const mergedButtons = (() => {
+        const parsedButtons = normalizeButtons(primaryButtons);
+        if (parsedButtons.length > 0) {
+          return parsedButtons;
+        }
+
+        const extraButtons = normalizeButtons(fallbackButtons);
+        return extraButtons.length > 0 ? extraButtons : undefined;
+      })();
+
+      const aiMessage: ChatMessage = {
+        id: message.correlationId || generateMessageId(),
+        role: 'assistant',
+        content: message.content || '',
+        timestamp: new Date(),
+        contentType: resolvedContentType,
+        structuredData:
+          parsedContent && Object.prototype.hasOwnProperty.call(parsedContent, 'items')
+            ? parsedContent.items
+            : message.structuredData || null,
+        metadata:
+          message.metadata ||
+          (parsedContent?.metadata && typeof parsedContent.metadata === 'object'
+            ? parsedContent.metadata
+            : undefined),
+        buttons: mergedButtons,
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+      setError(null);
     };
 
     websocketService.on('message', handleMessage);
@@ -127,7 +192,7 @@ export function ChatPageWebSocket() {
       websocketService.off('error', handleMessage);
       websocketService.disconnect();
     };
-  }, [user, currentContext]);
+  }, [user]);
 
   useEffect(() => {
     const checkConnection = setInterval(() => {
@@ -185,7 +250,6 @@ export function ChatPageWebSocket() {
     setError(null);
     setIsProcessing(false);
     setProcessingStartTime(undefined);
-    setCurrentContext({});
   };
 
   const handleReconnect = async () => {
@@ -199,35 +263,321 @@ export function ChatPageWebSocket() {
   };
 
   const handleTrendSelect = (trend: Trend) => {
-    setCurrentContext({ trendName: trend.name });
-    handleSendMessage(`Assunto #${trend.number}`);
+    const value = trend.value?.trim() || (Number.isFinite(trend.number) ? `Assunto #${trend.number}` : trend.name);
+    if (!value) return;
+    handleSendMessage(value);
   };
 
   const handleTopicSelect = (topic: Topic) => {
-    setCurrentContext(prev => ({ ...prev, topicName: topic.name }));
-    handleSendMessage(`Tópico #${topic.number}`);
+    const value = topic.value?.trim() || (Number.isFinite(topic.number) ? `Tópico #${topic.number}` : topic.name);
+    if (!value) return;
+    handleSendMessage(value);
   };
 
-  const handleBackToTrends = () => {
-    setCurrentContext({});
-    handleSendMessage('assuntos');
-  };
-
-  const handleBackToTopics = () => {
-    const trendName = currentContext.trendName;
-    setCurrentContext({ trendName });
-
-    const lastTrendMessage = [...messages].reverse().find(
-      msg => msg.role === 'user' && msg.content.match(/^Assunto #\d+$/)
-    );
-    if (lastTrendMessage) {
-      handleSendMessage(lastTrendMessage.content);
+  const normalizeTrends = (data: any): Trend[] => {
+    if (!Array.isArray(data)) {
+      return [];
     }
+
+    return data
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const rank =
+          typeof (item as any).rank === 'number'
+            ? (item as any).rank
+            : typeof (item as any).number === 'number'
+            ? (item as any).number
+            : index + 1;
+
+        const name =
+          typeof (item as any).title === 'string'
+            ? (item as any).title
+            : typeof (item as any).name === 'string'
+            ? (item as any).name
+            : typeof (item as any).label === 'string'
+            ? (item as any).label
+            : undefined;
+
+        if (!name) {
+          return null;
+        }
+
+        const description =
+          typeof (item as any).summary === 'string'
+            ? (item as any).summary
+            : typeof (item as any).description === 'string'
+            ? (item as any).description
+            : undefined;
+
+        const value =
+          typeof (item as any).value === 'string'
+            ? (item as any).value
+            : typeof (item as any).command === 'string'
+            ? (item as any).command
+            : rank
+            ? `Assunto #${rank}`
+            : undefined;
+
+        return {
+          id: typeof (item as any).id === 'string' ? (item as any).id : `trend_${rank ?? index + 1}`,
+          number: rank ?? index + 1,
+          name,
+          description,
+          value,
+        };
+      })
+      .filter((trend): trend is Trend => Boolean(trend));
   };
+
+  const normalizeTopics = (data: any): Topic[] => {
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    return data
+      .map((item, index) => {
+        if (!item || typeof item !== 'object') {
+          return null;
+        }
+
+        const rank =
+          typeof (item as any).rank === 'number'
+            ? (item as any).rank
+            : typeof (item as any).number === 'number'
+            ? (item as any).number
+            : index + 1;
+
+        const name =
+          typeof (item as any).title === 'string'
+            ? (item as any).title
+            : typeof (item as any).name === 'string'
+            ? (item as any).name
+            : typeof (item as any).label === 'string'
+            ? (item as any).label
+            : undefined;
+
+        if (!name) {
+          return null;
+        }
+
+        const description =
+          typeof (item as any).summary === 'string'
+            ? (item as any).summary
+            : typeof (item as any).description === 'string'
+            ? (item as any).description
+            : undefined;
+
+        const value =
+          typeof (item as any).value === 'string'
+            ? (item as any).value
+            : typeof (item as any).command === 'string'
+            ? (item as any).command
+            : rank
+            ? `Tópico #${rank}`
+            : undefined;
+
+        return {
+          id: typeof (item as any).id === 'string' ? (item as any).id : `topic_${rank ?? index + 1}`,
+          number: rank ?? index + 1,
+          name,
+          description,
+          value,
+        };
+      })
+      .filter((topic): topic is Topic => Boolean(topic));
+  };
+
+  const renderButtons = (buttons?: MessageButton[]) => {
+    if (!buttons || buttons.length === 0) {
+      return null;
+    }
+
+    const disabled = isProcessing || connectionStatus !== 'connected';
+
+    return (
+      <div className="flex flex-wrap gap-2">
+        {buttons.map((button, index) => (
+          <button
+            key={`${button.value}-${index}`}
+            onClick={() => handleSendMessage(button.value)}
+            disabled={disabled}
+            className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {button.label}
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderAssistantMessage = (message: ChatMessage) => {
+    const parsedContent = safeJsonParse<any>(message.content);
+    const isParsedObject = parsedContent && typeof parsedContent === 'object' && !Array.isArray(parsedContent);
+
+    const textSegments: string[] = [];
+    const collectText = (value: unknown) => {
+      if (typeof value === 'string' && value.trim().length > 0) {
+        textSegments.push(value.trim());
+      }
+    };
+
+    if (isParsedObject) {
+      collectText(parsedContent.title);
+      collectText(parsedContent.subtitle);
+      collectText(parsedContent.message);
+      collectText(parsedContent.text);
+      collectText(parsedContent.description);
+    }
+
+    const bubbleText = textSegments.length > 0 ? Array.from(new Set(textSegments)).join('\n') : undefined;
+    const structured = message.structuredData as any;
+    const itemsFromParsed = isParsedObject ? parsedContent.items : undefined;
+    const buttons = message.buttons;
+    const disabled = isProcessing || connectionStatus !== 'connected';
+
+    if (message.contentType === 'trends') {
+      const rawItems = Array.isArray(itemsFromParsed)
+        ? itemsFromParsed
+        : Array.isArray(structured?.trends)
+        ? structured.trends
+        : Array.isArray(structured)
+        ? structured
+        : [];
+
+      const trends = normalizeTrends(rawItems);
+
+      if (trends.length === 0 && !bubbleText && (!buttons || buttons.length === 0)) {
+        return null;
+      }
+
+      return (
+        <div key={message.id} className="flex flex-col items-start gap-4">
+          {bubbleText && <MessageBubble message={{ ...message, content: bubbleText }} />}
+          {trends.length > 0 && (
+            <div className="w-full animate-fadeIn">
+              <TrendsList trends={trends} onSelect={handleTrendSelect} disabled={disabled} />
+            </div>
+          )}
+          {renderButtons(buttons)}
+        </div>
+      );
+    }
+
+    if (message.contentType === 'topics') {
+      const rawItems = Array.isArray(itemsFromParsed)
+        ? itemsFromParsed
+        : Array.isArray(structured?.topics)
+        ? structured.topics
+        : Array.isArray(structured)
+        ? structured
+        : [];
+
+      const topics = normalizeTopics(rawItems);
+      const trendName =
+        (isParsedObject && typeof parsedContent.trendName === 'string' && parsedContent.trendName) ||
+        (isParsedObject && typeof parsedContent.title === 'string' && parsedContent.title) ||
+        (typeof message.metadata?.trendName === 'string' ? message.metadata.trendName : undefined) ||
+        'Assunto';
+
+      if (topics.length === 0 && !bubbleText && (!buttons || buttons.length === 0)) {
+        return null;
+      }
+
+      return (
+        <div key={message.id} className="flex flex-col items-start gap-4">
+          {bubbleText && <MessageBubble message={{ ...message, content: bubbleText }} />}
+          {topics.length > 0 && (
+            <div className="w-full animate-fadeIn">
+              <TopicsList topics={topics} trendName={trendName} onSelect={handleTopicSelect} disabled={disabled} />
+            </div>
+          )}
+          {renderButtons(buttons)}
+        </div>
+      );
+    }
+
+    if (message.contentType === 'summary') {
+      const structuredSummary =
+        (isParsedObject && itemsFromParsed && typeof itemsFromParsed === 'object' && !Array.isArray(itemsFromParsed)
+          ? itemsFromParsed
+          : structured?.summary && typeof structured.summary === 'object'
+          ? structured.summary
+          : typeof structured === 'object' && structured && !Array.isArray(structured)
+          ? structured
+          : {}) || {};
+
+      const topicName =
+        (typeof structuredSummary.topicName === 'string' && structuredSummary.topicName) ||
+        (isParsedObject && typeof parsedContent.topicName === 'string' && parsedContent.topicName) ||
+        (typeof message.metadata?.topicName === 'string' ? message.metadata.topicName : undefined) ||
+        'Tópico';
+
+      const trendName =
+        (typeof structuredSummary.trendName === 'string' && structuredSummary.trendName) ||
+        (isParsedObject && typeof parsedContent.trendName === 'string' && parsedContent.trendName) ||
+        (typeof message.metadata?.trendName === 'string' ? message.metadata.trendName : undefined) ||
+        'Assunto';
+
+      const summaryText = [
+        structuredSummary.content,
+        structuredSummary.summary,
+        structuredSummary.text,
+        isParsedObject ? parsedContent.content : undefined,
+        isParsedObject ? parsedContent.summary : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const summaryDate = [
+        structuredSummary.lastUpdated,
+        structuredSummary.updatedAt,
+        structuredSummary.date,
+        isParsedObject ? parsedContent.date : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      return (
+        <div key={message.id} className="flex flex-col items-start gap-4">
+          {bubbleText && <MessageBubble message={{ ...message, content: bubbleText }} />}
+          <div className="w-full animate-fadeIn">
+            <TopicSummary
+              topicName={topicName}
+              trendName={trendName}
+              content={summaryText || ''}
+              date={summaryDate}
+              disabled={disabled}
+            />
+          </div>
+          {renderButtons(buttons)}
+        </div>
+      );
+    }
+
+    const defaultText = [
+      bubbleText,
+      isParsedObject && typeof parsedContent?.content === 'string' ? parsedContent.content : undefined,
+      !isParsedObject ? message.content : undefined,
+    ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+    const renderedButtons = renderButtons(buttons);
+
+    if (!defaultText && !renderedButtons) {
+      return null;
+    }
+
+    return (
+      <div key={message.id} className="flex flex-col items-start gap-3">
+        {defaultText && <MessageBubble message={{ ...message, content: defaultText }} />}
+        {renderedButtons}
+      </div>
+    );
+  };
+
+  const isSendDisabled = isProcessing || connectionStatus !== 'connected';
 
   if (isLoadingHistory) {
     return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="text-center">
           <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
           <p className="text-gray-600">Loading chat history...</p>
@@ -237,11 +587,11 @@ export function ChatPageWebSocket() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
       <ConnectionStatus status={connectionStatus} onReconnect={handleReconnect} />
 
-      <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
-        <div className="max-w-screen-md w-full mx-auto flex items-center justify-between">
+      <header className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-screen-md mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
               <MessageCircle className="w-6 h-6 text-white" />
@@ -263,115 +613,81 @@ export function ChatPageWebSocket() {
             </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto px-4 py-6"
-        style={{ scrollBehavior: 'smooth' }}
-      >
-        <div className="max-w-screen-md w-full mx-auto">
-          {messages.length === 0 && !isProcessing && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
-                <MessageCircle className="w-10 h-10 text-blue-600" />
+      <div className="flex-1 flex flex-col">
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6"
+          style={{ scrollBehavior: 'smooth' }}
+        >
+          <div className="max-w-screen-md mx-auto w-full flex flex-col gap-6">
+            {messages.length === 0 && !isProcessing && !error && (
+              <div className="flex flex-col items-center text-center gap-4 py-16 px-4">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center shadow-lg">
+                  <MessageCircle className="w-10 h-10 text-blue-600" />
+                </div>
+                <div className="space-y-2 max-w-sm">
+                  <h2 className="text-2xl font-bold text-gray-900">Welcome to WebChannel</h2>
+                  <p className="text-gray-600">
+                    Tap to explore the hottest trends or ask a question whenever you like.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleSendMessage('assuntos')}
+                  disabled={isSendDisabled}
+                  className="mt-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:bg-blue-300"
+                >
+                  Ver assuntos do momento
+                </button>
               </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Welcome to WebChannel
-              </h2>
-              <p className="text-gray-600 mb-8 max-w-md">
-                Ask me anything! I'm here to help you with your questions.
-              </p>
-              <QuickActions onSelect={handleSendMessage} disabled={isProcessing || connectionStatus !== 'connected'} />
-            </div>
-          )}
+            )}
 
-          {messages.map(message => {
-            if (message.role === 'assistant') {
-              if (message.contentType === 'trends' && message.structuredData) {
-                return (
-                  <div key={message.id} className="mb-4">
-                    <MessageBubble message={{ ...message, content: '' }} />
-                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
-                      <TrendsList
-                        trends={message.structuredData as Trend[]}
-                        onSelect={handleTrendSelect}
-                        disabled={isProcessing}
-                      />
-                    </div>
-                  </div>
-                );
+            {messages.map((message) => {
+              if (message.role === 'assistant') {
+                return renderAssistantMessage(message);
               }
 
-              if (message.contentType === 'topics' && message.structuredData) {
-                return (
-                  <div key={message.id} className="mb-4">
-                    <MessageBubble message={{ ...message, content: '' }} />
-                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
-                      <TopicsList
-                        topics={message.structuredData as Topic[]}
-                        trendName={message.metadata?.trendName || currentContext.trendName || 'Assunto'}
-                        onSelect={handleTopicSelect}
-                        onBack={handleBackToTrends}
+              return <MessageBubble key={message.id} message={message} />;
+            })}
+
+            {error && (
+              <div className="flex justify-center animate-fadeIn">
+                <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 shadow-sm max-w-[85%] sm:max-w-[75%]">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-red-900 font-medium mb-1">Error</p>
+                      <p className="text-sm text-red-700">{error}</p>
+                      <button
+                        onClick={handleRetry}
                         disabled={isProcessing}
-                      />
+                        className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Retry
+                      </button>
                     </div>
-                  </div>
-                );
-              }
-
-              if (message.contentType === 'summary') {
-                return (
-                  <div key={message.id} className="mb-4">
-                    <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
-                      <TopicSummary
-                        topicName={currentContext.topicName || 'Tópico'}
-                        trendName={currentContext.trendName || 'Assunto'}
-                        content={message.content}
-                        date={message.timestamp.toLocaleDateString('pt-BR')}
-                        onBack={handleBackToTopics}
-                        disabled={isProcessing}
-                      />
-                    </div>
-                  </div>
-                );
-              }
-            }
-
-            return <MessageBubble key={message.id} message={message} />;
-          })}
-
-          {error && (
-            <div className="flex justify-center mb-4 animate-fadeIn">
-              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 shadow-sm max-w-[85%] sm:max-w-[75%]">
-                <div className="flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-red-900 font-medium mb-1">Error</p>
-                    <p className="text-sm text-red-700">{error}</p>
-                    <button
-                      onClick={handleRetry}
-                      disabled={isProcessing}
-                      className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                      Retry
-                    </button>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
+            {isProcessing && (
+              <div className="px-2">
+                <TypingIndicator startTime={processingStartTime} />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      <MessageInput
-        onSend={handleSendMessage}
-        disabled={isProcessing || connectionStatus !== 'connected'}
-        placeholder={isProcessing ? 'Quenty-AI is thinking...' : connectionStatus !== 'connected' ? 'Connecting...' : 'Type a message...'}
-        onFocus={scrollToBottom}
-      />
+        <MessageInput
+          onSend={handleSendMessage}
+          disabled={isSendDisabled}
+          placeholder={isProcessing ? 'Quenty-AI is thinking...' : connectionStatus !== 'connected' ? 'Connecting...' : 'Type a message...'}
+          onFocus={scrollToBottom}
+        />
+      </div>
     </div>
   );
 }

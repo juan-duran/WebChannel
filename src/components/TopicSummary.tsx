@@ -5,7 +5,7 @@ type TopicSummaryProps = {
   trendName: string;
   content: string;
   date?: string;
-  onBack: () => void;
+  onBack?: () => void;
   disabled?: boolean;
 };
 
@@ -19,14 +19,16 @@ export function TopicSummary({
 }: TopicSummaryProps) {
   return (
     <div className="space-y-4">
-      <button
-        onClick={onBack}
-        disabled={disabled}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 lg:hidden"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Voltar para Tópicos
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          disabled={disabled}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50 lg:hidden"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para Tópicos
+        </button>
+      )}
 
       <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-200 rounded-xl p-6">
         <div className="flex items-start gap-3 mb-4">
