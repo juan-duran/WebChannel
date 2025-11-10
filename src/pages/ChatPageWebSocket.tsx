@@ -224,7 +224,7 @@ export function ChatPageWebSocket() {
 
   if (isLoadingHistory) {
     return (
-      <div className="flex-1 min-h-0 flex items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+      <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="text-center">
           <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
           <p className="text-gray-600">Loading chat history...</p>
@@ -234,7 +234,7 @@ export function ChatPageWebSocket() {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex h-screen flex-col bg-gradient-to-b from-blue-50 to-white">
       <ConnectionStatus status={connectionStatus} onReconnect={handleReconnect} />
 
       <div className="bg-white border-b border-gray-200 px-4 sm:px-6 lg:px-8 py-4 shadow-sm">
@@ -264,7 +264,7 @@ export function ChatPageWebSocket() {
 
       <div
         ref={messagesContainerRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 scrollbar-none"
+        className="flex-1 overflow-y-auto px-4 py-6"
         style={{ scrollBehavior: 'smooth' }}
       >
         <div className="max-w-screen-md w-full mx-auto">
@@ -363,20 +363,12 @@ export function ChatPageWebSocket() {
         </div>
       </div>
 
-      <div className="px-4 pt-2">
-        {isProcessing && <TypingIndicator startTime={processingStartTime} />}
-        <MessageInput
-          onSend={handleSendMessage}
-          disabled={isProcessing || connectionStatus !== 'connected'}
-          placeholder={
-            isProcessing
-              ? 'Quenty-AI is thinking...'
-              : connectionStatus !== 'connected'
-                ? 'Connecting...'
-                : 'Type a message...'
-          }
-        />
-      </div>
+      <MessageInput
+        onSend={handleSendMessage}
+        disabled={isProcessing || connectionStatus !== 'connected'}
+        placeholder={isProcessing ? 'Quenty-AI is thinking...' : connectionStatus !== 'connected' ? 'Connecting...' : 'Type a message...'}
+        onFocus={scrollToBottom}
+      />
     </div>
   );
 }
