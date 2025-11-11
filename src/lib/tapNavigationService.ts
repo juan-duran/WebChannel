@@ -27,6 +27,7 @@ export interface TapNavigationResponse {
   fromCache?: boolean;
   error?: string;
   metadata?: Record<string, unknown>;
+  topicsSummary?: string | null;
 }
 
 class TapNavigationService {
@@ -158,6 +159,7 @@ class TapNavigationService {
       }
 
       const payload = await this.requestFromAgent(`Assunto #${trendRank}`);
+      const topicsSummary = typeof payload.topicsSummary === 'string' ? payload.topicsSummary : null;
 
       if (Array.isArray(payload.topics)) {
         await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
@@ -166,6 +168,7 @@ class TapNavigationService {
           data: payload.topics as TopicData[],
           fromCache: false,
           metadata: payload.metadata ?? undefined,
+          topicsSummary,
         };
       }
 
@@ -177,6 +180,7 @@ class TapNavigationService {
           data: cached.data,
           fromCache: true,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
+          topicsSummary,
         };
       }
 
@@ -388,15 +392,228 @@ class TapNavigationService {
   }
 
   private normalizeStructuredData(data: TapNavigationStructuredData): TapNavigationStructuredData {
+    const normalizeTrends = Array.isArray((data as any).trends)
+      ? (data as any).trends
+          .map((item: any, index: number): TrendData | null => {
+            if (!item || typeof item !== 'object') {
+              return null;
+            }
+
+            const id = typeof item.id === 'string' ? item.id : `trend_${index + 1}`;
+            const number =
+              typeof item.number === 'number'
+                ? item.number
+                : typeof item.rank === 'number'
+                ? item.rank
+                : index + 1;
+            const category = typeof item.category === 'string' ? item.category : '';
+            const name =
+              typeof item.name === 'string'
+                ? item.name
+                : typeof item.title === 'string'
+                ? item.title
+                : '';
+            if (!name) {
+              return null;
+            }
+
+            const description =
+              typeof item.description === 'string'
+                ? item.description
+                : typeof item.summary === 'string'
+                ? item.summary
+                : '';
+            const value = typeof item.value === 'string' ? item.value : '';
+            const url =
+              typeof item.url === 'string'
+                ? item.url
+                : typeof item.link === 'string'
+                ? item.link
+                : '';
+            const whyItMatters =
+              typeof item.whyItMatters === 'string'
+                ? item.whyItMatters
+                : typeof item['why_it_matters'] === 'string'
+                ? item['why_it_matters']
+                : '';
+
+            return {
+              id,
+              number,
+              category,
+              name,
+              description,
+              value,
+              url,
+              whyItMatters,
+            } satisfies TrendData;
+          })
+          .filter((trend): trend is TrendData => Boolean(trend))
+      : null;
+
+    const topicsSummary =
+      typeof (data as any).topicsSummary === 'string' && (data as any).topicsSummary.trim().length > 0
+        ? (data as any).topicsSummary
+        : null;
+
+    const normalizeTopics = Array.isArray((data as any).topics)
+      ? (data as any).topics
+          .map((item: any, index: number): TopicData | null => {
+            if (!item || typeof item !== 'object') {
+              return null;
+            }
+
+            const id = typeof item.id === 'string' ? item.id : `topic_${index + 1}`;
+            const number =
+              typeof item.number === 'number'
+                ? item.number
+                : typeof item.rank === 'number'
+                ? item.rank
+                : index + 1;
+            const description =
+              typeof item.description === 'string'
+                ? item.description
+                : typeof item.summary === 'string'
+                ? item.summary
+                : '';
+            if (!description) {
+              return null;
+            }
+
+            const likesData =
+              typeof item['likes-data'] === 'string'
+                ? item['likes-data']
+                : typeof item.likesData === 'string'
+                ? item.likesData
+                : '';
+
+            return {
+              id,
+              number,
+              description,
+              likesData,
+            } satisfies TopicData;
+          })
+          .filter((topic): topic is TopicData => Boolean(topic))
+      : null;
+
+    const summary =
+      (data as any).summary && typeof (data as any).summary === 'object' && !Array.isArray((data as any).summary)
+        ? (() => {
+            const rawSummary = (data as any).summary as Record<string, unknown>;
+
+            const likesDataCandidate =
+              typeof rawSummary['likes-data'] === 'string'
+                ? (rawSummary['likes-data'] as string)
+                : typeof rawSummary.likesData === 'string'
+                ? (rawSummary.likesData as string)
+                : '';
+
+            const contextValue = rawSummary.context;
+            const context: string[] = Array.isArray(contextValue)
+              ? contextValue.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+              : typeof contextValue === 'string' && contextValue.trim().length > 0
+              ? [contextValue]
+              : [];
+
+            const debateValue = rawSummary.debate;
+            const debate: string[] = Array.isArray(debateValue)
+              ? debateValue.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+              : typeof debateValue === 'string' && debateValue.trim().length > 0
+              ? [debateValue]
+              : [];
+
+            const sourcesValue = rawSummary.sources;
+            const sources = Array.isArray(sourcesValue)
+              ? sourcesValue
+                  .map((item) => {
+                    if (!item || typeof item !== 'object') {
+                      return null;
+                    }
+
+                    const sourceRecord = item as Record<string, unknown>;
+                    const url =
+                      typeof sourceRecord.url === 'string'
+                        ? sourceRecord.url
+                        : typeof sourceRecord.link === 'string'
+                        ? sourceRecord.link
+                        : undefined;
+
+                    if (!url) {
+                      return null;
+                    }
+
+                    const title =
+                      typeof sourceRecord.title === 'string'
+                        ? sourceRecord.title
+                        : typeof sourceRecord.name === 'string'
+                        ? sourceRecord.name
+                        : url;
+
+                    const publishedAtCandidate =
+                      typeof sourceRecord.publishedAt === 'string'
+                        ? sourceRecord.publishedAt
+                        : typeof sourceRecord.published_at === 'string'
+                        ? sourceRecord.published_at
+                        : typeof sourceRecord.date === 'string'
+                        ? sourceRecord.date
+                        : undefined;
+
+                    return {
+                      title,
+                      url,
+                      ...(publishedAtCandidate ? { publishedAt: publishedAtCandidate } : {}),
+                    };
+                  })
+                  .filter((item): item is SummaryData['sources'][number] => Boolean(item))
+              : undefined;
+
+            return {
+              topicName:
+                typeof rawSummary.topicName === 'string' && rawSummary.topicName.trim().length > 0
+                  ? (rawSummary.topicName as string)
+                  : 'Tópico',
+              likesData: likesDataCandidate,
+              context,
+              thesis:
+                typeof rawSummary.thesis === 'string' ? (rawSummary.thesis as string) : (rawSummary.summary as string) || '',
+              debate,
+              personalization:
+                typeof rawSummary.personalization === 'string'
+                  ? (rawSummary.personalization as string)
+                  : '',
+              ...(typeof rawSummary.whyItMatters === 'string'
+                ? { whyItMatters: rawSummary.whyItMatters as string }
+                : typeof rawSummary['why_it_matters'] === 'string'
+                ? { whyItMatters: rawSummary['why_it_matters'] as string }
+                : {}),
+              ...(sources ? { sources } : {}),
+            } satisfies SummaryData;
+          })()
+        : null;
+
+    const metadata =
+      data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
+        ? {
+            ...data.metadata,
+            trendName:
+              typeof data.metadata.trendName === 'string' && data.metadata.trendName.trim().length > 0
+                ? data.metadata.trendName
+                : null,
+            topicName:
+              typeof data.metadata.topicName === 'string' && data.metadata.topicName.trim().length > 0
+                ? data.metadata.topicName
+                : null,
+          }
+        : null;
+
     return {
       layer: data.layer,
-      trends: Array.isArray(data.trends) ? data.trends : null,
-      topics: Array.isArray(data.topics) ? data.topics : null,
-      summary:
-        data.summary && typeof data.summary === 'object' && !Array.isArray(data.summary)
-          ? data.summary
-          : null,
-      metadata: data.metadata ?? null,
+      trends: normalizeTrends,
+      topicsSummary,
+      topics: normalizeTopics,
+      summary,
+      metadata,
     };
   }
 

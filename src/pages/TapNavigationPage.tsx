@@ -16,6 +16,7 @@ export function TapNavigationPage() {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
   const [topicsMap, setTopicsMap] = useState<Record<string, TopicData[]>>({});
+  const [topicsSummaryMap, setTopicsSummaryMap] = useState<Record<string, string | null>>({});
   const [topicsErrorMap, setTopicsErrorMap] = useState<Record<string, string | null>>({});
   const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
@@ -292,6 +293,7 @@ export function TapNavigationPage() {
     if (forceRefresh) {
       resetSelectionState();
       setTopicsMap({});
+      setTopicsSummaryMap({});
       setTopicsErrorMap({});
       trendRefs.current = {};
     }
@@ -333,13 +335,19 @@ export function TapNavigationPage() {
     try {
       setIsLoadingTopics(true);
       setLoadingTopicsTrendId(trend.id);
-      const result = await tapNavigationService.fetchTopics(trend.rank, options);
+      const result = await tapNavigationService.fetchTopics(trend.number, options);
 
       if (result.success && Array.isArray(result.data)) {
         setTopicsMap((prev) => ({
           ...prev,
           [trend.id]: result.data as TopicData[],
         }));
+        if (result.topicsSummary !== undefined) {
+          setTopicsSummaryMap((prev) => ({
+            ...prev,
+            [trend.id]: result.topicsSummary,
+          }));
+        }
         setTopicsErrorMap((prev) => ({
           ...prev,
           [trend.id]: result.error ?? null,
@@ -373,7 +381,7 @@ export function TapNavigationPage() {
     setSelectedSummary(null);
     setSummaryFromCache(false);
     setSummaryError(null);
-    setCurrentContext({ trendName: trend.title });
+    setCurrentContext({ trendName: trend.name });
 
     requestAnimationFrame(() => scrollToTrend(trend.id));
 
@@ -397,21 +405,42 @@ export function TapNavigationPage() {
     setSummaryError(null);
 
     const trend = trends.find((t) => t.id === expandedTrendId);
+    const topicLabel = topic.description?.trim() || `Tópico #${topic.number}`;
     setCurrentContext({
-      trendName: trend?.title || '',
-      topicName: topic.title,
+      trendName: trend?.name || '',
+      topicName: topicLabel,
     });
 
     requestAnimationFrame(scrollSummaryToTop);
 
     try {
       setIsLoadingSummary(true);
-      const result = await tapNavigationService.fetchSummary(topic.rank, user.id);
+      const result = await tapNavigationService.fetchSummary(topic.number, user.id);
 
       if (result.success && result.data) {
-        setSelectedSummary(result.data as SummaryData);
+        const summary = result.data as SummaryData;
+        setSelectedSummary(summary);
         setSummaryFromCache(result.fromCache || false);
         setSummaryError(result.error ?? null);
+        if (result.metadata) {
+          const { trendName, topicName } = result.metadata as {
+            trendName?: string | null;
+            topicName?: string | null;
+          };
+          setCurrentContext((prev) => ({
+            trendName:
+              typeof trendName === 'string' && trendName.trim().length > 0 ? trendName : prev.trendName ?? '',
+            topicName:
+              typeof topicName === 'string' && topicName.trim().length > 0
+                ? topicName
+                : summary.topicName || prev.topicName || '',
+          }));
+        } else {
+          setCurrentContext((prev) => ({
+            trendName: prev.trendName || '',
+            topicName: summary.topicName || prev.topicName || '',
+          }));
+        }
       } else {
         setSummaryError(result.error || 'Não foi possível carregar o resumo.');
       }
@@ -429,7 +458,7 @@ export function TapNavigationPage() {
     setSummaryFromCache(false);
     setSummaryError(null);
     const trend = trends.find((t) => t.id === expandedTrendId);
-    setCurrentContext(trend ? { trendName: trend.title } : {});
+    setCurrentContext(trend ? { trendName: trend.name } : {});
   };
 
   const handleSummaryRefresh = async () => {
@@ -438,12 +467,32 @@ export function TapNavigationPage() {
     try {
       setIsRefreshing(true);
       setSummaryError(null);
-      const result = await tapNavigationService.fetchSummary(selectedTopic.rank, user.id, { forceRefresh: true });
+      const result = await tapNavigationService.fetchSummary(selectedTopic.number, user.id, { forceRefresh: true });
 
       if (result.success && result.data) {
-        setSelectedSummary(result.data as SummaryData);
+        const summary = result.data as SummaryData;
+        setSelectedSummary(summary);
         setSummaryFromCache(false);
         setSummaryError(result.error ?? null);
+        if (result.metadata) {
+          const { trendName, topicName } = result.metadata as {
+            trendName?: string | null;
+            topicName?: string | null;
+          };
+          setCurrentContext((prev) => ({
+            trendName:
+              typeof trendName === 'string' && trendName.trim().length > 0 ? trendName : prev.trendName || '',
+            topicName:
+              typeof topicName === 'string' && topicName.trim().length > 0
+                ? topicName
+                : summary.topicName || prev.topicName || '',
+          }));
+        } else {
+          setCurrentContext((prev) => ({
+            trendName: prev.trendName || '',
+            topicName: summary.topicName || prev.topicName || '',
+          }));
+        }
       } else {
         setSummaryError(result.error || 'Não foi possível atualizar o resumo.');
       }
@@ -536,9 +585,13 @@ export function TapNavigationPage() {
 
     if (navigator.share) {
       try {
+        const shareText = [selectedSummary.thesis, selectedSummary.personalization, selectedSummary.likesData]
+          .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+          .join('\n\n');
+
         await navigator.share({
           title: selectedSummary.topicName,
-          text: selectedSummary.summary || selectedSummary.content.substring(0, 200),
+          text: shareText,
           url: window.location.href,
         });
       } catch (err) {
@@ -602,6 +655,7 @@ export function TapNavigationPage() {
           trend={trend}
           isExpanded={expandedTrendId === trend.id}
           topics={topicsMap[trend.id] || null}
+          topicsSummary={topicsSummaryMap[trend.id] ?? null}
           isLoadingTopics={isLoadingTopics && expandedTrendId === trend.id}
           topicsError={topicsErrorMap[trend.id] || null}
           onExpand={() => handleTrendExpand(trend)}
@@ -641,10 +695,12 @@ export function TapNavigationPage() {
     }
 
     const hasSummary = Boolean(selectedSummary);
-    const lastUpdatedLabel = hasSummary
-      ? new Date(selectedSummary!.lastUpdated).toLocaleString('pt-BR')
-      : null;
     const summaryFallbackMessage = summaryError || 'Não foi possível carregar o resumo. Tente novamente.';
+    const footerLabel = hasSummary
+      ? selectedSummary!.likesData || 'Resumo atualizado automaticamente'
+      : summaryError
+      ? 'Erro ao carregar resumo'
+      : 'Preparando resumo...';
 
     return (
       <div className={baseClasses}>
@@ -664,14 +720,10 @@ export function TapNavigationPage() {
                 </div>
               )}
               <TopicSummary
-                topicName={selectedSummary!.topicName}
-                trendName={selectedSummary!.trendName}
-                content={selectedSummary!.content}
-                date={new Date(selectedSummary!.lastUpdated).toLocaleDateString('pt-BR')}
+                summary={selectedSummary!}
+                trendName={currentContext.trendName}
                 onBack={handleSummaryClose}
                 disabled={isRefreshing || isLoadingSummary}
-                whyItMatters={selectedSummary!.whyItMatters}
-                sources={selectedSummary!.sources}
               />
             </>
           ) : (
@@ -694,13 +746,7 @@ export function TapNavigationPage() {
         <div
           className={`border-t border-gray-200 bg-gray-50 ${footerPadding} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
         >
-          <div className="text-xs text-gray-500">
-            {lastUpdatedLabel
-              ? `Última atualização ${lastUpdatedLabel}`
-              : summaryError
-              ? 'Erro ao carregar resumo'
-              : 'Preparando resumo...'}
-          </div>
+          <div className="text-xs text-gray-500">{footerLabel}</div>
           <div className="flex items-center gap-2 justify-end">
             <button
               onClick={handleSummaryRefresh}

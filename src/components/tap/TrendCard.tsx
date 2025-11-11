@@ -1,12 +1,4 @@
-import {
-  ChevronDown,
-  ThumbsUp,
-  MessageCircle,
-  Link2,
-  TrendingUp,
-  AlertCircle,
-  Info,
-} from 'lucide-react';
+import { ChevronDown, Link2, AlertCircle } from 'lucide-react';
 import { TrendData, TopicData } from '../../types/tapNavigation';
 import { TopicSkeleton } from './LoadingProgress';
 
@@ -14,6 +6,7 @@ interface TrendCardProps {
   trend: TrendData;
   isExpanded: boolean;
   topics: TopicData[] | null;
+  topicsSummary?: string | null;
   isLoadingTopics: boolean;
   topicsError?: string | null;
   onExpand: () => void;
@@ -27,6 +20,7 @@ export function TrendCard({
   trend,
   isExpanded,
   topics,
+  topicsSummary,
   isLoadingTopics,
   topicsError,
   onExpand,
@@ -59,36 +53,21 @@ export function TrendCard({
       >
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-sm font-bold text-blue-600">#{trend.rank}</span>
+            <span className="text-sm font-bold text-blue-600">#{trend.number}</span>
           </div>
 
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
-              <span className="text-sm tracking-wide">{trend.title}</span>
-              {trend.newComments > 0 && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                  {trend.newComments} new
-                </span>
-              )}
-            </h3>
-            <p className="text-sm text-gray-600 mb-2 line-clamp-2">{trend.summary}</p>
+            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-600">
+              <span>{trend.category}</span>
+            </div>
+            <h3 className="font-bold text-gray-900 text-sm mb-1">{trend.name}</h3>
+            <p className="text-sm text-gray-600 mb-2 line-clamp-3">{trend.description}</p>
 
-            <div className="flex items-center gap-3 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <ThumbsUp className="w-3 h-3" aria-hidden="true" />
-                {trend.upvotes}
-              </span>
-              <span className="flex items-center gap-1">
-                <MessageCircle className="w-3 h-3" aria-hidden="true" />
-                {trend.comments}
-              </span>
-              <span className="flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" aria-hidden="true" />
-                {trend.threads}
-              </span>
-              {trend.link && (
+            <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+              {trend.value && <span className="font-medium text-gray-700">{trend.value}</span>}
+              {trend.url && (
                 <a
-                  href={trend.link}
+                  href={trend.url}
                   onClick={(e) => e.stopPropagation()}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -150,11 +129,17 @@ export function TrendCard({
               )}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {topics && topics.length > 0 && (
-                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
-                  Topics ({topics.length})
+                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Tópicos ({topics.length})
                 </h4>
+              )}
+              {topicsSummary && (
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  <p className="text-xs font-semibold text-gray-900 mb-1">Panorama do Assunto</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{topicsSummary}</p>
+                </div>
               )}
               {topicsError && topics && topics.length > 0 && (
                 <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
@@ -172,30 +157,15 @@ export function TrendCard({
                     className="w-full flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex-shrink-0 w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
-                      <span className="text-xs font-bold text-green-600">#{topic.rank}</span>
+                      <span className="text-xs font-bold text-green-600">#{topic.number}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h5 className="font-medium text-gray-900 text-sm truncate group-hover:text-green-700">
-                        {topic.title}
+                      <h5 className="font-medium text-gray-900 text-sm group-hover:text-green-700">
+                        Tópico #{topic.number}
                       </h5>
-                      {topic.summary && (
-                        <p className="text-xs text-gray-600 line-clamp-1 mt-0.5">{topic.summary}</p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                        <span className="flex items-center gap-1">
-                          <MessageCircle className="w-3 h-3" aria-hidden="true" />
-                          {topic.comments}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" aria-hidden="true" />
-                          {topic.threads}
-                        </span>
-                      </div>
-                      {topic.whyItMatters && (
-                        <p className="text-xs text-green-700 mt-1 flex items-start gap-1">
-                          <Info className="w-3 h-3 mt-0.5 flex-shrink-0" aria-hidden="true" />
-                          <span className="line-clamp-2">{topic.whyItMatters}</span>
-                        </p>
+                      <p className="text-xs text-gray-600 line-clamp-2 mt-1">{topic.description}</p>
+                      {topic.likesData && (
+                        <p className="text-xs text-gray-500 mt-2">{topic.likesData}</p>
                       )}
                     </div>
                     <ChevronDown
@@ -205,7 +175,7 @@ export function TrendCard({
                   </button>
                 ))
               ) : (
-                <p className="text-sm text-gray-500 text-center py-4">No topics available</p>
+                <p className="text-sm text-gray-500 text-center py-4">Nenhum tópico disponível</p>
               )}
             </div>
           )}
