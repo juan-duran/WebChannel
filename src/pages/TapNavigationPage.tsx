@@ -148,6 +148,9 @@ export function TapNavigationPage() {
 
       if (result.success && result.data) {
         setTrends(result.data as TrendData[]);
+        if (result.error) {
+          setError(result.error);
+        }
       } else {
         setError(result.error || 'Failed to load trends');
       }
@@ -184,7 +187,7 @@ export function TapNavigationPage() {
         }));
         setTopicsErrorMap((prev) => ({
           ...prev,
-          [trend.id]: null,
+          [trend.id]: result.error ?? null,
         }));
       } else {
         setTopicsErrorMap((prev) => ({
@@ -253,7 +256,7 @@ export function TapNavigationPage() {
       if (result.success && result.data) {
         setSelectedSummary(result.data as SummaryData);
         setSummaryFromCache(result.fromCache || false);
-        setSummaryError(null);
+        setSummaryError(result.error ?? null);
       } else {
         setSummaryError(result.error || 'Não foi possível carregar o resumo.');
       }
@@ -285,7 +288,7 @@ export function TapNavigationPage() {
       if (result.success && result.data) {
         setSelectedSummary(result.data as SummaryData);
         setSummaryFromCache(false);
-        setSummaryError(null);
+        setSummaryError(result.error ?? null);
       } else {
         setSummaryError(result.error || 'Não foi possível atualizar o resumo.');
       }
@@ -444,9 +447,14 @@ export function TapNavigationPage() {
             <LoadingProgress message="Carregando resumo..." />
           ) : hasSummary ? (
             <>
-              {summaryFromCache && (
+              {summaryFromCache && !summaryError && (
                 <div className="mb-4 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700">
                   Exibindo uma versão em cache. Toque em atualizar para gerar uma nova visão.
+                </div>
+              )}
+              {summaryError && (
+                <div className="mb-4 px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-xs text-amber-700">
+                  {summaryError}
                 </div>
               )}
               <TopicSummary
