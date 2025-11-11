@@ -265,6 +265,10 @@ export class WebSocketService {
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.error('Max reconnection attempts reached');
+      this.notifyHandlers('error', {
+        type: 'error',
+        error: 'Não foi possível reconectar automaticamente. Tente novamente.',
+      });
       return;
     }
 

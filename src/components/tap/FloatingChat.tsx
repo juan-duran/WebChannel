@@ -13,6 +13,7 @@ interface FloatingChatProps {
   isProcessing: boolean;
   connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
   connectionError?: string | null;
+  onReconnect?: () => void;
   onSendMessage: (message: string) => void;
   messages: ChatMessage[];
 }
@@ -22,6 +23,7 @@ export function FloatingChat({
   isProcessing,
   connectionState,
   connectionError,
+  onReconnect,
   onSendMessage,
   messages,
 }: FloatingChatProps) {
@@ -44,6 +46,9 @@ export function FloatingChat({
   };
 
   const connectionStatusMessage = getConnectionStatusMessage();
+  const showReconnectButton = Boolean(
+    onReconnect && (connectionState === 'error' || connectionState === 'disconnected'),
+  );
 
   const handleSend = (message: string) => {
     let contextualMessage = message;
@@ -124,10 +129,21 @@ export function FloatingChat({
 
             <div className="p-4 border-t border-gray-200 bg-gray-50">
               {connectionStatusMessage && (
-                <div className="mb-2 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-                  <span className="font-medium">{connectionStatusMessage}</span>
-                  {!isConnected && (
-                    <span className="text-amber-500">Tente novamente em instantes.</span>
+                <div className="mb-2 flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-600">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{connectionStatusMessage}</span>
+                    {!isConnected && !showReconnectButton && (
+                      <span className="text-amber-500">Tente novamente em instantes.</span>
+                    )}
+                  </div>
+                  {showReconnectButton && (
+                    <button
+                      type="button"
+                      onClick={onReconnect}
+                      className="self-start rounded-lg border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                    >
+                      Tentar reconectar agora
+                    </button>
                   )}
                 </div>
               )}

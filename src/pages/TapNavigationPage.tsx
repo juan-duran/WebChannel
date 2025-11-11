@@ -32,7 +32,9 @@ export function TapNavigationPage() {
   const [isChatProcessing, setIsChatProcessing] = useState(false);
 
   const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [connectionStatus, setConnectionStatus] = useState<
+    'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
+  >('idle');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [chatConnectionState, setChatConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
     'disconnected',
@@ -97,9 +99,30 @@ export function TapNavigationPage() {
     };
 
     const handleError = (message: WebSocketMessage) => {
-      setConnectionStatus('error');
-      setConnectionError(message.error || 'Conexão perdida. Tente reconectar.');
-      setChatConnectionState(websocketService.getConnectionState());
+      const state = websocketService.getConnectionState();
+      setChatConnectionState(state);
+
+      if (state === 'connecting') {
+        setConnectionStatus('connecting');
+        setConnectionError(null);
+        return;
+      }
+
+      if (state === 'connected') {
+        setConnectionStatus('connected');
+        setConnectionError(null);
+        return;
+      }
+
+      const isSevereError = Boolean(message.error && message.error !== 'Connection closed');
+      const nextStatus = isSevereError ? 'error' : 'disconnected';
+
+      setConnectionStatus(nextStatus);
+      setConnectionError(
+        nextStatus === 'error'
+          ? message.error || 'Conexão perdida. Tente reconectar.'
+          : 'Conexão com o assistente perdida. Tentando reconectar...'
+      );
     };
 
     websocketService.on('connected', handleConnected);
@@ -120,7 +143,7 @@ export function TapNavigationPage() {
           console.error('Failed to connect WebSocket:', error);
           setConnectionStatus('error');
           setConnectionError(error instanceof Error ? error.message : 'Não foi possível conectar ao WebSocket.');
-          setChatConnectionState('error');
+          setChatConnectionState(websocketService.getConnectionState());
         });
 
     attemptConnection();
@@ -321,8 +344,59 @@ export function TapNavigationPage() {
         console.error('Failed to reconnect WebSocket:', error);
         setConnectionStatus('error');
         setConnectionError(error instanceof Error ? error.message : 'Não foi possível reconectar ao WebSocket.');
-        setChatConnectionState('error');
+        setChatConnectionState(websocketService.getConnectionState());
       });
+  };
+
+  const renderConnectionBanner = () => {
+    if (connectionStatus === 'idle' || connectionStatus === 'connected') {
+      return null;
+    }
+
+    if (connectionStatus === 'connecting') {
+      return (
+        <div className="max-w-5xl mx-auto px-4 mt-4">
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3 text-sm text-blue-900">
+            <RefreshCw className="w-4 h-4 animate-spin" />
+            <div>
+              <p className="font-semibold">Conectando ao assistente</p>
+              <p className="text-xs text-blue-700">Estabelecendo conexão em tempo real...</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const isError = connectionStatus === 'error';
+    const message = isError
+      ? connectionError || 'Não foi possível se comunicar com o assistente em tempo real.'
+      : connectionError || 'Conexão com o assistente perdida. Tentando reconectar automaticamente...';
+    const description = isError
+      ? 'Verifique sua conexão ou tente reconectar manualmente.'
+      : 'Estamos tentando reconectar. Isso pode levar alguns instantes.';
+
+    return (
+      <div className="max-w-5xl mx-auto px-4 mt-4">
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2 text-sm text-amber-800">
+            <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold">{isError ? 'Conexão com o assistente indisponível' : 'Conexão com o assistente perdida'}</p>
+              <p className="text-xs text-amber-700">{message}</p>
+              <p className="text-xs text-amber-600 mt-1">{description}</p>
+            </div>
+          </div>
+          {isError && (
+            <button
+              onClick={handleReconnect}
+              className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold text-amber-900 bg-white border border-amber-200 hover:bg-amber-100 transition-colors"
+            >
+              Tentar reconectar
+            </button>
+          )}
+        </div>
+      </div>
+    );
   };
 
   const handleShare = async () => {
@@ -537,25 +611,7 @@ export function TapNavigationPage() {
         </div>
       </div>
 
-      {connectionStatus === 'error' && (
-        <div className="max-w-5xl mx-auto px-4 mt-4">
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-2 text-sm text-amber-800">
-              <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-semibold">Conexão com o assistente perdida</p>
-                <p className="text-xs text-amber-700">{connectionError || 'Não foi possível se comunicar com o assistente em tempo real.'}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleReconnect}
-              className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold text-amber-900 bg-white border border-amber-200 hover:bg-amber-100 transition-colors"
-            >
-              Tentar reconectar
-            </button>
-          </div>
-        </div>
-      )}
+      {renderConnectionBanner()}
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {error && (
@@ -604,6 +660,7 @@ export function TapNavigationPage() {
         isProcessing={isChatProcessing}
         connectionState={chatConnectionState}
         connectionError={connectionError}
+        onReconnect={handleReconnect}
         onSendMessage={handleChatMessage}
         messages={chatMessages}
       />
