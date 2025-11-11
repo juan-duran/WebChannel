@@ -448,8 +448,19 @@ export function TapNavigationPage() {
               />
             </>
           ) : (
-            <div className="flex h-full items-center justify-center text-center text-sm text-gray-500">
-              {summaryFallbackMessage}
+            <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-sm text-gray-500">
+              <p>{summaryFallbackMessage}</p>
+              {summaryError && (
+                <button
+                  type="button"
+                  onClick={handleSummaryRefresh}
+                  disabled={isRefreshing || isLoadingSummary}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                  Tentar novamente
+                </button>
+              )}
             </div>
           )}
         </div>
