@@ -1,25 +1,19 @@
 export interface TrendData {
   id: string;
-  rank: number;
-  title: string;
-  summary: string;
-  upvotes: number;
-  comments: number;
-  newComments: number;
-  threads: number;
-  link: string;
+  number: number;
+  category: string;
+  name: string;
+  description: string;
+  value: string;
+  url: string;
   whyItMatters: string;
 }
 
 export interface TopicData {
   id: string;
-  rank: number;
-  title: string;
-  summary: string;
-  comments: number;
-  threads: number;
-  link: string;
-  whyItMatters: string;
+  number: number;
+  description: string;
+  likesData: string;
 }
 
 export interface SourceData {
@@ -30,19 +24,26 @@ export interface SourceData {
 
 export interface SummaryData {
   topicName: string;
-  trendName: string;
-  content: string;
+  likesData: string;
+  context: string[];
+  thesis: string;
+  debate: string[];
+  personalization: string;
   sources?: SourceData[];
-  lastUpdated: string;
-  whyItMatters: string;
+  whyItMatters?: string;
 }
 
 export interface TapNavigationStructuredData {
   layer: 'trends' | 'topics' | 'summary';
   trends: TrendData[] | null;
+  topicsSummary: string | null;
   topics: TopicData[] | null;
   summary: SummaryData | null;
-  metadata?: Record<string, any> | null;
+  metadata?: {
+    trendName?: string | null;
+    topicName?: string | null;
+    [key: string]: unknown;
+  } | null;
 }
 
 export interface CachedEntry<T> {
@@ -60,6 +61,5 @@ export interface TapNavigationState {
   summary: SummaryData | null;
   trendName: string;
   topicName: string;
-  trendRank: number;
-  topicRank: number;
+  topicsSummary: string | null;
 }
