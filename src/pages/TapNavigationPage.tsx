@@ -9,6 +9,7 @@ import { websocketService, type WebSocketMessage } from '../lib/websocket';
 import { TrendData, TopicData, SummaryData } from '../types/tapNavigation';
 import { ChatMessage, generateMessageId } from '../lib/chatService';
 import { TopicSummary } from '../components/TopicSummary';
+import { safeJsonParse } from '../lib/safeJsonParse';
 
 export function TapNavigationPage() {
   const { user } = useAuth();
@@ -155,6 +156,137 @@ export function TapNavigationPage() {
       setChatConnectionState('disconnected');
     };
   }, [user]);
+
+  useEffect(() => {
+    const handleChatEvents = (message: WebSocketMessage) => {
+      if (message.type === 'typing_start') {
+        setIsChatProcessing(true);
+        return;
+      }
+
+      if (message.type === 'typing_stop') {
+        setIsChatProcessing(false);
+        return;
+      }
+
+      if (message.type === 'error') {
+        setIsChatProcessing(false);
+
+        if (message.error) {
+          setChatMessages((prev) => {
+            if (prev.length === 0) return prev;
+
+            const updated = [...prev];
+            for (let index = updated.length - 1; index >= 0; index -= 1) {
+              const current = updated[index];
+              if (current.role === 'user' && current.status === 'sending') {
+                updated[index] = { ...current, status: 'error' };
+                break;
+              }
+            }
+
+            return updated;
+          });
+        }
+
+        return;
+      }
+
+      if (message.type !== 'message' || message.role !== 'assistant') {
+        return;
+      }
+
+      setIsChatProcessing(false);
+
+      type ParsedContent = {
+        type?: string;
+        buttons?: unknown;
+        metadata?: unknown;
+        items?: unknown;
+      };
+
+      const parsedContent = safeJsonParse<ParsedContent>(message.content);
+      const parsedType = typeof parsedContent?.type === 'string' ? parsedContent.type : undefined;
+      const allowedTypes: ChatMessage['contentType'][] = ['text', 'trends', 'topics', 'summary'];
+      const resolvedContentType =
+        (message.contentType && (allowedTypes as string[]).includes(message.contentType)
+          ? (message.contentType as ChatMessage['contentType'])
+          : undefined) ||
+        (parsedType && (allowedTypes as string[]).includes(parsedType)
+          ? (parsedType as ChatMessage['contentType'])
+          : 'text');
+
+      const primaryButtons = parsedContent?.buttons;
+      const fallbackButtons = message.buttons;
+
+      const normalizeButtons = (buttons: unknown): ChatMessage['buttons'] => {
+        if (!Array.isArray(buttons)) {
+          return undefined;
+        }
+
+        const normalized = buttons
+          .map((button) => {
+            if (!button) return null;
+
+            if (typeof button === 'string') {
+              return { label: button, value: button };
+            }
+
+            if (typeof button === 'object') {
+              const candidate = button as Record<string, unknown>;
+              const label =
+                (candidate.label ?? candidate.title ?? candidate.text ?? candidate.name) as string | undefined;
+              const value = (candidate.value ?? candidate.payload ?? candidate.action) as string | undefined;
+
+              if (typeof label === 'string' && typeof value === 'string') {
+                return { label, value };
+              }
+            }
+
+            return null;
+          })
+          .filter((button): button is NonNullable<ChatMessage['buttons']>[number] => Boolean(button));
+
+        return normalized.length > 0 ? normalized : undefined;
+      };
+
+      const parsedButtons = normalizeButtons(primaryButtons);
+      const fallbackNormalizedButtons = normalizeButtons(fallbackButtons);
+      const mergedButtons = parsedButtons ?? fallbackNormalizedButtons;
+
+      const aiMessage: ChatMessage = {
+        id: message.correlationId || generateMessageId(),
+        role: 'assistant',
+        content: message.content || '',
+        timestamp: new Date(),
+        contentType: resolvedContentType,
+        structuredData:
+          parsedContent && Object.prototype.hasOwnProperty.call(parsedContent, 'items')
+            ? parsedContent.items
+            : message.structuredData || null,
+        metadata:
+          message.metadata ||
+          (parsedContent?.metadata && typeof parsedContent.metadata === 'object'
+            ? parsedContent.metadata
+            : undefined),
+        buttons: mergedButtons,
+      };
+
+      setChatMessages((prev) => [...prev, aiMessage]);
+    };
+
+    websocketService.on('message', handleChatEvents);
+    websocketService.on('typing_start', handleChatEvents);
+    websocketService.on('typing_stop', handleChatEvents);
+    websocketService.on('error', handleChatEvents);
+
+    return () => {
+      websocketService.off('message', handleChatEvents);
+      websocketService.off('typing_start', handleChatEvents);
+      websocketService.off('typing_stop', handleChatEvents);
+      websocketService.off('error', handleChatEvents);
+    };
+  }, []);
 
   const loadTrends = async (forceRefresh = false) => {
     if (forceRefresh) {
