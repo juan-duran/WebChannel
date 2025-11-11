@@ -1,4 +1,4 @@
-import { websocketService } from './websocket';
+import { websocketService, type WebSocketMessage } from './websocket';
 import { cacheStorage } from './cacheStorage';
 import {
   TrendData,
@@ -7,12 +7,26 @@ import {
   TapNavigationStructuredData,
 } from '../types/tapNavigation';
 
+class StructuredDataValidationError extends Error {
+  constructor(message = 'O assistente retornou dados inválidos.') {
+    super(message);
+    this.name = 'StructuredDataValidationError';
+  }
+}
+
+class RequestTimeoutError extends Error {
+  constructor(message = 'Tempo limite ao aguardar resposta do assistente.') {
+    super(message);
+    this.name = 'RequestTimeoutError';
+  }
+}
+
 export interface TapNavigationResponse {
   success: boolean;
   data?: TrendData[] | TopicData[] | SummaryData;
   fromCache?: boolean;
   error?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 class TapNavigationService {
@@ -63,33 +77,38 @@ class TapNavigationService {
         };
       }
 
+      const invalidDataMessage = 'O assistente não retornou tendências válidas.';
+
       if (cached) {
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: 'Failed to fetch trends',
+        error: invalidDataMessage,
       };
     } catch (error) {
       console.error('Error fetching trends:', error);
 
       const cached = await cacheStorage.getTrends();
       if (cached) {
+        const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar os assuntos.');
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${errorMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: this.formatErrorMessage(error, 'Não foi possível carregar os assuntos.'),
       };
     }
   }
@@ -150,33 +169,38 @@ class TapNavigationService {
         };
       }
 
+      const invalidDataMessage = 'O assistente não retornou tópicos válidos.';
+
       if (cached) {
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: 'Failed to fetch topics',
+        error: invalidDataMessage,
       };
     } catch (error) {
       console.error('Error fetching topics:', error);
 
       const cached = await cacheStorage.getTopics(trendRank);
       if (cached) {
+        const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar os tópicos.');
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${errorMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: this.formatErrorMessage(error, 'Não foi possível carregar os tópicos.'),
       };
     }
   }
@@ -237,33 +261,38 @@ class TapNavigationService {
         };
       }
 
+      const invalidDataMessage = 'O assistente não retornou um resumo válido.';
+
       if (cached) {
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: 'Failed to fetch summary',
+        error: invalidDataMessage,
       };
     } catch (error) {
       console.error('Error fetching summary:', error);
 
       const cached = await cacheStorage.getSummary(topicRank, userId);
       if (cached) {
+        const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
           success: true,
           data: cached.data,
           fromCache: true,
+          error: `${errorMessage} Exibindo dados em cache.`,
         };
       }
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: this.formatErrorMessage(error, 'Não foi possível carregar o resumo.'),
       };
     }
   }
@@ -281,74 +310,79 @@ class TapNavigationService {
 
   private async requestFromAgent(message: string): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
-      let timeout: NodeJS.Timeout;
       let resolved = false;
 
-      const handleMessage = (response: any) => {
+      const handleMessage = (response: WebSocketMessage) => {
         if (resolved) return;
 
         if (response.type === 'message' && response.role === 'assistant') {
           resolved = true;
           clearTimeout(timeout);
 
-          websocketService.off('message', handleMessage);
-          websocketService.off('error', handleError);
+          clearListeners();
 
           if (response.structuredData && this.isValidStructuredData(response.structuredData)) {
             resolve(this.normalizeStructuredData(response.structuredData));
           } else {
-            reject(new Error('No structured data in response'));
+            reject(new StructuredDataValidationError());
           }
         }
       };
 
-      const handleError = (error: any) => {
+      const handleError = (error: WebSocketMessage) => {
         if (resolved) return;
 
         resolved = true;
         clearTimeout(timeout);
 
-        websocketService.off('message', handleMessage);
-        websocketService.off('error', handleError);
+        clearListeners();
 
         reject(new Error(error.error || 'Request failed'));
+      };
+
+      const clearListeners = () => {
+        websocketService.off('message', handleMessage);
+        websocketService.off('error', handleError);
       };
 
       websocketService.on('message', handleMessage);
       websocketService.on('error', handleError);
 
-      timeout = setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (resolved) return;
 
         resolved = true;
-        websocketService.off('message', handleMessage);
-        websocketService.off('error', handleError);
+        clearListeners();
 
-        reject(new Error('Request timeout'));
-      }, 60000);
+        reject(new RequestTimeoutError());
+      }, 30000);
 
-      websocketService.sendMessage(message).catch((error) => {
+      websocketService.sendMessage(message).catch((sendError: unknown) => {
         if (resolved) return;
 
         resolved = true;
         clearTimeout(timeout);
-        websocketService.off('message', handleMessage);
-        websocketService.off('error', handleError);
-        reject(error);
+        clearListeners();
+
+        reject(
+          sendError instanceof Error ? sendError : new Error('Falha ao enviar mensagem ao assistente.'),
+        );
       });
     });
   }
 
-  private isValidStructuredData(data: any): data is TapNavigationStructuredData {
+  private isValidStructuredData(data: unknown): data is TapNavigationStructuredData {
     if (!data || typeof data !== 'object') {
       return false;
     }
 
-    if (!['trends', 'topics', 'summary'].includes(data.layer)) {
+    const structuredData = data as Partial<TapNavigationStructuredData>;
+
+    if (!structuredData.layer || !['trends', 'topics', 'summary'].includes(structuredData.layer)) {
       return false;
     }
 
-    return 'trends' in data && 'topics' in data && 'summary' in data;
+    return 'trends' in structuredData && 'topics' in structuredData && 'summary' in structuredData;
   }
 
   private normalizeStructuredData(data: TapNavigationStructuredData): TapNavigationStructuredData {
@@ -362,6 +396,18 @@ class TapNavigationService {
           : null,
       metadata: data.metadata ?? null,
     };
+  }
+
+  private formatErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof StructuredDataValidationError || error instanceof RequestTimeoutError) {
+      return error.message;
+    }
+
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    return fallback;
   }
 
   async clearCache(): Promise<void> {
