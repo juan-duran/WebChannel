@@ -34,6 +34,9 @@ export function TapNavigationPage() {
   const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [chatConnectionState, setChatConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>(
+    'disconnected',
+  );
 
   const trendRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const mobileSummaryContentRef = useRef<HTMLDivElement | null>(null);
@@ -79,20 +82,24 @@ export function TapNavigationPage() {
     if (!user) {
       setConnectionStatus('idle');
       setConnectionError(null);
+      setChatConnectionState('disconnected');
       return;
     }
 
     setConnectionStatus('connecting');
     setConnectionError(null);
+    setChatConnectionState('connecting');
 
     const handleConnected = () => {
       setConnectionStatus('connected');
       setConnectionError(null);
+      setChatConnectionState(websocketService.getConnectionState());
     };
 
     const handleError = (message: WebSocketMessage) => {
       setConnectionStatus('error');
       setConnectionError(message.error || 'Conexão perdida. Tente reconectar.');
+      setChatConnectionState(websocketService.getConnectionState());
     };
 
     websocketService.on('connected', handleConnected);
@@ -104,6 +111,7 @@ export function TapNavigationPage() {
         .then(() => {
           setConnectionStatus('connected');
           setConnectionError(null);
+          setChatConnectionState(websocketService.getConnectionState());
         })
         .catch((error) => {
           if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
@@ -112,6 +120,7 @@ export function TapNavigationPage() {
           console.error('Failed to connect WebSocket:', error);
           setConnectionStatus('error');
           setConnectionError(error instanceof Error ? error.message : 'Não foi possível conectar ao WebSocket.');
+          setChatConnectionState('error');
         });
 
     attemptConnection();
@@ -120,6 +129,7 @@ export function TapNavigationPage() {
       websocketService.off('connected', handleConnected);
       websocketService.off('error', handleError);
       websocketService.disconnect();
+      setChatConnectionState('disconnected');
     };
   }, [user]);
 
@@ -292,12 +302,14 @@ export function TapNavigationPage() {
 
     setConnectionStatus('connecting');
     setConnectionError(null);
+    setChatConnectionState('connecting');
 
     websocketService
       .connect()
       .then(() => {
         setConnectionStatus('connected');
         setConnectionError(null);
+        setChatConnectionState(websocketService.getConnectionState());
       })
       .catch((error) => {
         if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
@@ -306,6 +318,7 @@ export function TapNavigationPage() {
         console.error('Failed to reconnect WebSocket:', error);
         setConnectionStatus('error');
         setConnectionError(error instanceof Error ? error.message : 'Não foi possível reconectar ao WebSocket.');
+        setChatConnectionState('error');
       });
   };
 
@@ -581,6 +594,8 @@ export function TapNavigationPage() {
       <FloatingChat
         context={currentContext}
         isProcessing={isChatProcessing}
+        connectionState={chatConnectionState}
+        connectionError={connectionError}
         onSendMessage={handleChatMessage}
         messages={chatMessages}
       />

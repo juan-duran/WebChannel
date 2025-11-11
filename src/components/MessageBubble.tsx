@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { AlertCircle } from 'lucide-react';
 import { ChatMessage } from '../lib/chatService';
 
 type MessageBubbleProps = {
@@ -8,6 +9,9 @@ type MessageBubbleProps = {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isError = message.status === 'error';
+  const baseStatusClass = isUser ? 'text-blue-100' : 'text-gray-500';
+  const errorStatusClass = isUser ? 'text-white' : 'text-red-600';
+  const errorIconClass = isUser ? 'text-white' : 'text-red-500';
 
   const normalizeContent = (content: string) =>
     content
@@ -83,14 +87,20 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         }`}
       >
         <div className="break-words text-[15px] leading-relaxed">{renderContent(message.content)}</div>
-        <div
-          className={`text-xs mt-1.5 ${
-            isUser ? 'text-blue-100' : 'text-gray-500'
-          }`}
-        >
-          {formatTime(message.timestamp)}
-          {message.status === 'sending' && ' • Enviando...'}
-          {message.status === 'error' && ' • Falhou'}
+        <div className={`text-xs mt-1.5 flex items-center gap-2 ${baseStatusClass}`}>
+          <span>
+            {formatTime(message.timestamp)}
+            {message.status === 'sending' && ' • Enviando...'}
+          </span>
+          {message.status === 'error' && (
+            <span
+              className={`inline-flex items-center gap-1 ${errorStatusClass}`}
+              title="Não foi possível enviar esta mensagem."
+            >
+              <AlertCircle className={`w-3 h-3 ${errorIconClass}`} aria-hidden />
+              <span>Falhou</span>
+            </span>
+          )}
         </div>
       </div>
     </div>
