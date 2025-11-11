@@ -348,6 +348,8 @@ class TapNavigationService {
       websocketService.on('message', handleMessage);
       websocketService.on('error', handleError);
 
+      const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
+
       const timeout = setTimeout(() => {
         if (resolved) return;
 
@@ -355,7 +357,7 @@ class TapNavigationService {
         clearListeners();
 
         reject(new RequestTimeoutError());
-      }, 30000);
+      }, timeoutDuration);
 
       websocketService.sendMessage(message).catch((sendError: unknown) => {
         if (resolved) return;
