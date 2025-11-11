@@ -11,6 +11,8 @@ interface FloatingChatProps {
     topicName?: string;
   };
   isProcessing: boolean;
+  connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
+  connectionError?: string | null;
   onSendMessage: (message: string) => void;
   messages: ChatMessage[];
 }
@@ -18,10 +20,30 @@ interface FloatingChatProps {
 export function FloatingChat({
   context,
   isProcessing,
+  connectionState,
+  connectionError,
   onSendMessage,
   messages,
 }: FloatingChatProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  const isConnected = connectionState === 'connected';
+  const isInputDisabled = isProcessing || !isConnected;
+
+  const getConnectionStatusMessage = () => {
+    switch (connectionState) {
+      case 'connecting':
+        return 'Reconectando ao assistente...';
+      case 'disconnected':
+        return 'Conexão com o assistente perdida.';
+      case 'error':
+        return connectionError || 'Não foi possível se conectar ao assistente.';
+      default:
+        return null;
+    }
+  };
+
+  const connectionStatusMessage = getConnectionStatusMessage();
 
   const handleSend = (message: string) => {
     let contextualMessage = message;
@@ -83,7 +105,7 @@ export function FloatingChat({
                       <button
                         key={suggestion}
                         onClick={() => handleSend(suggestion)}
-                        disabled={isProcessing}
+                        disabled={isInputDisabled}
                         className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-colors disabled:opacity-50"
                       >
                         {suggestion}
@@ -101,11 +123,25 @@ export function FloatingChat({
             </div>
 
             <div className="p-4 border-t border-gray-200 bg-gray-50">
+              {connectionStatusMessage && (
+                <div className="mb-2 flex items-center gap-2 text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  <span className="font-medium">{connectionStatusMessage}</span>
+                  {!isConnected && (
+                    <span className="text-amber-500">Tente novamente em instantes.</span>
+                  )}
+                </div>
+              )}
               {isProcessing && <TypingIndicator />}
               <MessageInput
                 onSend={handleSend}
-                disabled={isProcessing}
-                placeholder={isProcessing ? 'Quenty is thinking...' : 'Type a message...'}
+                disabled={isInputDisabled}
+                placeholder={
+                  isProcessing
+                    ? 'Quenty is thinking...'
+                    : isConnected
+                      ? 'Type a message...'
+                      : 'Conectando ao assistente...'
+                }
               />
             </div>
           </div>
