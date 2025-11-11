@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { RefreshCw, AlertCircle, Share2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { RefreshCw, AlertCircle, Share2, WifiOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { TrendCard } from '../components/tap/TrendCard';
 import { FloatingChat } from '../components/tap/FloatingChat';
 import { LoadingProgress, TrendSkeleton } from '../components/tap/LoadingProgress';
 import { tapNavigationService } from '../lib/tapNavigationService';
-import { websocketService } from '../lib/websocket';
+import { websocketService, type WebSocketMessage } from '../lib/websocket';
 import { TrendData, TopicData, SummaryData } from '../types/tapNavigation';
 import { ChatMessage, generateMessageId } from '../lib/chatService';
 import { TopicSummary } from '../components/TopicSummary';
@@ -18,6 +18,7 @@ export function TapNavigationPage() {
   const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const [isLoadingTrends, setIsLoadingTrends] = useState(true);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
@@ -29,27 +30,100 @@ export function TapNavigationPage() {
   const [isChatProcessing, setIsChatProcessing] = useState(false);
 
   const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  const trendRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const mobileSummaryContentRef = useRef<HTMLDivElement | null>(null);
+  const desktopSummaryContentRef = useRef<HTMLDivElement | null>(null);
+
+  const resetSelectionState = () => {
+    setExpandedTrendId(null);
+    setSelectedTopic(null);
+    setSelectedSummary(null);
+    setSummaryFromCache(false);
+    setSummaryError(null);
+    setCurrentContext({});
+  };
+
+  const scrollToTrend = (trendId: string) => {
+    const element = trendRefs.current[trendId];
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const scrollSummaryToTop = () => {
+    const isDesktop = window.innerWidth >= 1024;
+    const target = isDesktop ? desktopSummaryContentRef.current : mobileSummaryContentRef.current;
+
+    if (target) {
+      target.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     loadTrends();
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setConnectionStatus('idle');
+      setConnectionError(null);
+      return;
+    }
 
-    websocketService.connect().catch((error) => {
-      if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
-        return;
-      }
-      console.error('Failed to connect WebSocket:', error);
-    });
+    setConnectionStatus('connecting');
+    setConnectionError(null);
+
+    const handleConnected = () => {
+      setConnectionStatus('connected');
+      setConnectionError(null);
+    };
+
+    const handleError = (message: WebSocketMessage) => {
+      setConnectionStatus('error');
+      setConnectionError(message.error || 'Conexão perdida. Tente reconectar.');
+    };
+
+    websocketService.on('connected', handleConnected);
+    websocketService.on('error', handleError);
+
+    const attemptConnection = () =>
+      websocketService
+        .connect()
+        .then(() => {
+          setConnectionStatus('connected');
+          setConnectionError(null);
+        })
+        .catch((error) => {
+          if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
+            return;
+          }
+          console.error('Failed to connect WebSocket:', error);
+          setConnectionStatus('error');
+          setConnectionError(error instanceof Error ? error.message : 'Não foi possível conectar ao WebSocket.');
+        });
+
+    attemptConnection();
 
     return () => {
+      websocketService.off('connected', handleConnected);
+      websocketService.off('error', handleError);
       websocketService.disconnect();
     };
   }, [user]);
 
   const loadTrends = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      resetSelectionState();
+      setTopicsMap({});
+      trendRefs.current = {};
+    }
     try {
       setIsLoadingTrends(true);
       setError(null);
@@ -70,11 +144,7 @@ export function TapNavigationPage() {
 
   const handleTrendExpand = async (trend: TrendData) => {
     if (expandedTrendId === trend.id) {
-      setExpandedTrendId(null);
-      setSelectedTopic(null);
-      setSelectedSummary(null);
-      setSummaryFromCache(false);
-      setCurrentContext({});
+      resetSelectionState();
       return;
     }
 
@@ -82,7 +152,10 @@ export function TapNavigationPage() {
     setSelectedTopic(null);
     setSelectedSummary(null);
     setSummaryFromCache(false);
+    setSummaryError(null);
     setCurrentContext({ trendName: trend.title });
+
+    requestAnimationFrame(() => scrollToTrend(trend.id));
 
     if (topicsMap[trend.id]) {
       return;
@@ -106,11 +179,7 @@ export function TapNavigationPage() {
   };
 
   const handleTrendCollapse = () => {
-    setExpandedTrendId(null);
-    setSelectedTopic(null);
-    setSelectedSummary(null);
-    setSummaryFromCache(false);
-    setCurrentContext({});
+    resetSelectionState();
   };
 
   const handleTopicSelect = async (topic: TopicData) => {
@@ -119,12 +188,15 @@ export function TapNavigationPage() {
     setSelectedTopic(topic);
     setSelectedSummary(null);
     setSummaryFromCache(false);
+    setSummaryError(null);
 
     const trend = trends.find((t) => t.id === expandedTrendId);
     setCurrentContext({
       trendName: trend?.title || '',
       topicName: topic.title,
     });
+
+    requestAnimationFrame(scrollSummaryToTop);
 
     try {
       setIsLoadingSummary(true);
@@ -133,9 +205,13 @@ export function TapNavigationPage() {
       if (result.success && result.data) {
         setSelectedSummary(result.data as SummaryData);
         setSummaryFromCache(result.fromCache || false);
+        setSummaryError(null);
+      } else {
+        setSummaryError(result.error || 'Não foi possível carregar o resumo.');
       }
     } catch (err) {
       console.error('Error loading summary:', err);
+      setSummaryError('Não foi possível carregar o resumo. Tente novamente.');
     } finally {
       setIsLoadingSummary(false);
     }
@@ -145,6 +221,7 @@ export function TapNavigationPage() {
     setSelectedTopic(null);
     setSelectedSummary(null);
     setSummaryFromCache(false);
+    setSummaryError(null);
     const trend = trends.find((t) => t.id === expandedTrendId);
     setCurrentContext(trend ? { trendName: trend.title } : {});
   };
@@ -154,17 +231,44 @@ export function TapNavigationPage() {
 
     try {
       setIsRefreshing(true);
+      setSummaryError(null);
       const result = await tapNavigationService.fetchSummary(selectedTopic.rank, user.id, { forceRefresh: true });
 
       if (result.success && result.data) {
         setSelectedSummary(result.data as SummaryData);
         setSummaryFromCache(false);
+        setSummaryError(null);
+      } else {
+        setSummaryError(result.error || 'Não foi possível atualizar o resumo.');
       }
     } catch (err) {
       console.error('Error refreshing summary:', err);
+      setSummaryError('Não foi possível atualizar o resumo. Tente novamente.');
     } finally {
       setIsRefreshing(false);
     }
+  };
+
+  const handleReconnect = () => {
+    if (!user) return;
+
+    setConnectionStatus('connecting');
+    setConnectionError(null);
+
+    websocketService
+      .connect()
+      .then(() => {
+        setConnectionStatus('connected');
+        setConnectionError(null);
+      })
+      .catch((error) => {
+        if (error instanceof Error && error.message === 'WebSocket connection intentionally closed') {
+          return;
+        }
+        console.error('Failed to reconnect WebSocket:', error);
+        setConnectionStatus('error');
+        setConnectionError(error instanceof Error ? error.message : 'Não foi possível reconectar ao WebSocket.');
+      });
   };
 
   const handleShare = async () => {
@@ -228,16 +332,22 @@ export function TapNavigationPage() {
 
   const renderTrendList = () =>
     trends.map((trend) => (
-      <TrendCard
+      <div
         key={trend.id}
-        trend={trend}
-        isExpanded={expandedTrendId === trend.id}
-        topics={topicsMap[trend.id] || null}
-        isLoadingTopics={isLoadingTopics && expandedTrendId === trend.id}
-        onExpand={() => handleTrendExpand(trend)}
-        onCollapse={handleTrendCollapse}
-        onTopicSelect={handleTopicSelect}
-      />
+        ref={(element) => {
+          trendRefs.current[trend.id] = element;
+        }}
+      >
+        <TrendCard
+          trend={trend}
+          isExpanded={expandedTrendId === trend.id}
+          topics={topicsMap[trend.id] || null}
+          isLoadingTopics={isLoadingTopics && expandedTrendId === trend.id}
+          onExpand={() => handleTrendExpand(trend)}
+          onCollapse={handleTrendCollapse}
+          onTopicSelect={handleTopicSelect}
+        />
+      </div>
     ));
 
   const renderSummaryContent = (variant: 'mobile' | 'desktop') => {
@@ -247,6 +357,8 @@ export function TapNavigationPage() {
         : 'h-full flex flex-col bg-white rounded-2xl shadow-lg';
     const contentPadding = variant === 'desktop' ? 'px-6 pt-6 pb-4' : 'px-4 pt-4 pb-4';
     const footerPadding = variant === 'desktop' ? 'px-6 py-4' : 'px-4 py-3';
+
+    const scrollableRef = variant === 'desktop' ? desktopSummaryContentRef : mobileSummaryContentRef;
 
     if (!selectedTopic) {
       return (
@@ -265,10 +377,11 @@ export function TapNavigationPage() {
     const lastUpdatedLabel = hasSummary
       ? new Date(selectedSummary!.lastUpdated).toLocaleString('pt-BR')
       : null;
+    const summaryFallbackMessage = summaryError || 'Não foi possível carregar o resumo. Tente novamente.';
 
     return (
       <div className={baseClasses}>
-        <div className={`flex-1 overflow-y-auto ${contentPadding}`}>
+        <div ref={scrollableRef} className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {isLoadingSummary ? (
             <LoadingProgress message="Carregando resumo..." />
           ) : hasSummary ? (
@@ -285,11 +398,13 @@ export function TapNavigationPage() {
                 date={new Date(selectedSummary!.lastUpdated).toLocaleDateString('pt-BR')}
                 onBack={handleSummaryClose}
                 disabled={isRefreshing || isLoadingSummary}
+                whyItMatters={selectedSummary!.whyItMatters}
+                sources={selectedSummary!.sources}
               />
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-sm text-gray-500">
-              Não foi possível carregar o resumo. Tente novamente.
+              {summaryFallbackMessage}
             </div>
           )}
         </div>
@@ -297,12 +412,16 @@ export function TapNavigationPage() {
           className={`border-t border-gray-200 bg-gray-50 ${footerPadding} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
         >
           <div className="text-xs text-gray-500">
-            {lastUpdatedLabel ? `Última atualização ${lastUpdatedLabel}` : 'Preparando resumo...'}
+            {lastUpdatedLabel
+              ? `Última atualização ${lastUpdatedLabel}`
+              : summaryError
+              ? 'Erro ao carregar resumo'
+              : 'Preparando resumo...'}
           </div>
           <div className="flex items-center gap-2 justify-end">
             <button
               onClick={handleSummaryRefresh}
-              disabled={!hasSummary || isRefreshing || isLoadingSummary}
+              disabled={isRefreshing || isLoadingSummary}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -340,6 +459,26 @@ export function TapNavigationPage() {
           </button>
         </div>
       </div>
+
+      {connectionStatus === 'error' && (
+        <div className="max-w-5xl mx-auto px-4 mt-4">
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2 text-sm text-amber-800">
+              <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold">Conexão com o assistente perdida</p>
+                <p className="text-xs text-amber-700">{connectionError || 'Não foi possível se comunicar com o assistente em tempo real.'}</p>
+              </div>
+            </div>
+            <button
+              onClick={handleReconnect}
+              className="inline-flex items-center justify-center px-3 py-2 rounded-lg text-xs font-semibold text-amber-900 bg-white border border-amber-200 hover:bg-amber-100 transition-colors"
+            >
+              Tentar reconectar
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {error && (
