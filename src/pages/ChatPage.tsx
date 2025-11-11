@@ -8,7 +8,7 @@ import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
-import type { SourceData } from '../types/tapNavigation';
+import type { SourceData, SummaryData } from '../types/tapNavigation';
 import {
   ChatMessage,
   sendMessageToAgent,
@@ -350,7 +350,7 @@ export function ChatPage() {
                     ? (structured.summary as Record<string, any>)
                     : structured;
 
-                const summaryContent = [
+                const summaryText = [
                   structuredSummary && typeof structuredSummary.content === 'string'
                     ? (structuredSummary.content as string)
                     : undefined,
@@ -360,31 +360,6 @@ export function ChatPage() {
                   message.content,
                 ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
 
-                const dateCandidates: Array<unknown> = structuredSummary
-                  ? [
-                      structuredSummary.lastUpdated,
-                      structuredSummary.updatedAt,
-                      structuredSummary.date,
-                      structuredSummary.last_updated,
-                    ]
-                  : [];
-
-                const formatDate = (value?: string) => {
-                  if (!value) return undefined;
-                  const parsedDate = new Date(value);
-                  if (Number.isNaN(parsedDate.getTime())) {
-                    return value;
-                  }
-                  return parsedDate.toLocaleDateString('pt-BR');
-                };
-
-                const summaryDateRaw = dateCandidates.find(
-                  (value): value is string => typeof value === 'string' && value.trim().length > 0
-                );
-
-                const formattedDateCandidate = summaryDateRaw ? formatDate(summaryDateRaw) : undefined;
-                const formattedDate = formattedDateCandidate || message.timestamp.toLocaleDateString('pt-BR');
-
                 const summaryWhyItMatters = [
                   structuredSummary && typeof structuredSummary.whyItMatters === 'string'
                     ? (structuredSummary.whyItMatters as string)
@@ -392,7 +367,7 @@ export function ChatPage() {
                   structuredSummary && typeof structuredSummary.why_it_matters === 'string'
                     ? (structuredSummary.why_it_matters as string)
                     : undefined,
-                  typeof message.metadata?.whyItMatters === 'string' ? message.metadata?.whyItMatters : undefined,
+                  typeof message.metadata?.whyItMatters === 'string' ? message.metadata.whyItMatters : undefined,
                 ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
 
                 const normalizeSources = (value: unknown): SourceData[] => {
@@ -462,18 +437,85 @@ export function ChatPage() {
                   .flatMap((value) => normalizeSources(value))
                   .filter((source, index, self) => index === self.findIndex((item) => item.url === source.url && item.title === source.title));
 
+                const toStringArray = (value: unknown): string[] => {
+                  if (!value) return [];
+                  if (Array.isArray(value)) {
+                    return value
+                      .map((item) => (typeof item === 'string' ? item : undefined))
+                      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+                  }
+                  if (typeof value === 'string' && value.trim().length > 0) {
+                    return [value];
+                  }
+                  return [];
+                };
+
+                const likesData = [
+                  structuredSummary && structuredSummary['likes-data'],
+                  structuredSummary && structuredSummary.likesData,
+                  typeof message.metadata?.likesData === 'string' ? message.metadata.likesData : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const contextItems = Array.from(
+                  new Set(
+                    [
+                      ...toStringArray(structuredSummary?.context),
+                      ...toStringArray(structuredSummary?.background),
+                      ...toStringArray(message.metadata?.context),
+                    ],
+                  ),
+                );
+
+                const debateItems = Array.from(
+                  new Set(
+                    [
+                      ...toStringArray(structuredSummary?.debate),
+                      ...toStringArray(structuredSummary?.arguments),
+                      ...toStringArray(message.metadata?.debate),
+                    ],
+                  ),
+                );
+
+                const personalization = [
+                  structuredSummary && structuredSummary.personalization,
+                  typeof message.metadata?.personalization === 'string' ? message.metadata.personalization : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const thesisText = [
+                  structuredSummary && structuredSummary.thesis,
+                  summaryText,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const topicName = [
+                  structuredSummary && structuredSummary.topicName,
+                  message.metadata?.topicName,
+                  currentContext.topicName,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const summaryData: SummaryData = {
+                  topicName: topicName || 'Tópico',
+                  likesData: likesData || '',
+                  context: contextItems,
+                  thesis: thesisText || '',
+                  debate: debateItems,
+                  personalization: personalization || '',
+                  ...(summaryWhyItMatters ? { whyItMatters: summaryWhyItMatters } : {}),
+                  ...(summarySources.length > 0 ? { sources: summarySources } : {}),
+                };
+
+                const trendLabel =
+                  (typeof message.metadata?.trendName === 'string' && message.metadata.trendName.trim().length > 0
+                    ? message.metadata.trendName
+                    : undefined) || currentContext.trendName || 'Assunto';
+
                 return (
                   <div key={message.id} className="mb-4">
                     <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
                       <TopicSummary
-                        topicName={currentContext.topicName || 'Tópico'}
-                        trendName={currentContext.trendName || 'Assunto'}
-                        content={summaryContent || message.content}
-                        date={formattedDate}
+                        summary={summaryData}
+                        trendName={trendLabel}
                         onBack={handleBackToTopics}
                         disabled={isProcessing}
-                        whyItMatters={summaryWhyItMatters}
-                        sources={summarySources.length > 0 ? summarySources : undefined}
                       />
                     </div>
                   </div>

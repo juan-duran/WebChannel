@@ -17,7 +17,7 @@ import {
 } from '../lib/chatService';
 import { safeJsonParse } from '../lib/safeJsonParse';
 import { websocketService, WebSocketMessage } from '../lib/websocket';
-import type { SourceData } from '../types/tapNavigation';
+import type { SourceData, SummaryData } from '../types/tapNavigation';
 
 export function ChatPageWebSocket() {
   const { user } = useAuth();
@@ -293,6 +293,13 @@ export function ChatPageWebSocket() {
             ? (item as any).number
             : index + 1;
 
+        const description =
+          typeof (item as any).summary === 'string'
+            ? (item as any).summary
+            : typeof (item as any).description === 'string'
+            ? (item as any).description
+            : undefined;
+
         const name =
           typeof (item as any).title === 'string'
             ? (item as any).title
@@ -300,18 +307,11 @@ export function ChatPageWebSocket() {
             ? (item as any).name
             : typeof (item as any).label === 'string'
             ? (item as any).label
-            : undefined;
+            : description;
 
         if (!name) {
           return null;
         }
-
-        const description =
-          typeof (item as any).summary === 'string'
-            ? (item as any).summary
-            : typeof (item as any).description === 'string'
-            ? (item as any).description
-            : undefined;
 
         const value =
           typeof (item as any).value === 'string'
@@ -522,33 +522,6 @@ export function ChatPageWebSocket() {
         (typeof message.metadata?.trendName === 'string' ? message.metadata.trendName : undefined) ||
         'Assunto';
 
-      const summaryText = [
-        structuredSummary.content,
-        structuredSummary.summary,
-        structuredSummary.text,
-        isParsedObject ? parsedContent.content : undefined,
-        isParsedObject ? parsedContent.summary : undefined,
-      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
-
-      const summaryDateRaw = [
-        structuredSummary.lastUpdated,
-        structuredSummary.updatedAt,
-        structuredSummary.date,
-        structuredSummary.last_updated,
-        isParsedObject ? parsedContent.date : undefined,
-      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
-
-      const formatDate = (value?: string) => {
-        if (!value) return undefined;
-        const parsedDate = new Date(value);
-        if (Number.isNaN(parsedDate.getTime())) {
-          return value;
-        }
-        return parsedDate.toLocaleDateString('pt-BR');
-      };
-
-      const summaryDate = formatDate(summaryDateRaw);
-
       const summaryWhyItMatters = [
         structuredSummary.whyItMatters,
         structuredSummary.why_it_matters,
@@ -556,6 +529,19 @@ export function ChatPageWebSocket() {
         isParsedObject ? parsedContent.why_it_matters : undefined,
         typeof message.metadata?.whyItMatters === 'string' ? message.metadata.whyItMatters : undefined,
       ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const toStringArray = (value: unknown): string[] => {
+        if (!value) return [];
+        if (Array.isArray(value)) {
+          return value
+            .map((item) => (typeof item === 'string' ? item : undefined))
+            .filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+        }
+        if (typeof value === 'string' && value.trim().length > 0) {
+          return [value];
+        }
+        return [];
+      };
 
       const normalizeSources = (value: unknown): SourceData[] => {
         if (!value) return [];
@@ -626,19 +612,71 @@ export function ChatPageWebSocket() {
         .flatMap((value) => normalizeSources(value))
         .filter((source, index, self) => index === self.findIndex((item) => item.url === source.url && item.title === source.title));
 
+      const summaryText = [
+        structuredSummary.content,
+        structuredSummary.summary,
+        structuredSummary.text,
+        isParsedObject ? parsedContent.content : undefined,
+        isParsedObject ? parsedContent.summary : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const likesData = [
+        structuredSummary['likes-data'],
+        structuredSummary.likesData,
+        isParsedObject ? parsedContent['likes-data'] : undefined,
+        isParsedObject ? parsedContent.likesData : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const contextItems = Array.from(
+        new Set(
+          [
+            ...toStringArray(structuredSummary.context),
+            ...toStringArray(structuredSummary.background),
+            ...(isParsedObject ? toStringArray(parsedContent.context) : []),
+            ...(isParsedObject ? toStringArray(parsedContent.background) : []),
+          ],
+        ),
+      );
+
+      const debateItems = Array.from(
+        new Set(
+          [
+            ...toStringArray(structuredSummary.debate),
+            ...toStringArray(structuredSummary.arguments),
+            ...(isParsedObject ? toStringArray(parsedContent.debate) : []),
+            ...(isParsedObject ? toStringArray(parsedContent.arguments) : []),
+          ],
+        ),
+      );
+
+      const personalization = [
+        structuredSummary.personalization,
+        isParsedObject ? parsedContent.personalization : undefined,
+        typeof message.metadata?.personalization === 'string' ? message.metadata.personalization : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const thesisText = [
+        structuredSummary.thesis,
+        isParsedObject ? parsedContent.thesis : undefined,
+        summaryText,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const summaryData: SummaryData = {
+        topicName,
+        likesData: likesData || '',
+        context: contextItems,
+        thesis: thesisText || '',
+        debate: debateItems,
+        personalization: personalization || '',
+        ...(summaryWhyItMatters ? { whyItMatters: summaryWhyItMatters } : {}),
+        ...(summarySources.length > 0 ? { sources: summarySources } : {}),
+      };
+
       return (
         <div key={message.id} className="flex flex-col items-start gap-4">
           {bubbleText && <MessageBubble message={{ ...message, content: bubbleText }} />}
           <div className="w-full animate-fadeIn">
-            <TopicSummary
-              topicName={topicName}
-              trendName={trendName}
-              content={summaryText || ''}
-              date={summaryDate}
-              disabled={disabled}
-              whyItMatters={summaryWhyItMatters}
-              sources={summarySources.length > 0 ? summarySources : undefined}
-            />
+            <TopicSummary summary={summaryData} trendName={trendName} disabled={disabled} />
           </div>
           {renderButtons(buttons)}
         </div>
