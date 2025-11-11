@@ -7,11 +7,11 @@ interface LoadingProgressProps {
 }
 
 const LOADING_MESSAGES = [
-  'Quenty is analyzing conversations...',
-  'Fetching the latest social debates...',
-  'Refining your briefing...',
-  'Gathering insights from discussions...',
-  'Synthesizing key topics...',
+  'Quenty está analisando as conversas...',
+  'Buscando os debates sociais mais recentes...',
+  'Refinando o seu briefing...',
+  'Coletando insights das discussões...',
+  'Sintetizando os tópicos principais...',
 ];
 
 export function LoadingProgress({ message, duration = 10000 }: LoadingProgressProps) {
