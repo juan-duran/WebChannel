@@ -17,6 +17,7 @@ import {
 } from '../lib/chatService';
 import { safeJsonParse } from '../lib/safeJsonParse';
 import { websocketService, WebSocketMessage } from '../lib/websocket';
+import type { SourceData } from '../types/tapNavigation';
 
 export function ChatPageWebSocket() {
   const { user } = useAuth();
@@ -529,12 +530,101 @@ export function ChatPageWebSocket() {
         isParsedObject ? parsedContent.summary : undefined,
       ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
 
-      const summaryDate = [
+      const summaryDateRaw = [
         structuredSummary.lastUpdated,
         structuredSummary.updatedAt,
         structuredSummary.date,
+        structuredSummary.last_updated,
         isParsedObject ? parsedContent.date : undefined,
       ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const formatDate = (value?: string) => {
+        if (!value) return undefined;
+        const parsedDate = new Date(value);
+        if (Number.isNaN(parsedDate.getTime())) {
+          return value;
+        }
+        return parsedDate.toLocaleDateString('pt-BR');
+      };
+
+      const summaryDate = formatDate(summaryDateRaw);
+
+      const summaryWhyItMatters = [
+        structuredSummary.whyItMatters,
+        structuredSummary.why_it_matters,
+        isParsedObject ? parsedContent.whyItMatters : undefined,
+        isParsedObject ? parsedContent.why_it_matters : undefined,
+        typeof message.metadata?.whyItMatters === 'string' ? message.metadata.whyItMatters : undefined,
+      ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+      const normalizeSources = (value: unknown): SourceData[] => {
+        if (!value) return [];
+        if (Array.isArray(value)) {
+          return value
+            .map((item) => {
+              if (typeof item === 'string') {
+                return { title: item, url: item } satisfies SourceData;
+              }
+
+              if (!item || typeof item !== 'object') {
+                return null;
+              }
+
+              const maybeTitle =
+                typeof (item as any).title === 'string'
+                  ? (item as any).title
+                  : typeof (item as any).name === 'string'
+                  ? (item as any).name
+                  : undefined;
+
+              const maybeUrl =
+                typeof (item as any).url === 'string'
+                  ? (item as any).url
+                  : typeof (item as any).link === 'string'
+                  ? (item as any).link
+                  : undefined;
+
+              if (!maybeUrl) {
+                return null;
+              }
+
+              const maybeDate = [
+                typeof (item as any).publishedAt === 'string' ? (item as any).publishedAt : undefined,
+                typeof (item as any).published_at === 'string' ? (item as any).published_at : undefined,
+                typeof (item as any).date === 'string' ? (item as any).date : undefined,
+              ].find((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0);
+
+              return {
+                title: maybeTitle || maybeUrl,
+                url: maybeUrl,
+                ...(maybeDate ? { publishedAt: maybeDate } : {}),
+              } satisfies SourceData;
+            })
+            .filter((item): item is SourceData => Boolean(item));
+        }
+
+        if (typeof value === 'string') {
+          return [{ title: value, url: value }];
+        }
+
+        return [];
+      };
+
+      const candidateSources = [
+        structuredSummary.sources,
+        structuredSummary.references,
+        structuredSummary.links,
+        structuredSummary.sourceList,
+        isParsedObject ? parsedContent.sources : undefined,
+        isParsedObject ? parsedContent.references : undefined,
+        message.metadata && Array.isArray((message.metadata as any).sources)
+          ? (message.metadata as any).sources
+          : undefined,
+      ];
+
+      const summarySources = candidateSources
+        .flatMap((value) => normalizeSources(value))
+        .filter((source, index, self) => index === self.findIndex((item) => item.url === source.url && item.title === source.title));
 
       return (
         <div key={message.id} className="flex flex-col items-start gap-4">
@@ -546,6 +636,8 @@ export function ChatPageWebSocket() {
               content={summaryText || ''}
               date={summaryDate}
               disabled={disabled}
+              whyItMatters={summaryWhyItMatters}
+              sources={summarySources.length > 0 ? summarySources : undefined}
             />
           </div>
           {renderButtons(buttons)}

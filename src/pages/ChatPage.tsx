@@ -8,6 +8,7 @@ import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
+import type { SourceData } from '../types/tapNavigation';
 import {
   ChatMessage,
   sendMessageToAgent,
@@ -337,16 +338,142 @@ export function ChatPage() {
               }
 
               if (message.contentType === 'summary') {
+                const structured =
+                  message.structuredData &&
+                  typeof message.structuredData === 'object' &&
+                  !Array.isArray(message.structuredData)
+                    ? (message.structuredData as Record<string, any>)
+                    : undefined;
+
+                const structuredSummary =
+                  structured && structured.summary && typeof structured.summary === 'object' && !Array.isArray(structured.summary)
+                    ? (structured.summary as Record<string, any>)
+                    : structured;
+
+                const summaryContent = [
+                  structuredSummary && typeof structuredSummary.content === 'string'
+                    ? (structuredSummary.content as string)
+                    : undefined,
+                  structuredSummary && typeof structuredSummary.summary === 'string'
+                    ? (structuredSummary.summary as string)
+                    : undefined,
+                  message.content,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const dateCandidates: Array<unknown> = structuredSummary
+                  ? [
+                      structuredSummary.lastUpdated,
+                      structuredSummary.updatedAt,
+                      structuredSummary.date,
+                      structuredSummary.last_updated,
+                    ]
+                  : [];
+
+                const formatDate = (value?: string) => {
+                  if (!value) return undefined;
+                  const parsedDate = new Date(value);
+                  if (Number.isNaN(parsedDate.getTime())) {
+                    return value;
+                  }
+                  return parsedDate.toLocaleDateString('pt-BR');
+                };
+
+                const summaryDateRaw = dateCandidates.find(
+                  (value): value is string => typeof value === 'string' && value.trim().length > 0
+                );
+
+                const formattedDateCandidate = summaryDateRaw ? formatDate(summaryDateRaw) : undefined;
+                const formattedDate = formattedDateCandidate || message.timestamp.toLocaleDateString('pt-BR');
+
+                const summaryWhyItMatters = [
+                  structuredSummary && typeof structuredSummary.whyItMatters === 'string'
+                    ? (structuredSummary.whyItMatters as string)
+                    : undefined,
+                  structuredSummary && typeof structuredSummary.why_it_matters === 'string'
+                    ? (structuredSummary.why_it_matters as string)
+                    : undefined,
+                  typeof message.metadata?.whyItMatters === 'string' ? message.metadata?.whyItMatters : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const normalizeSources = (value: unknown): SourceData[] => {
+                  if (!value) return [];
+                  if (Array.isArray(value)) {
+                    return value
+                      .map((item) => {
+                        if (typeof item === 'string') {
+                          return { title: item, url: item } satisfies SourceData;
+                        }
+
+                        if (!item || typeof item !== 'object') {
+                          return null;
+                        }
+
+                        const maybeUrl =
+                          typeof (item as any).url === 'string'
+                            ? (item as any).url
+                            : typeof (item as any).link === 'string'
+                            ? (item as any).link
+                            : undefined;
+
+                        if (!maybeUrl) {
+                          return null;
+                        }
+
+                        const maybeTitle =
+                          typeof (item as any).title === 'string'
+                            ? (item as any).title
+                            : typeof (item as any).name === 'string'
+                            ? (item as any).name
+                            : undefined;
+
+                        const maybeDate = [
+                          typeof (item as any).publishedAt === 'string' ? (item as any).publishedAt : undefined,
+                          typeof (item as any).published_at === 'string' ? (item as any).published_at : undefined,
+                          typeof (item as any).date === 'string' ? (item as any).date : undefined,
+                        ].find((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0);
+
+                        return {
+                          title: maybeTitle || maybeUrl,
+                          url: maybeUrl,
+                          ...(maybeDate ? { publishedAt: maybeDate } : {}),
+                        } satisfies SourceData;
+                      })
+                      .filter((item): item is SourceData => Boolean(item));
+                  }
+
+                  if (typeof value === 'string') {
+                    return [{ title: value, url: value }];
+                  }
+
+                  return [];
+                };
+
+                const candidateSources = [
+                  structuredSummary && 'sources' in structuredSummary ? (structuredSummary as any).sources : undefined,
+                  structuredSummary && 'references' in structuredSummary ? (structuredSummary as any).references : undefined,
+                  structuredSummary && 'links' in structuredSummary ? (structuredSummary as any).links : undefined,
+                  structuredSummary && 'sourceList' in structuredSummary ? (structuredSummary as any).sourceList : undefined,
+                  message.metadata && Array.isArray((message.metadata as any).sources)
+                    ? (message.metadata as any).sources
+                    : undefined,
+                ];
+
+                const summarySources = candidateSources
+                  .flatMap((value) => normalizeSources(value))
+                  .filter((source, index, self) => index === self.findIndex((item) => item.url === source.url && item.title === source.title));
+
                 return (
                   <div key={message.id} className="mb-4">
                     <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
                       <TopicSummary
                         topicName={currentContext.topicName || 'Tópico'}
                         trendName={currentContext.trendName || 'Assunto'}
-                        content={message.content}
-                        date={message.timestamp.toLocaleDateString('pt-BR')}
+                        content={summaryContent || message.content}
+                        date={formattedDate}
                         onBack={handleBackToTopics}
                         disabled={isProcessing}
+                        whyItMatters={summaryWhyItMatters}
+                        sources={summarySources.length > 0 ? summarySources : undefined}
                       />
                     </div>
                   </div>

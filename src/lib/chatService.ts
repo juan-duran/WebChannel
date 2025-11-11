@@ -35,6 +35,7 @@ export type ChatMessage = {
     trendName?: string;
     topicId?: string;
     topicName?: string;
+    [key: string]: any;
   };
   buttons?: MessageButton[];
 };
@@ -148,7 +149,7 @@ export async function saveMessageToDatabase(
   role: 'user' | 'assistant',
   content: string,
   contentType: string = 'text',
-  structuredData?: TapNavigationStructuredData | null,
+  structuredData?: TapNavigationStructuredData | Record<string, any> | Array<Record<string, any>> | null,
   metadata?: any,
   webhookResponse?: any
 ): Promise<string | null> {
