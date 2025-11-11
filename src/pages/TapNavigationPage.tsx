@@ -15,6 +15,7 @@ export function TapNavigationPage() {
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
   const [topicsMap, setTopicsMap] = useState<Record<string, TopicData[]>>({});
+  const [topicsErrorMap, setTopicsErrorMap] = useState<Record<string, string | null>>({});
   const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
@@ -22,6 +23,7 @@ export function TapNavigationPage() {
 
   const [isLoadingTrends, setIsLoadingTrends] = useState(true);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [loadingTopicsTrendId, setLoadingTopicsTrendId] = useState<string | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -49,7 +51,10 @@ export function TapNavigationPage() {
   const scrollToTrend = (trendId: string) => {
     const element = trendRefs.current[trendId];
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const offset = 80;
+      const rect = element.getBoundingClientRect();
+      const absoluteY = rect.top + window.scrollY - offset;
+      window.scrollTo({ top: Math.max(absoluteY, 0), behavior: 'smooth' });
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -122,6 +127,7 @@ export function TapNavigationPage() {
     if (forceRefresh) {
       resetSelectionState();
       setTopicsMap({});
+      setTopicsErrorMap({});
       trendRefs.current = {};
     }
     try {
@@ -142,6 +148,52 @@ export function TapNavigationPage() {
     }
   };
 
+  const loadTopicsForTrend = async (trend: TrendData, options?: { forceRefresh?: boolean }) => {
+    if (isLoadingTopics && loadingTopicsTrendId === trend.id) {
+      return;
+    }
+
+    if (!options?.forceRefresh && topicsMap[trend.id] && !topicsErrorMap[trend.id]) {
+      return;
+    }
+
+    setTopicsErrorMap((prev) => ({
+      ...prev,
+      [trend.id]: null,
+    }));
+
+    try {
+      setIsLoadingTopics(true);
+      setLoadingTopicsTrendId(trend.id);
+      const result = await tapNavigationService.fetchTopics(trend.rank, options);
+
+      if (result.success && Array.isArray(result.data)) {
+        setTopicsMap((prev) => ({
+          ...prev,
+          [trend.id]: result.data as TopicData[],
+        }));
+        setTopicsErrorMap((prev) => ({
+          ...prev,
+          [trend.id]: null,
+        }));
+      } else {
+        setTopicsErrorMap((prev) => ({
+          ...prev,
+          [trend.id]: result.error || 'Não foi possível carregar os tópicos.',
+        }));
+      }
+    } catch (err) {
+      console.error('Error loading topics:', err);
+      setTopicsErrorMap((prev) => ({
+        ...prev,
+        [trend.id]: 'Não foi possível carregar os tópicos. Tente novamente.',
+      }));
+    } finally {
+      setIsLoadingTopics(false);
+      setLoadingTopicsTrendId(null);
+    }
+  };
+
   const handleTrendExpand = async (trend: TrendData) => {
     if (expandedTrendId === trend.id) {
       resetSelectionState();
@@ -157,29 +209,15 @@ export function TapNavigationPage() {
 
     requestAnimationFrame(() => scrollToTrend(trend.id));
 
-    if (topicsMap[trend.id]) {
-      return;
-    }
-
-    try {
-      setIsLoadingTopics(true);
-      const result = await tapNavigationService.fetchTopics(trend.rank);
-
-      if (result.success && result.data) {
-        setTopicsMap((prev) => ({
-          ...prev,
-          [trend.id]: result.data as TopicData[],
-        }));
-      }
-    } catch (err) {
-      console.error('Error loading topics:', err);
-    } finally {
-      setIsLoadingTopics(false);
-    }
+    loadTopicsForTrend(trend);
   };
 
   const handleTrendCollapse = () => {
     resetSelectionState();
+  };
+
+  const handleTopicsRetry = (trend: TrendData) => {
+    loadTopicsForTrend(trend, { forceRefresh: true });
   };
 
   const handleTopicSelect = async (topic: TopicData) => {
@@ -343,9 +381,16 @@ export function TapNavigationPage() {
           isExpanded={expandedTrendId === trend.id}
           topics={topicsMap[trend.id] || null}
           isLoadingTopics={isLoadingTopics && expandedTrendId === trend.id}
+          topicsError={topicsErrorMap[trend.id] || null}
           onExpand={() => handleTrendExpand(trend)}
           onCollapse={handleTrendCollapse}
           onTopicSelect={handleTopicSelect}
+          onRetryTopics={() => handleTopicsRetry(trend)}
+          disabled={Boolean(
+            isLoadingTopics &&
+              loadingTopicsTrendId !== null &&
+              loadingTopicsTrendId !== trend.id
+          )}
         />
       </div>
     ));
