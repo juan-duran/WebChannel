@@ -264,9 +264,12 @@ export function ChatPageWebSocket() {
   };
 
   const handleTrendSelect = (trend: Trend) => {
-    const value = trend.value?.trim() || (Number.isFinite(trend.number) ? `Assunto #${trend.number}` : trend.name);
-    if (!value) return;
-    handleSendMessage(value);
+    const command =
+      (typeof trend.command === 'string' && trend.command.trim().length > 0 && trend.command.trim()) ||
+      (typeof trend.value === 'string' && /^assunto\s*#/i.test(trend.value) ? trend.value.trim() : undefined) ||
+      (Number.isFinite(trend.number) ? `Assunto #${trend.number}` : trend.name);
+    if (!command) return;
+    handleSendMessage(command);
   };
 
   const handleTopicSelect = (topic: Topic) => {
@@ -275,62 +278,103 @@ export function ChatPageWebSocket() {
     handleSendMessage(value);
   };
 
+  const toTrimmedString = (value: unknown): string | undefined => {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length > 0 ? trimmed : undefined;
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+    return undefined;
+  };
+
   const normalizeTrends = (data: any): Trend[] => {
     if (!Array.isArray(data)) {
       return [];
     }
 
-    return data
-      .map((item, index) => {
-        if (!item || typeof item !== 'object') {
-          return null;
+    const trends: Trend[] = [];
+
+    data.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
+
+      const parseRank = (value: unknown): number | undefined => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+          return value;
         }
-
-        const rank =
-          typeof (item as any).rank === 'number'
-            ? (item as any).rank
-            : typeof (item as any).number === 'number'
-            ? (item as any).number
-            : index + 1;
-
-        const description =
-          typeof (item as any).summary === 'string'
-            ? (item as any).summary
-            : typeof (item as any).description === 'string'
-            ? (item as any).description
-            : undefined;
-
-        const name =
-          typeof (item as any).title === 'string'
-            ? (item as any).title
-            : typeof (item as any).name === 'string'
-            ? (item as any).name
-            : typeof (item as any).label === 'string'
-            ? (item as any).label
-            : description;
-
-        if (!name) {
-          return null;
+        if (typeof value === 'string') {
+          const match = value.match(/\d+/);
+          if (match) {
+            const parsed = parseInt(match[0], 10);
+            if (!Number.isNaN(parsed)) {
+              return parsed;
+            }
+          }
         }
+        return undefined;
+      };
 
-        const value =
-          typeof (item as any).value === 'string'
-            ? (item as any).value
-            : typeof (item as any).command === 'string'
-            ? (item as any).command
-            : rank
-            ? `Assunto #${rank}`
-            : undefined;
+      const rank =
+        parseRank((item as any).rank) ??
+        parseRank((item as any).number) ??
+        parseRank((item as any).position) ??
+        index + 1;
 
-        return {
-          id: typeof (item as any).id === 'string' ? (item as any).id : `trend_${rank ?? index + 1}`,
-          number: rank ?? index + 1,
-          name,
-          description,
-          value,
-        };
-      })
-      .filter((trend): trend is Trend => Boolean(trend));
+      const rawName =
+        toTrimmedString((item as any).title) ??
+        toTrimmedString((item as any).name) ??
+        toTrimmedString((item as any).label);
+
+      const headline = toTrimmedString((item as any).headline);
+      const description =
+        toTrimmedString((item as any).summary) ?? toTrimmedString((item as any).description);
+      const resolvedName = rawName ?? headline ?? description;
+
+      if (!resolvedName) {
+        return;
+      }
+
+      const metrics =
+        toTrimmedString((item as any).value) ?? toTrimmedString((item as any).stats);
+
+      const command =
+        toTrimmedString((item as any).command) ??
+        toTrimmedString((item as any).cta) ??
+        (Number.isFinite(rank) ? `Assunto #${rank}` : undefined);
+
+      const category =
+        toTrimmedString((item as any).category) ?? toTrimmedString((item as any).type);
+
+      const url =
+        toTrimmedString((item as any).url) ??
+        toTrimmedString((item as any).link) ??
+        toTrimmedString((item as any).href) ??
+        null;
+
+      const whyItMatters =
+        toTrimmedString((item as any).whyItMatters) ??
+        toTrimmedString((item as any).why_it_matters) ??
+        toTrimmedString((item as any).why);
+
+      trends.push({
+        id: typeof (item as any).id === 'string' ? (item as any).id : `trend_${rank ?? index + 1}`,
+        number: rank ?? index + 1,
+        name: resolvedName,
+        headline: headline ?? (description && description !== resolvedName ? description : undefined),
+        description: description && description !== headline ? description : undefined,
+        category: category ?? undefined,
+        value: command ?? undefined,
+        command: command ?? undefined,
+        metrics: metrics ?? undefined,
+        url: url ?? undefined,
+        whyItMatters: whyItMatters ?? undefined,
+      });
+    });
+
+    return trends;
   };
 
   const normalizeTopics = (data: any): Topic[] => {
@@ -338,57 +382,59 @@ export function ChatPageWebSocket() {
       return [];
     }
 
-    return data
-      .map((item, index) => {
-        if (!item || typeof item !== 'object') {
-          return null;
-        }
+    const topics: Topic[] = [];
 
-        const rank =
-          typeof (item as any).rank === 'number'
-            ? (item as any).rank
-            : typeof (item as any).number === 'number'
-            ? (item as any).number
-            : index + 1;
+    data.forEach((item, index) => {
+      if (!item || typeof item !== 'object') {
+        return;
+      }
 
-        const name =
-          typeof (item as any).title === 'string'
-            ? (item as any).title
-            : typeof (item as any).name === 'string'
-            ? (item as any).name
-            : typeof (item as any).label === 'string'
-            ? (item as any).label
-            : undefined;
+      const rank =
+        typeof (item as any).rank === 'number'
+          ? (item as any).rank
+          : typeof (item as any).number === 'number'
+          ? (item as any).number
+          : index + 1;
 
-        if (!name) {
-          return null;
-        }
+      const name =
+        typeof (item as any).title === 'string'
+          ? (item as any).title
+          : typeof (item as any).name === 'string'
+          ? (item as any).name
+          : typeof (item as any).label === 'string'
+          ? (item as any).label
+          : undefined;
 
-        const description =
-          typeof (item as any).summary === 'string'
-            ? (item as any).summary
-            : typeof (item as any).description === 'string'
-            ? (item as any).description
-            : undefined;
+      if (!name) {
+        return;
+      }
 
-        const value =
-          typeof (item as any).value === 'string'
-            ? (item as any).value
-            : typeof (item as any).command === 'string'
-            ? (item as any).command
-            : rank
-            ? `Tópico #${rank}`
-            : undefined;
+      const description =
+        typeof (item as any).summary === 'string'
+          ? (item as any).summary
+          : typeof (item as any).description === 'string'
+          ? (item as any).description
+          : undefined;
 
-        return {
-          id: typeof (item as any).id === 'string' ? (item as any).id : `topic_${rank ?? index + 1}`,
-          number: rank ?? index + 1,
-          name,
-          description,
-          value,
-        };
-      })
-      .filter((topic): topic is Topic => Boolean(topic));
+      const value =
+        typeof (item as any).value === 'string'
+          ? (item as any).value
+          : typeof (item as any).command === 'string'
+          ? (item as any).command
+          : rank
+          ? `Tópico #${rank}`
+          : undefined;
+
+      topics.push({
+        id: typeof (item as any).id === 'string' ? (item as any).id : `topic_${rank ?? index + 1}`,
+        number: rank ?? index + 1,
+        name,
+        description,
+        value,
+      });
+    });
+
+    return topics;
   };
 
   const renderButtons = (buttons?: MessageButton[]) => {
@@ -454,12 +500,25 @@ export function ChatPageWebSocket() {
         return null;
       }
 
+      const structuredSummary =
+        toTrimmedString((structured as any)?.trendsSummary) ??
+        toTrimmedString((structured as any)?.trends_summary);
+      const summaryText =
+        typeof message.metadata?.trendsSummary === 'string'
+          ? message.metadata.trendsSummary
+          : structuredSummary ?? undefined;
+
       return (
         <div key={message.id} className="flex flex-col items-start gap-4">
           {bubbleText && <MessageBubble message={{ ...message, content: bubbleText }} />}
           {trends.length > 0 && (
             <div className="w-full animate-fadeIn">
-              <TrendsList trends={trends} onSelect={handleTrendSelect} disabled={disabled} />
+              <TrendsList
+                trends={trends}
+                summary={summaryText}
+                onSelect={handleTrendSelect}
+                disabled={disabled}
+              />
             </div>
           )}
           {renderButtons(buttons)}
