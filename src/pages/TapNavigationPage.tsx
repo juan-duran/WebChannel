@@ -23,7 +23,7 @@ export function TapNavigationPage() {
   const [summaryFromCache, setSummaryFromCache] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  const [isLoadingTrends, setIsLoadingTrends] = useState(true);
+  const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [loadingTopicsTrendId, setLoadingTopicsTrendId] = useState<string | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
