@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, AlertCircle, Share2, WifiOff } from 'lucide-react';
+import { RefreshCw, AlertCircle, Share2, WifiOff, PlayCircle, StopCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { TrendCard } from '../components/tap/TrendCard';
 import { FloatingChat } from '../components/tap/FloatingChat';
@@ -28,6 +28,7 @@ export function TapNavigationPage() {
   const [loadingTopicsTrendId, setLoadingTopicsTrendId] = useState<string | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasRequestedTrends, setHasRequestedTrends] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -45,6 +46,8 @@ export function TapNavigationPage() {
   const trendRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const mobileSummaryContentRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryContentRef = useRef<HTMLDivElement | null>(null);
+  const activeTrendsRequestIdRef = useRef<string | null>(null);
+  const cancelledTrendRequestsRef = useRef<Set<string>>(new Set());
 
   const resetSelectionState = () => {
     setExpandedTrendId(null);
@@ -77,10 +80,6 @@ export function TapNavigationPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  useEffect(() => {
-    loadTrends();
-  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -289,7 +288,26 @@ export function TapNavigationPage() {
     };
   }, []);
 
+  const createRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+  const cancelActiveTrendsRequest = (options?: { silent?: boolean }) => {
+    const activeRequest = activeTrendsRequestIdRef.current;
+    if (!activeRequest) {
+      return;
+    }
+
+    cancelledTrendRequestsRef.current.add(activeRequest);
+    tapNavigationService.cancelTrendsRequest();
+    activeTrendsRequestIdRef.current = null;
+
+    if (!options?.silent) {
+      setIsLoadingTrends(false);
+    }
+  };
+
   const loadTrends = async (forceRefresh = false) => {
+    setHasRequestedTrends(true);
+
     if (forceRefresh) {
       resetSelectionState();
       setTopicsMap({});
@@ -297,24 +315,54 @@ export function TapNavigationPage() {
       setTopicsErrorMap({});
       trendRefs.current = {};
     }
+
+    cancelActiveTrendsRequest({ silent: true });
+
+    const requestId = createRequestId();
+    activeTrendsRequestIdRef.current = requestId;
+
     try {
       setIsLoadingTrends(true);
       setError(null);
 
       const result = await tapNavigationService.fetchTrends({ forceRefresh });
 
+      const wasCancelled = cancelledTrendRequestsRef.current.has(requestId);
+      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
+
+      if (wasCancelled || !isLatestRequest) {
+        return;
+      }
+
       if (result.success && result.data) {
         setTrends(result.data as TrendData[]);
         if (result.error) {
           setError(result.error);
+        } else {
+          setError(null);
         }
       } else {
         setError(result.error || 'Failed to load trends');
       }
     } catch (err) {
+      const wasCancelled = cancelledTrendRequestsRef.current.has(requestId);
+      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
+
+      if (wasCancelled || !isLatestRequest) {
+        return;
+      }
+
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      setIsLoadingTrends(false);
+      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
+      const wasCancelled = cancelledTrendRequestsRef.current.delete(requestId);
+
+      if (isLatestRequest) {
+        activeTrendsRequestIdRef.current = null;
+        setIsLoadingTrends(false);
+      } else if (wasCancelled && !activeTrendsRequestIdRef.current) {
+        setIsLoadingTrends(false);
+      }
     }
   };
 
@@ -368,6 +416,15 @@ export function TapNavigationPage() {
       setIsLoadingTopics(false);
       setLoadingTopicsTrendId(null);
     }
+  };
+
+  const handleStartTrends = () => {
+    loadTrends();
+  };
+
+  const handleCancelTrends = () => {
+    cancelActiveTrendsRequest();
+    setError(null);
   };
 
   const handleTrendExpand = async (trend: TrendData) => {
@@ -773,19 +830,39 @@ export function TapNavigationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">Quenty</h1>
             <p className="text-xs text-gray-500">Tap to explore trends & topics</p>
           </div>
-          <button
-            onClick={() => loadTrends(true)}
-            disabled={isLoadingTrends}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-            aria-label="Refresh"
-          >
-            <RefreshCw className={`w-5 h-5 text-gray-600 ${isLoadingTrends ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={handleStartTrends}
+              disabled={isLoadingTrends}
+              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
+              Start
+            </button>
+            <button
+              onClick={() => loadTrends(true)}
+              disabled={!hasRequestedTrends || isLoadingTrends}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoadingTrends ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={handleCancelTrends}
+              disabled={!isLoadingTrends}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label="Cancel current request"
+            >
+              <StopCircle className="h-4 w-4" />
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
 
@@ -810,6 +887,27 @@ export function TapNavigationPage() {
 
         {isLoadingTrends && trends.length === 0 ? (
           <TrendSkeleton />
+        ) : !hasRequestedTrends && trends.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
+              <PlayCircle className="h-6 w-6 text-blue-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900">Ready to explore?</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Start a manual request to fetch the latest trends from the assistant only when you need it.
+            </p>
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={handleStartTrends}
+                disabled={isLoadingTrends}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
+                Start exploring
+              </button>
+            </div>
+          </div>
         ) : (
           <>
             <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">

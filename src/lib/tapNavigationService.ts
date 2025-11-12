@@ -33,6 +33,10 @@ export interface TapNavigationResponse {
 class TapNavigationService {
   private pendingRequests = new Map<string, Promise<TapNavigationResponse>>();
 
+  cancelTrendsRequest() {
+    this.cancelPendingRequest('trends');
+  }
+
   async fetchTrends(options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
     const cacheKey = 'trends';
 
@@ -309,6 +313,12 @@ class TapNavigationService {
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
+    }
+  }
+
+  private cancelPendingRequest(cacheKey: string) {
+    if (this.pendingRequests.has(cacheKey)) {
+      this.pendingRequests.delete(cacheKey);
     }
   }
 
