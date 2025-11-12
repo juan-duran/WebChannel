@@ -299,7 +299,6 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
-    this.handlers.clear();
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
