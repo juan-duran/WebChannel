@@ -26,6 +26,33 @@ const coalesceString = (...values: unknown[]): string | undefined => {
   return undefined;
 };
 
+type NormalizedContentType = NonNullable<OutgoingMessageRequest['contentType']>;
+
+const coalesceContentType = (
+  ...values: unknown[]
+): NormalizedContentType | undefined => {
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+
+    const normalized = value.trim().toLowerCase();
+
+    switch (normalized) {
+      case 'text':
+      case 'image':
+      case 'video':
+      case 'link':
+      case 'trends':
+      case 'topics':
+      case 'summary':
+        return normalized as NormalizedContentType;
+      default:
+        break;
+    }
+  }
+
+  return undefined;
+};
+
 const normalizeButtons = (rawButtons: unknown): NormalizedButton[] | undefined => {
   if (!rawButtons) return undefined;
 
@@ -120,7 +147,7 @@ const normalizeOutgoingMessageRequest = (raw: unknown): NormalizedOutgoingMessag
     nestedBody?.text,
   );
 
-  const contentType = coalesceString(
+  const contentType = coalesceContentType(
     source['contentType'],
     source['content_type'],
     source['type'],
