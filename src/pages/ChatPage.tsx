@@ -156,8 +156,10 @@ export function ChatPage() {
       setProcessingStartTime(undefined);
 
       if (response.success && response.data) {
-        const aiContent = extractResponseText(response.data);
-        const parsed = parseAgentResponse(aiContent, currentContext);
+        const parsed = parseAgentResponse(response.data, currentContext);
+        const aiContentFromResponse = extractResponseText(response.data);
+        const aiContent =
+          parsed.content && parsed.content.trim().length > 0 ? parsed.content : aiContentFromResponse;
 
         const aiMessage: ChatMessage = {
           id: generateMessageId(),
@@ -311,6 +313,11 @@ export function ChatPage() {
                     <MessageBubble message={{ ...message, content: '' }} />
                     <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
                       <TrendsList
+                        summary={
+                          typeof message.metadata?.trendsSummary === 'string'
+                            ? message.metadata.trendsSummary
+                            : undefined
+                        }
                         trends={message.structuredData as Trend[]}
                         onSelect={handleTrendSelect}
                         disabled={isProcessing}
