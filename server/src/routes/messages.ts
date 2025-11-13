@@ -110,7 +110,9 @@ const normalizeButtons = (rawButtons: unknown): NormalizedButton[] | undefined =
 };
 
 const normalizeOutgoingMessageRequest = (raw: unknown): NormalizedOutgoingMessage => {
-  const source = (isRecord(raw) ? raw : {}) as Record<string, unknown>;
+  const envelope = Array.isArray(raw) ? raw[0] : raw;
+
+  const source = (isRecord(envelope) ? envelope : {}) as Record<string, unknown>;
 
   const nestedUser = isRecord(source['user']) ? (source['user'] as Record<string, unknown>) : undefined;
   const nestedBody = isRecord(source['body']) ? (source['body'] as Record<string, unknown>) : undefined;
@@ -246,6 +248,17 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
   try {
     const message = normalizeOutgoingMessageRequest(req.body);
 
+    logger.debug(
+      {
+        sessionId: message.sessionId,
+        userId: message.userId,
+        userEmail: message.userEmail,
+        hasContent: Boolean(message.content),
+        hasStructuredData: Boolean(message.structuredData),
+      },
+      'Normalized outgoing message request',
+    );
+
     const hasPayload = [
       message.content,
       message.structuredData,
@@ -291,8 +304,15 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         delivered = true;
         userId = session.userId;
         logger.info({ sessionId: message.sessionId }, 'Message delivered via WebSocket');
+      } else {
+        logger.warn(
+          { sessionId: message.sessionId },
+          'Session not found for outgoing message delivery',
+        );
       }
-    } else if (message.userId) {
+    }
+
+    if (!delivered && message.userId) {
       const sessions = sessionManager.getSessionsByUserId(message.userId);
       if (sessions.length > 0) {
         for (const session of sessions) {
@@ -314,8 +334,15 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         delivered = true;
         userId = message.userId;
         logger.info({ userId: message.userId, sessionsCount: sessions.length }, 'Message delivered to all user sessions');
+      } else {
+        logger.warn(
+          { userId: message.userId },
+          'No active sessions found for outgoing message delivery',
+        );
       }
-    } else if (message.userEmail) {
+    }
+
+    if (!delivered && message.userEmail) {
       const session = sessionManager.getSessionByEmail(message.userEmail);
       if (session) {
         session.ws.send(JSON.stringify({
@@ -335,6 +362,11 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         delivered = true;
         userId = session.userId;
         logger.info({ userEmail: message.userEmail }, 'Message delivered via WebSocket');
+      } else {
+        logger.warn(
+          { userEmail: message.userEmail },
+          'No session found by email for outgoing message delivery',
+        );
       }
     }
 
@@ -358,6 +390,15 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         );
         logger.info({ userId: fallbackUserId }, 'Message saved to database for offline delivery');
       }
+    } else if (!delivered) {
+      logger.warn(
+        {
+          sessionId: message.sessionId,
+          userId: message.userId,
+          userEmail: message.userEmail,
+        },
+        'Unable to deliver outgoing message or queue for offline delivery',
+      );
     }
 
     res.json({
