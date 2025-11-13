@@ -188,9 +188,78 @@ async function testCachedFlow() {
   assert.equal(auditEntry.correlationId, correlationId);
 }
 
+async function testNestedOutputFlow() {
+  resetMocks();
+  n8nServiceMock.sendMessage.mockImplementation(async () => [
+    {
+      output: [
+        {
+          data: {
+            structuredData: { summary: 'Nested structured summary' },
+            metadata: { nested: true },
+            cacheTag: 'nested-cache',
+            webhookResponse: { status: 'ok' },
+            media: {
+              url: 'https://example.com/image.png',
+              type: 'image/png',
+              caption: 'Example image',
+            },
+            buttons: [{ label: 'Nested CTA', value: 'nested-action' }],
+            correlationId: 'nested-correlation-id',
+            contentType: 'trends',
+          },
+        },
+      ],
+    },
+  ]);
+
+  const service = createService();
+
+  await (service as any).handleChatMessage('session-1', 'user-1', 'user@example.com', {
+    type: 'message',
+    content: 'nested please',
+  });
+
+  assert.equal(recordedMessages.length, 3);
+  const assistantMessage = recordedMessages[2];
+  assert.equal(assistantMessage.type, 'message');
+  assert.equal(assistantMessage.role, 'assistant');
+  assert.equal(assistantMessage.content, 'Nested structured summary');
+  assert.equal(assistantMessage.contentType, 'trends');
+  assert.deepEqual(assistantMessage.structuredData, { summary: 'Nested structured summary' });
+  assert.deepEqual(assistantMessage.metadata, { nested: true });
+  assert.equal(assistantMessage.cacheTag, 'nested-cache');
+  assert.deepEqual(assistantMessage.webhookResponse, { status: 'ok' });
+  assert.equal(assistantMessage.mediaUrl, 'https://example.com/image.png');
+  assert.equal(assistantMessage.mediaType, 'image/png');
+  assert.equal(assistantMessage.mediaCaption, 'Example image');
+  assert.deepEqual(assistantMessage.buttons, [{ label: 'Nested CTA', value: 'nested-action' }]);
+  assert.equal(assistantMessage.correlationId, 'nested-correlation-id');
+
+  assert.equal(supabaseServiceMock.saveMessage.calls.length, 2);
+  const assistantSave = supabaseServiceMock.saveMessage.calls[1];
+  assert.equal(assistantSave[2], 'assistant');
+  assert.equal(assistantSave[3], 'Nested structured summary');
+  assert.equal(assistantSave[4], 'trends');
+  assert.deepEqual(assistantSave[5], { summary: 'Nested structured summary' });
+  assert.deepEqual(assistantSave[6], { nested: true });
+  assert.deepEqual(assistantSave[7], { status: 'ok' });
+  assert.equal(assistantSave[8], 'https://example.com/image.png');
+  assert.equal(assistantSave[9], 'image/png');
+  assert.equal(assistantSave[10], 'Example image');
+  assert.equal(assistantSave[11], 'nested-correlation-id');
+
+  assert.equal(supabaseServiceMock.logAuditMessage.calls.length, 2);
+  const auditEntry = supabaseServiceMock.logAuditMessage.calls[1][2];
+  assert.equal(auditEntry.response, 'Nested structured summary');
+  assert.equal(auditEntry.delivery, 'immediate');
+  assert.equal(auditEntry.correlationId, 'nested-correlation-id');
+}
+
 async function run() {
   await testAsyncFlow();
   await testCachedFlow();
+  await testNestedOutputFlow();
 }
 
 run()
