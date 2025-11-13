@@ -125,9 +125,13 @@ export class WebSocketService {
 
         ws.onclose = () => {
           console.log('WebSocket closed');
-          this.stopHeartbeat();
-          this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
-          this.ws = null;
+          const isCurrentSocket = this.ws === ws;
+
+          if (isCurrentSocket) {
+            this.stopHeartbeat();
+            this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
+            this.ws = null;
+          }
 
           if (!isOpen) {
             const error = this.isIntentionallyClosed
@@ -136,7 +140,7 @@ export class WebSocketService {
             reject(error);
           }
 
-          if (!this.isIntentionallyClosed) {
+          if (isCurrentSocket && !this.isIntentionallyClosed) {
             this.attemptReconnect();
           }
         };
