@@ -52,6 +52,184 @@ const toUniqueStringArray = (value: unknown): string[] => {
   return Array.from(new Set(normalized));
 };
 
+const stripOuterQuotes = (value: string): string => value.replace(/^["'“”‘’«»]+/, '').replace(/["'“”‘’«»]+$/, '');
+
+type TopicTextMetadata = {
+  text: string;
+  number?: number;
+  likesData?: string;
+};
+
+const extractTopicTextMetadata = (raw: string | undefined | null): TopicTextMetadata | null => {
+  if (!raw) {
+    return null;
+  }
+
+  let working = raw.trim();
+  if (!working) {
+    return null;
+  }
+
+  working = stripOuterQuotes(working).trim();
+  if (!working) {
+    return null;
+  }
+
+  let likesData: string | undefined;
+  const likesPattern = /\(([^()]*?(?:👍|curtidas?|likes?|reaç(?:ões|oes)|engajamento)[^()]*)\)\s*$/iu;
+  const likesMatch = working.match(likesPattern);
+  if (likesMatch && likesMatch.index !== undefined) {
+    likesData = likesMatch[1].trim();
+    working = working.slice(0, likesMatch.index).trim();
+  }
+
+  let number: number | undefined;
+  const topicPrefixPattern = /^(?:t[óo]pico|topic)\s*#?(?<num>\d+)\s*(?:[-–—:.)]\s*|\s+)(?<rest>.*)$/iu;
+  const topicPrefixMatch = working.match(topicPrefixPattern);
+  if (topicPrefixMatch?.groups) {
+    const rawNumber = topicPrefixMatch.groups.num;
+    if (rawNumber) {
+      const parsed = parseInt(rawNumber, 10);
+      if (!Number.isNaN(parsed)) {
+        number = parsed;
+      }
+    }
+    working = (topicPrefixMatch.groups.rest ?? '').trim();
+  }
+
+  const bulletPatterns: Array<{
+    regex: RegExp;
+    extractNumber?: (match: RegExpMatchArray) => number | undefined;
+  }> = [
+    { regex: /^\s*[-*•]+\s+(?<rest>.+)$/u },
+    {
+      regex: /^\s*\(?(?<num>\d+)\)?[.)-]\s*(?<rest>.+)$/u,
+      extractNumber: (match) => {
+        const rawNumber = match.groups?.num;
+        if (!rawNumber) {
+          return undefined;
+        }
+        const parsed = parseInt(rawNumber, 10);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      },
+    },
+    {
+      regex: /^\s*(?<num>\d+)\s*[-–—]\s*(?<rest>.+)$/u,
+      extractNumber: (match) => {
+        const rawNumber = match.groups?.num;
+        if (!rawNumber) {
+          return undefined;
+        }
+        const parsed = parseInt(rawNumber, 10);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      },
+    },
+    {
+      regex: /^#(?<num>\d+)\s+(?<rest>.+)$/u,
+      extractNumber: (match) => {
+        const rawNumber = match.groups?.num;
+        if (!rawNumber) {
+          return undefined;
+        }
+        const parsed = parseInt(rawNumber, 10);
+        return Number.isNaN(parsed) ? undefined : parsed;
+      },
+    },
+  ];
+
+  for (const { regex, extractNumber } of bulletPatterns) {
+    const match = working.match(regex);
+    if (match?.groups?.rest) {
+      if (number === undefined && extractNumber) {
+        const parsed = extractNumber(match);
+        if (parsed !== undefined) {
+          number = parsed;
+        }
+      }
+      working = match.groups.rest.trim();
+      break;
+    }
+  }
+
+  working = stripOuterQuotes(working).trim();
+  if (!working) {
+    return null;
+  }
+
+  return {
+    text: working,
+    ...(Number.isFinite(number) ? { number: number as number } : {}),
+    ...(likesData ? { likesData } : {}),
+  };
+};
+
+const splitTopicText = (text: string): { name: string; description?: string } => {
+  const trimmed = stripOuterQuotes(text.trim());
+  if (!trimmed) {
+    return { name: '' };
+  }
+
+  const newlineSegments = trimmed.split(/\n+/).map((segment) => segment.trim()).filter((segment) => segment.length > 0);
+  if (newlineSegments.length > 1) {
+    const [first, ...rest] = newlineSegments;
+    const description = rest.join(' ').trim();
+    return {
+      name: first,
+      ...(description && description !== first ? { description } : {}),
+    };
+  }
+
+  const dividerMatch = trimmed.match(/^(.+?)\s*(?:[-–—:|•]\s+)(.+)$/);
+  if (dividerMatch) {
+    const name = dividerMatch[1].trim();
+    const description = dividerMatch[2].trim();
+    return {
+      name,
+      ...(description && description !== name ? { description } : {}),
+    };
+  }
+
+  const sentenceSegments = trimmed
+    .split(/(?<=[.!?])\s+/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  if (sentenceSegments.length > 1) {
+    const [first, ...rest] = sentenceSegments;
+    const description = rest.join(' ').trim();
+    return {
+      name: first,
+      ...(description && description !== first ? { description } : {}),
+    };
+  }
+
+  return { name: trimmed };
+};
+
+export function parseTopicText(raw: string, index = 0): Topic | null {
+  const metadata = extractTopicTextMetadata(raw);
+  if (!metadata) {
+    return null;
+  }
+
+  const { name, description } = splitTopicText(metadata.text);
+
+  const fallbackNumber = Number.isFinite(metadata.number) ? (metadata.number as number) : index + 1;
+  const resolvedName = name && name.trim().length > 0 ? name.trim() : `Tópico #${fallbackNumber}`;
+  const sanitizedDescription = description && description.trim().length > 0 && description.trim() !== resolvedName
+    ? description.trim()
+    : undefined;
+
+  return {
+    id: `topic_${fallbackNumber}`,
+    number: fallbackNumber,
+    name: resolvedName,
+    ...(sanitizedDescription ? { description: sanitizedDescription } : {}),
+    value: `Tópico #${fallbackNumber}`,
+    ...(metadata.likesData ? { likesData: metadata.likesData } : {}),
+  } satisfies Topic;
+}
+
 const parseSourceItem = (item: unknown): SourceData | null => {
   if (typeof item === 'string') {
     const trimmed = item.trim();
@@ -193,6 +371,10 @@ const parseTrendItem = (item: unknown, index: number): Trend | null => {
 };
 
 const parseTopicItem = (item: unknown, index: number): Topic | null => {
+  if (typeof item === 'string') {
+    return parseTopicText(item, index);
+  }
+
   if (!isNonNullObject(item)) {
     return null;
   }
@@ -213,16 +395,17 @@ const parseTopicItem = (item: unknown, index: number): Topic | null => {
     return undefined;
   };
 
-  const number =
+  let number =
     parseRank((item as any).number) ??
     parseRank((item as any).rank) ??
     parseRank((item as any).position) ??
-    index + 1;
+    undefined;
 
   const nameCandidate = [
     (item as any).name,
     (item as any).title,
     (item as any).label,
+    (item as any).topic,
   ]
     .map(toStringIfPresent)
     .find((candidate): candidate is string => typeof candidate === 'string');
@@ -232,51 +415,100 @@ const parseTopicItem = (item: unknown, index: number): Topic | null => {
     (item as any).summary,
     (item as any).text,
     (item as any).headline,
+    (item as any).detail,
+    (item as any).details,
+    (item as any).content,
+    (item as any).subtitle,
+    (item as any).message,
   ]
     .map(toStringIfPresent)
     .find((candidate): candidate is string => typeof candidate === 'string');
 
-  let name = nameCandidate ?? undefined;
-  let description = descriptionCandidate ?? undefined;
+  const nameMetadata = nameCandidate ? extractTopicTextMetadata(nameCandidate) : null;
+  const descriptionMetadata = descriptionCandidate ? extractTopicTextMetadata(descriptionCandidate) : null;
 
-  if (!name && description) {
-    const segments = description
-      .split(/(?:\n+|(?<=[.!?])\s+)/)
-      .map((segment) => segment.trim())
-      .filter((segment) => segment.length > 0);
+  const additionalTextCandidates = [
+    toStringIfPresent((item as any).text),
+    toStringIfPresent((item as any).headline),
+    toStringIfPresent((item as any).summary),
+    toStringIfPresent((item as any).content),
+    toStringIfPresent((item as any).subtitle),
+    toStringIfPresent((item as any).message),
+  ];
 
-    if (segments.length > 1) {
-      name = segments[0];
-      description = segments.slice(1).join(' ').trim() || undefined;
-    } else {
-      name = description;
+  const textMetadataCandidates: TopicTextMetadata[] = [];
+  if (nameMetadata) {
+    textMetadataCandidates.push(nameMetadata);
+  }
+  if (descriptionMetadata) {
+    textMetadataCandidates.push(descriptionMetadata);
+  }
+
+  for (const candidate of additionalTextCandidates) {
+    const metadata = extractTopicTextMetadata(candidate);
+    if (metadata) {
+      textMetadataCandidates.push(metadata);
+    }
+  }
+
+  let parsedName: string | undefined;
+  let parsedDescription: string | undefined;
+
+  for (const metadata of textMetadataCandidates) {
+    const { name, description } = splitTopicText(metadata.text);
+    if (!parsedName && name.trim().length > 0) {
+      parsedName = name.trim();
+    }
+    if (!parsedDescription && description && description.trim().length > 0) {
+      parsedDescription = description.trim();
+    }
+    if (number === undefined && metadata.number !== undefined && Number.isFinite(metadata.number)) {
+      number = metadata.number;
+    }
+  }
+
+  let likesData =
+    toStringIfPresent((item as any)['likes-data']) ??
+    toStringIfPresent((item as any).likesData) ??
+    toStringIfPresent((item as any).engagement) ??
+    undefined;
+
+  if (!likesData) {
+    const likesFromMetadata = textMetadataCandidates.find((metadata) => metadata.likesData);
+    if (likesFromMetadata?.likesData) {
+      likesData = likesFromMetadata.likesData;
+    }
+  }
+
+  const fallbackNumber = Number.isFinite(number) ? (number as number) : index + 1;
+
+  let name = parsedName ?? nameMetadata?.text ?? nameCandidate ?? parsedDescription ?? descriptionMetadata?.text ?? undefined;
+  let description = parsedDescription ?? descriptionMetadata?.text ?? descriptionCandidate ?? undefined;
+
+  name = name ? stripOuterQuotes(name).trim() : `Tópico #${fallbackNumber}`;
+  if (!name) {
+    name = `Tópico #${fallbackNumber}`;
+  }
+
+  if (description) {
+    description = stripOuterQuotes(description).trim();
+    if (!description || description === name) {
       description = undefined;
     }
   }
 
-  if (!name) {
-    name = `Tópico #${Number.isFinite(number) ? number : index + 1}`;
-  }
-
-  const likesData =
-    toStringIfPresent((item as any)['likes-data']) ??
-    toStringIfPresent((item as any).likesData) ??
-    undefined;
-
   const value =
     toStringIfPresent((item as any).value) ??
     toStringIfPresent((item as any).command) ??
-    undefined;
+    (Number.isFinite(fallbackNumber) ? `Tópico #${fallbackNumber}` : undefined);
 
   return {
-    id:
-      toStringIfPresent((item as any).id) ??
-      `topic_${Number.isFinite(number) ? number : index + 1}`,
-    number: Number.isFinite(number) ? (number as number) : index + 1,
+    id: toStringIfPresent((item as any).id) ?? `topic_${fallbackNumber}`,
+    number: fallbackNumber,
     name,
-    description,
-    value,
-    likesData,
+    ...(description ? { description } : {}),
+    ...(value ? { value } : {}),
+    ...(likesData ? { likesData } : {}),
   } satisfies Topic;
 };
 

@@ -6,6 +6,7 @@ import { MessageInput } from '../components/MessageInput';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
+import { parseTopicText } from '../lib/responseParser';
 import { TopicSummary } from '../components/TopicSummary';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import {
@@ -385,6 +386,14 @@ export function ChatPageWebSocket() {
     const topics: Topic[] = [];
 
     data.forEach((item, index) => {
+      if (typeof item === 'string') {
+        const parsed = parseTopicText(item, index);
+        if (parsed) {
+          topics.push(parsed);
+        }
+        return;
+      }
+
       if (!item || typeof item !== 'object') {
         return;
       }
@@ -396,41 +405,62 @@ export function ChatPageWebSocket() {
           ? (item as any).number
           : index + 1;
 
-      const name =
-        typeof (item as any).title === 'string'
-          ? (item as any).title
-          : typeof (item as any).name === 'string'
-          ? (item as any).name
-          : typeof (item as any).label === 'string'
-          ? (item as any).label
-          : undefined;
+      const textParts = [
+        typeof (item as any).title === 'string' ? (item as any).title : undefined,
+        typeof (item as any).name === 'string' ? (item as any).name : undefined,
+        typeof (item as any).label === 'string' ? (item as any).label : undefined,
+        typeof (item as any).summary === 'string' ? (item as any).summary : undefined,
+        typeof (item as any).description === 'string' ? (item as any).description : undefined,
+        typeof (item as any).text === 'string' ? (item as any).text : undefined,
+      ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0);
 
-      if (!name) {
-        return;
+      let parsed: Topic | null = null;
+      if (textParts.length > 0) {
+        const combined = Array.from(new Set(textParts.map((part) => part.trim()))).join(' — ');
+        parsed = parseTopicText(combined, index);
       }
 
-      const description =
-        typeof (item as any).summary === 'string'
-          ? (item as any).summary
-          : typeof (item as any).description === 'string'
-          ? (item as any).description
-          : undefined;
+      const fallbackNumber = Number.isFinite(rank) ? (rank as number) : parsed?.number ?? index + 1;
+
+      const id =
+        typeof (item as any).id === 'string' && (item as any).id.trim().length > 0
+          ? (item as any).id
+          : `topic_${fallbackNumber}`;
 
       const value =
         typeof (item as any).value === 'string'
           ? (item as any).value
           : typeof (item as any).command === 'string'
           ? (item as any).command
-          : rank
-          ? `Tópico #${rank}`
-          : undefined;
+          : parsed?.value ?? `Tópico #${fallbackNumber}`;
+
+      const likesData =
+        typeof (item as any)['likes-data'] === 'string'
+          ? (item as any)['likes-data']
+          : typeof (item as any).likesData === 'string'
+          ? (item as any).likesData
+          : typeof (item as any).engagement === 'string'
+          ? (item as any).engagement
+          : parsed?.likesData;
+
+      const description =
+        (parsed && parsed.description) ||
+        (typeof (item as any).summary === 'string' ? (item as any).summary : undefined) ||
+        (typeof (item as any).description === 'string' ? (item as any).description : undefined);
+
+      const name = (parsed && parsed.name) || (textParts.length > 0 ? textParts[0].trim() : undefined);
+
+      if (!name) {
+        return;
+      }
 
       topics.push({
-        id: typeof (item as any).id === 'string' ? (item as any).id : `topic_${rank ?? index + 1}`,
-        number: rank ?? index + 1,
+        id,
+        number: fallbackNumber,
         name,
-        description,
+        ...(description && description.trim().length > 0 && description.trim() !== name ? { description: description.trim() } : {}),
         value,
+        ...(likesData && likesData.trim().length > 0 ? { likesData: likesData.trim() } : {}),
       });
     });
 
