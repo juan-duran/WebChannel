@@ -178,6 +178,15 @@ const normalizeOutgoingMessageRequest = (raw: unknown): NormalizedOutgoingMessag
     source['cache_tag'],
   );
 
+  const correlationId = coalesceString(
+    source['correlationId'],
+    source['correlation_id'],
+    nestedData?.correlationId,
+    nestedData?.correlation_id,
+    nestedPayload?.correlationId,
+    nestedPayload?.correlation_id,
+  );
+
   const structuredData =
     source['structuredData'] ??
     source['structured_data'] ??
@@ -209,6 +218,7 @@ const normalizeOutgoingMessageRequest = (raw: unknown): NormalizedOutgoingMessag
     sessionId: sessionId || undefined,
     userId: userId || undefined,
     userEmail: userEmail || undefined,
+    correlationId: correlationId || undefined,
     content: content ?? '',
     contentType: contentType || undefined,
     structuredData,
@@ -253,6 +263,7 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         sessionId: message.sessionId,
         userId: message.userId,
         userEmail: message.userEmail,
+        correlationId: message.correlationId,
         hasContent: Boolean(message.content),
         hasStructuredData: Boolean(message.structuredData),
       },
@@ -284,29 +295,35 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
     let delivered = false;
     let userId: string | undefined = message.userId;
 
+    const websocketPayload = JSON.stringify({
+      type: 'message',
+      role: 'assistant',
+      correlationId: message.correlationId,
+      content: message.content,
+      contentType: message.contentType || 'text',
+      structuredData: message.structuredData,
+      metadata: message.metadata,
+      mediaUrl: message.mediaUrl,
+      mediaType: message.mediaType,
+      mediaCaption: message.mediaCaption,
+      cacheTag: message.cacheTag,
+      buttons: message.buttons,
+      webhookResponse: message.webhookResponse,
+    });
+
     if (message.sessionId) {
       const session = sessionManager.getSession(message.sessionId);
       if (session) {
-        session.ws.send(JSON.stringify({
-          type: 'message',
-          role: 'assistant',
-          content: message.content,
-          contentType: message.contentType || 'text',
-          structuredData: message.structuredData,
-          metadata: message.metadata,
-          mediaUrl: message.mediaUrl,
-          mediaType: message.mediaType,
-          mediaCaption: message.mediaCaption,
-          cacheTag: message.cacheTag,
-          buttons: message.buttons,
-          webhookResponse: message.webhookResponse,
-        }));
+        session.ws.send(websocketPayload);
         delivered = true;
         userId = session.userId;
-        logger.info({ sessionId: message.sessionId }, 'Message delivered via WebSocket');
+        logger.info(
+          { sessionId: message.sessionId, correlationId: message.correlationId },
+          'Message delivered via WebSocket',
+        );
       } else {
         logger.warn(
-          { sessionId: message.sessionId },
+          { sessionId: message.sessionId, correlationId: message.correlationId },
           'Session not found for outgoing message delivery',
         );
       }
@@ -316,27 +333,21 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
       const sessions = sessionManager.getSessionsByUserId(message.userId);
       if (sessions.length > 0) {
         for (const session of sessions) {
-          session.ws.send(JSON.stringify({
-            type: 'message',
-            role: 'assistant',
-            content: message.content,
-            contentType: message.contentType || 'text',
-            structuredData: message.structuredData,
-            metadata: message.metadata,
-            mediaUrl: message.mediaUrl,
-            mediaType: message.mediaType,
-            mediaCaption: message.mediaCaption,
-            cacheTag: message.cacheTag,
-            buttons: message.buttons,
-            webhookResponse: message.webhookResponse,
-          }));
+          session.ws.send(websocketPayload);
         }
         delivered = true;
         userId = message.userId;
-        logger.info({ userId: message.userId, sessionsCount: sessions.length }, 'Message delivered to all user sessions');
+        logger.info(
+          {
+            userId: message.userId,
+            sessionsCount: sessions.length,
+            correlationId: message.correlationId,
+          },
+          'Message delivered to all user sessions',
+        );
       } else {
         logger.warn(
-          { userId: message.userId },
+          { userId: message.userId, correlationId: message.correlationId },
           'No active sessions found for outgoing message delivery',
         );
       }
@@ -345,26 +356,16 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
     if (!delivered && message.userEmail) {
       const session = sessionManager.getSessionByEmail(message.userEmail);
       if (session) {
-        session.ws.send(JSON.stringify({
-          type: 'message',
-          role: 'assistant',
-          content: message.content,
-          contentType: message.contentType || 'text',
-          structuredData: message.structuredData,
-          metadata: message.metadata,
-          mediaUrl: message.mediaUrl,
-          mediaType: message.mediaType,
-          mediaCaption: message.mediaCaption,
-          cacheTag: message.cacheTag,
-          buttons: message.buttons,
-          webhookResponse: message.webhookResponse,
-        }));
+        session.ws.send(websocketPayload);
         delivered = true;
         userId = session.userId;
-        logger.info({ userEmail: message.userEmail }, 'Message delivered via WebSocket');
+        logger.info(
+          { userEmail: message.userEmail, correlationId: message.correlationId },
+          'Message delivered via WebSocket',
+        );
       } else {
         logger.warn(
-          { userEmail: message.userEmail },
+          { userEmail: message.userEmail, correlationId: message.correlationId },
           'No session found by email for outgoing message delivery',
         );
       }
@@ -386,9 +387,13 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
           message.webhookResponse,
           message.mediaUrl,
           message.mediaType,
-          message.mediaCaption
+          message.mediaCaption,
+          message.correlationId
         );
-        logger.info({ userId: fallbackUserId }, 'Message saved to database for offline delivery');
+        logger.info(
+          { userId: fallbackUserId, correlationId: message.correlationId },
+          'Message saved to database for offline delivery',
+        );
       }
     } else if (!delivered) {
       logger.warn(
@@ -396,6 +401,7 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
           sessionId: message.sessionId,
           userId: message.userId,
           userEmail: message.userEmail,
+          correlationId: message.correlationId,
         },
         'Unable to deliver outgoing message or queue for offline delivery',
       );
