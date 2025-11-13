@@ -6,6 +6,7 @@ export type Topic = {
   name: string;
   description?: string;
   value?: string;
+  likesData?: string;
 };
 
 type TopicsListProps = {
@@ -61,6 +62,9 @@ export function TopicsList({ topics, trendName, onSelect, onBack, disabled = fal
                 <p className="text-sm text-gray-600 line-clamp-2 mt-1">
                   {topic.description}
                 </p>
+              )}
+              {topic.likesData && (
+                <p className="text-xs text-gray-500 mt-1">{topic.likesData}</p>
               )}
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />

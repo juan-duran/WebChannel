@@ -167,7 +167,15 @@ export function ChatPage() {
           content: aiContent,
           timestamp: new Date(),
           contentType: parsed.type,
-          structuredData: parsed.type === 'trends' ? parsed.trends : parsed.type === 'topics' ? parsed.topics : undefined,
+          structuredData:
+            parsed.structuredData ??
+            (parsed.type === 'trends'
+              ? parsed.trends
+              : parsed.type === 'topics'
+              ? parsed.topics
+              : parsed.type === 'summary'
+              ? parsed.summary
+              : undefined),
           metadata: parsed.metadata
         };
 
