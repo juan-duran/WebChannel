@@ -128,6 +128,23 @@ API_RATE_LIMIT=100
     }
     ```
 
+#### Manual verification: structured data only payloads
+
+1. Start the development server with `npm run dev:server` and connect a WebSocket client using a known `sessionId`.
+2. Send a request to `POST /api/messages/send` with the following JSON body:
+
+   ```json
+   {
+     "sessionId": "session_xxx",
+     "structuredData": {
+       "type": "card",
+       "title": "Structured Only"
+     }
+   }
+   ```
+
+3. Confirm the API responds with HTTP 200 and the WebSocket client receives a `message` event whose `structuredData` field contains the payload even though `content` is empty.
+
 ### Admin Endpoints
 
 - `POST /admin/cache/invalidate` - Invalidate cache entries
