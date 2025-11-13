@@ -56,6 +56,7 @@ export interface OutgoingMessageRequest {
   sessionId?: string;
   userId?: string;
   userEmail?: string;
+  correlationId?: string;
   content: string;
   contentType?: 'text' | 'image' | 'video' | 'link' | 'trends' | 'topics' | 'summary';
   structuredData?: any;
