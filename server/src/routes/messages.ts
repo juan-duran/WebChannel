@@ -220,14 +220,48 @@ const normalizeOutgoingMessageRequest = (raw: unknown): NormalizedOutgoingMessag
   };
 };
 
+const hasNonEmptyValue = (value: unknown): boolean => {
+  if (value === null || value === undefined) {
+    return false;
+  }
+
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>).length > 0;
+  }
+
+  return true;
+};
+
 const router = Router();
 
 router.post('/send', authenticateApiKey, async (req: Request, res: Response) => {
   try {
     const message = normalizeOutgoingMessageRequest(req.body);
 
-    if (!message.content) {
-      return res.status(400).json({ error: 'Message content is required' });
+    const hasPayload = [
+      message.content,
+      message.structuredData,
+      message.metadata,
+      message.mediaUrl,
+      message.mediaType,
+      message.mediaCaption,
+      message.buttons,
+      message.cacheTag,
+      message.webhookResponse,
+    ].some(hasNonEmptyValue);
+
+    if (!hasPayload) {
+      return res
+        .status(400)
+        .json({ error: 'Message content or payload is required' });
     }
 
     if (!message.sessionId && !message.userId && !message.userEmail) {
