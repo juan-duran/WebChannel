@@ -82,6 +82,12 @@ export function ChatPageWebSocket() {
     connectWebSocket();
 
     const handleMessage = (message: WebSocketMessage) => {
+      if (message.type === 'connected') {
+        setConnectionStatus('connected');
+        setError(null);
+        return;
+      }
+
       if (message.type === 'typing_start') {
         setIsProcessing(true);
         setProcessingStartTime(new Date());
@@ -97,7 +103,14 @@ export function ChatPageWebSocket() {
       if (message.type === 'error') {
         setIsProcessing(false);
         setProcessingStartTime(undefined);
-        setError(message.error || 'An error occurred');
+        const errorMessage = message.error || 'An error occurred';
+
+        if (errorMessage && /connection|reconectar/i.test(errorMessage)) {
+          const nextState = /fechad|closed|perd/i.test(errorMessage) ? 'disconnected' : 'error';
+          setConnectionStatus(nextState);
+        }
+
+        setError(errorMessage);
         return;
       }
 
@@ -183,12 +196,14 @@ export function ChatPageWebSocket() {
     };
 
     websocketService.on('message', handleMessage);
+    websocketService.on('connected', handleMessage);
     websocketService.on('typing_start', handleMessage);
     websocketService.on('typing_stop', handleMessage);
     websocketService.on('error', handleMessage);
 
     return () => {
       websocketService.off('message', handleMessage);
+      websocketService.off('connected', handleMessage);
       websocketService.off('typing_start', handleMessage);
       websocketService.off('typing_stop', handleMessage);
       websocketService.off('error', handleMessage);
