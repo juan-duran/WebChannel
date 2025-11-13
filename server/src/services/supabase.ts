@@ -57,25 +57,32 @@ class SupabaseService {
     webhookResponse?: any,
     mediaUrl?: string,
     mediaType?: string,
-    mediaCaption?: string
+    mediaCaption?: string,
+    correlationId?: string
   ): Promise<string | null> {
     try {
+      const payload: Record<string, any> = {
+        channel_id: channelId,
+        user_id: userId,
+        role,
+        content,
+        content_type: contentType,
+        structured_data: structuredData,
+        metadata,
+        webhook_response: webhookResponse,
+        status: 'sent',
+        media_url: mediaUrl,
+        media_type: mediaType,
+        media_caption: mediaCaption,
+      };
+
+      if (correlationId) {
+        payload['correlation_id'] = correlationId;
+      }
+
       const { data, error } = await this.client
         .from('chat_messages')
-        .insert({
-          channel_id: channelId,
-          user_id: userId,
-          role,
-          content,
-          content_type: contentType,
-          structured_data: structuredData,
-          metadata,
-          webhook_response: webhookResponse,
-          status: 'sent',
-          media_url: mediaUrl,
-          media_type: mediaType,
-          media_caption: mediaCaption,
-        })
+        .insert(payload)
         .select('id')
         .single();
 
