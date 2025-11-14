@@ -72,7 +72,7 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent('assuntos');
+      const payload = await this.requestFromAgent('assuntos', 'trends');
 
       if (Array.isArray(payload.trends)) {
         await cacheStorage.setTrends(payload.trends as TrendData[]);
@@ -125,7 +125,7 @@ class TapNavigationService {
 
   private async refreshTrendsInBackground(): Promise<void> {
     try {
-      const payload = await this.requestFromAgent('assuntos');
+      const payload = await this.requestFromAgent('assuntos', 'trends');
       if (Array.isArray(payload.trends)) {
         await cacheStorage.setTrends(payload.trends as TrendData[]);
       }
@@ -167,7 +167,7 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`);
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'topics');
       const topicsSummary = typeof payload.topicsSummary === 'string' ? payload.topicsSummary : null;
 
       if (Array.isArray(payload.topics)) {
@@ -220,7 +220,7 @@ class TapNavigationService {
 
   private async refreshTopicsInBackground(trendRank: number): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`);
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'topics');
       if (Array.isArray(payload.topics)) {
         await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
       }
@@ -262,7 +262,7 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`);
+      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
 
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
@@ -312,7 +312,7 @@ class TapNavigationService {
 
   private async refreshSummaryInBackground(topicRank: number, userId: string): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`);
+      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
       }
@@ -327,7 +327,10 @@ class TapNavigationService {
     }
   }
 
-  private async requestFromAgent(message: string): Promise<TapNavigationStructuredData> {
+  private async requestFromAgent(
+    message: string,
+    expectedLayer: TapNavigationStructuredData['layer'],
+  ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
 
@@ -335,14 +338,25 @@ class TapNavigationService {
         if (resolved) return;
 
         if (response.type === 'message' && response.role === 'assistant') {
-          resolved = true;
-          clearTimeout(timeout);
-
-          clearListeners();
-
           if (response.structuredData && this.isValidStructuredData(response.structuredData)) {
-            resolve(this.normalizeStructuredData(response.structuredData));
+            const normalized = this.normalizeStructuredData(response.structuredData);
+
+            if (normalized.layer !== expectedLayer) {
+              return;
+            }
+
+            resolved = true;
+            clearTimeout(timeout);
+
+            clearListeners();
+
+            resolve(normalized);
           } else {
+            resolved = true;
+            clearTimeout(timeout);
+
+            clearListeners();
+
             reject(new StructuredDataValidationError());
           }
         }
