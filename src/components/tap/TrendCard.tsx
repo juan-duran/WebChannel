@@ -1,5 +1,6 @@
 import { ChevronDown, Link2, AlertCircle } from 'lucide-react';
 import { TrendData, TopicData } from '../../types/tapNavigation';
+import { TrendAssetPreview } from './TrendAssetPreview';
 import { TopicSkeleton } from './LoadingProgress';
 
 interface TrendCardProps {
@@ -97,6 +98,14 @@ export function TrendCard({
           id={contentId}
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
+          <TrendAssetPreview
+            asset={trend}
+            fallbackUrl={trend.url}
+            fallbackTitle={trend.name}
+            fallbackDescription={trend.description}
+            className="mb-4"
+          />
+
           {trend.whyItMatters && (
             <div className="mb-4 p-3 bg-blue-50 rounded-lg flex gap-2">
               <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />

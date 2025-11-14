@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import type { TapNavigationStructuredData } from '../src/types/tapNavigation';
 
 const SHORT_URL = 'https://sho.rt/example';
+const ASSET_TYPE = 'image';
+const THUMBNAIL_URL = 'https://sho.rt/thumb.jpg';
 
 process.env.VITE_SUPABASE_URL = 'https://example.supabase.co';
 process.env.VITE_SUPABASE_ANON_KEY = 'test-key';
@@ -19,6 +21,8 @@ const parseResult = parseAgentResponse({
         id: 'trend_1',
         name: 'Trend with short url',
         asset_short_url: SHORT_URL,
+        asset_type: ASSET_TYPE,
+        asset_thumbnail: THUMBNAIL_URL,
       },
     ],
   },
@@ -26,6 +30,9 @@ const parseResult = parseAgentResponse({
 
 assert.ok(parseResult.trends, 'Expected parseAgentResponse to return trends');
 assert.equal(parseResult.trends?.[0]?.url, SHORT_URL);
+assert.equal(parseResult.trends?.[0]?.assetUrl, SHORT_URL);
+assert.equal(parseResult.trends?.[0]?.assetType, ASSET_TYPE);
+assert.equal(parseResult.trends?.[0]?.assetThumbnail, THUMBNAIL_URL);
 
 const rawStructuredData: TapNavigationStructuredData = {
   layer: 'trends',
@@ -40,6 +47,8 @@ const rawStructuredData: TapNavigationStructuredData = {
       url: '',
       whyItMatters: '',
       asset_short_url: SHORT_URL,
+      asset_type: ASSET_TYPE,
+      asset_thumbnail: THUMBNAIL_URL,
     } as any,
   ],
   trendsSummary: null,
@@ -53,5 +62,8 @@ const normalized = (tapNavigationService as any).normalizeStructuredData(rawStru
 
 assert.ok(normalized.trends, 'Expected normalized trends array');
 assert.equal(normalized.trends?.[0]?.url, SHORT_URL);
+assert.equal(normalized.trends?.[0]?.assetUrl, SHORT_URL);
+assert.equal(normalized.trends?.[0]?.assetType, ASSET_TYPE);
+assert.equal(normalized.trends?.[0]?.assetThumbnail, THUMBNAIL_URL);
 
 console.log('All trend URL tests passed.');

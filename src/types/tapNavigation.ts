@@ -1,4 +1,13 @@
-export interface TrendData {
+export interface TrendAssetMetadata {
+  assetUrl?: string | null;
+  assetType?: string | null;
+  assetThumbnail?: string | null;
+  assetTitle?: string | null;
+  assetDescription?: string | null;
+  assetEmbedHtml?: string | null;
+}
+
+export interface TrendData extends TrendAssetMetadata {
   id: string;
   number: number;
   category: string;
