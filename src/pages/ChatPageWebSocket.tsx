@@ -305,6 +305,16 @@ export function ChatPageWebSocket() {
     return undefined;
   };
 
+  const pickFirstString = (...values: unknown[]): string | undefined => {
+    for (const value of values) {
+      const trimmed = toTrimmedString(value);
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+    return undefined;
+  };
+
   const normalizeTrends = (data: any): Trend[] => {
     if (!Array.isArray(data)) {
       return [];
@@ -364,11 +374,44 @@ export function ChatPageWebSocket() {
       const category =
         toTrimmedString((item as any).category) ?? toTrimmedString((item as any).type);
 
-      const url =
-        toTrimmedString((item as any).url) ??
-        toTrimmedString((item as any).link) ??
-        toTrimmedString((item as any).href) ??
-        null;
+      const resolvedUrl =
+        pickFirstString(
+          (item as any).asset_short_url,
+          (item as any).assetShortUrl,
+          (item as any).assetShortURL,
+          (item as any).asset_short_link,
+          (item as any).assetShortLink,
+          (item as any).asset_link,
+          (item as any).assetLink,
+          (item as any).short_url,
+          (item as any).shortUrl,
+          (item as any).url,
+          (item as any).link,
+          (item as any).href,
+        ) ?? null;
+
+      const assetType = pickFirstString((item as any).asset_type, (item as any).assetType);
+      const assetThumbnail =
+        pickFirstString(
+          (item as any).asset_thumbnail,
+          (item as any).assetThumbnail,
+          (item as any).asset_thumbnail_url,
+          (item as any).assetThumbnailUrl,
+          (item as any).thumbnail,
+          (item as any).image,
+          (item as any).preview_image,
+        ) ?? undefined;
+      const assetTitle = pickFirstString((item as any).asset_title, (item as any).assetTitle);
+      const assetDescription = pickFirstString(
+        (item as any).asset_description,
+        (item as any).assetDescription,
+        (item as any).asset_summary,
+      );
+      const assetEmbedHtml = pickFirstString(
+        (item as any).asset_embed_html,
+        (item as any).assetEmbedHtml,
+        (item as any).embed_html,
+      );
 
       const whyItMatters =
         toTrimmedString((item as any).whyItMatters) ??
@@ -385,8 +428,18 @@ export function ChatPageWebSocket() {
         value: command ?? undefined,
         command: command ?? undefined,
         metrics: metrics ?? undefined,
-        url: url ?? undefined,
+        url: resolvedUrl ?? undefined,
         whyItMatters: whyItMatters ?? undefined,
+        ...(assetType || assetThumbnail || assetTitle || assetDescription || assetEmbedHtml || resolvedUrl
+          ? {
+              assetType,
+              assetThumbnail,
+              assetTitle,
+              assetDescription,
+              assetEmbedHtml,
+              assetUrl: resolvedUrl ?? undefined,
+            }
+          : {}),
       });
     });
 

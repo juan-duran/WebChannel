@@ -1,7 +1,9 @@
 import { type KeyboardEvent } from 'react';
 import { TrendingUp, ExternalLink, ArrowRight } from 'lucide-react';
+import type { TrendAssetMetadata } from '../types/tapNavigation';
+import { TrendAssetPreview } from './tap/TrendAssetPreview';
 
-export type Trend = {
+export type Trend = TrendAssetMetadata & {
   id: string;
   number: number;
   name: string;
@@ -59,6 +61,8 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
               : undefined;
           const whyItMatters = trend.whyItMatters && trend.whyItMatters.trim().length > 0 ? trend.whyItMatters : undefined;
           const url = typeof trend.url === 'string' && trend.url.trim().length > 0 ? trend.url : null;
+          const previewTitle = trend.headline ?? trend.name;
+          const previewDescription = headline ?? trend.description;
 
           return (
             <div
@@ -102,6 +106,13 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
                     </span>
                   )}
                 </div>
+
+                <TrendAssetPreview
+                  asset={trend}
+                  fallbackUrl={url}
+                  fallbackTitle={previewTitle}
+                  fallbackDescription={previewDescription}
+                />
 
                 {whyItMatters && (
                   <div className="rounded-xl border border-amber-100 bg-amber-50/80 p-3">
