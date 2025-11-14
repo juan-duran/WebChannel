@@ -335,9 +335,22 @@ const parseTrendItem = (item: unknown, index: number): Trend | null => {
     toStringIfPresent((item as any).cta) ??
     (Number.isFinite(number) ? `Assunto #${number}` : undefined);
   const url =
-    toStringIfPresent((item as any).url) ??
-    toStringIfPresent((item as any).link) ??
-    toStringIfPresent((item as any).href) ??
+    [
+      (item as any).asset_short_url,
+      (item as any).assetShortUrl,
+      (item as any).assetShortURL,
+      (item as any).asset_short_link,
+      (item as any).assetShortLink,
+      (item as any).asset_link,
+      (item as any).assetLink,
+      (item as any).short_url,
+      (item as any).shortUrl,
+      (item as any).url,
+      (item as any).link,
+      (item as any).href,
+    ]
+      .map(toStringIfPresent)
+      .find((candidate): candidate is string => typeof candidate === 'string') ??
     null;
   const whyItMatters =
     toStringIfPresent((item as any).whyItMatters) ??
