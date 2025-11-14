@@ -478,6 +478,18 @@ class TapNavigationService {
       return '';
     };
 
+    const resolveOptionalString = (...values: unknown[]): string | undefined => {
+      for (const candidate of values) {
+        if (typeof candidate === 'string') {
+          const trimmed = candidate.trim();
+          if (trimmed) {
+            return trimmed;
+          }
+        }
+      }
+      return undefined;
+    };
+
     const normalizeTrends = Array.isArray((data as any).trends)
       ? (data as any).trends
           .map((item: any, index: number): TrendData | null => {
@@ -524,6 +536,27 @@ class TapNavigationService {
               item.link,
               item.href,
             );
+            const assetType = resolveOptionalString(item.asset_type, item.assetType);
+            const assetThumbnail = resolveOptionalString(
+              item.asset_thumbnail,
+              item.assetThumbnail,
+              item.asset_thumbnail_url,
+              item.assetThumbnailUrl,
+              item.thumbnail,
+              item.image,
+              item.preview_image,
+            );
+            const assetTitle = resolveOptionalString(item.asset_title, item.assetTitle);
+            const assetDescription = resolveOptionalString(
+              item.asset_description,
+              item.assetDescription,
+              item.asset_summary,
+            );
+            const assetEmbedHtml = resolveOptionalString(
+              item.asset_embed_html,
+              item.assetEmbedHtml,
+              item.embed_html,
+            );
             const whyItMatters =
               typeof item.whyItMatters === 'string'
                 ? item.whyItMatters
@@ -543,10 +576,20 @@ class TapNavigationService {
               value,
               url,
               whyItMatters,
+              ...(assetType || assetThumbnail || assetTitle || assetDescription || assetEmbedHtml || url
+                ? {
+                    ...(assetType ? { assetType } : {}),
+                    ...(assetThumbnail ? { assetThumbnail } : {}),
+                    ...(assetTitle ? { assetTitle } : {}),
+                    ...(assetDescription ? { assetDescription } : {}),
+                    ...(assetEmbedHtml ? { assetEmbedHtml } : {}),
+                    ...(url ? { assetUrl: url } : {}),
+                  }
+                : {}),
               ...(normalizedTopics && normalizedTopics.length > 0 ? { topics: normalizedTopics } : {}),
             } satisfies TrendData;
           })
-          .filter((trend): trend is TrendData => Boolean(trend))
+          .filter((trend: TrendData | null): trend is TrendData => Boolean(trend))
       : null;
 
     const topicsSummary =
