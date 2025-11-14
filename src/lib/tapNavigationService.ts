@@ -338,27 +338,30 @@ class TapNavigationService {
         if (resolved) return;
 
         if (response.type === 'message' && response.role === 'assistant') {
-          if (response.structuredData && this.isValidStructuredData(response.structuredData)) {
-            const normalized = this.normalizeStructuredData(response.structuredData);
+          const structuredData = response.structuredData;
 
-            if (normalized.layer !== expectedLayer) {
-              return;
-            }
-
-            resolved = true;
-            clearTimeout(timeout);
-
-            clearListeners();
-
-            resolve(normalized);
-          } else {
-            resolved = true;
-            clearTimeout(timeout);
-
-            clearListeners();
-
-            reject(new StructuredDataValidationError());
+          if (!structuredData) {
+            console.warn('Received assistant message without structured data. Ignoring message.');
+            return;
           }
+
+          if (!this.isValidStructuredData(structuredData)) {
+            console.warn('Received assistant message with invalid structured data. Ignoring message.');
+            return;
+          }
+
+          const normalized = this.normalizeStructuredData(structuredData);
+
+          if (normalized.layer !== expectedLayer) {
+            return;
+          }
+
+          resolved = true;
+          clearTimeout(timeout);
+
+          clearListeners();
+
+          resolve(normalized);
         }
       };
 
