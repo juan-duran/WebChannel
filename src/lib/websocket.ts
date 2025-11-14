@@ -326,8 +326,19 @@ export class WebSocketService {
   }
 }
 
-const wsUrl = import.meta.env.DEV
+const runtimeEnv =
+  (typeof import.meta !== 'undefined' && (import.meta as any)?.env) ||
+  (typeof process !== 'undefined' ? process.env : undefined);
+
+const isDev =
+  runtimeEnv?.DEV === true ||
+  runtimeEnv?.DEV === 'true' ||
+  runtimeEnv?.NODE_ENV === 'development';
+
+const wsUrl = isDev
   ? 'ws://localhost:8080/ws'
-  : `wss://${window.location.host}/ws`;
+  : typeof window !== 'undefined'
+    ? `wss://${window.location.host}/ws`
+    : 'wss://localhost/ws';
 
 export const websocketService = new WebSocketService(wsUrl);
