@@ -334,24 +334,50 @@ const parseTrendItem = (item: unknown, index: number): Trend | null => {
     toStringIfPresent((item as any).command) ??
     toStringIfPresent((item as any).cta) ??
     (Number.isFinite(number) ? `Assunto #${number}` : undefined);
-  const url =
+  const urlCandidates = [
+    (item as any).asset_short_url,
+    (item as any).assetShortUrl,
+    (item as any).assetShortURL,
+    (item as any).asset_short_link,
+    (item as any).assetShortLink,
+    (item as any).asset_link,
+    (item as any).assetLink,
+    (item as any).short_url,
+    (item as any).shortUrl,
+    (item as any).url,
+    (item as any).link,
+    (item as any).href,
+  ];
+
+  const url = urlCandidates
+    .map(toStringIfPresent)
+    .find((candidate): candidate is string => typeof candidate === 'string') ?? null;
+
+  const assetType =
+    toStringIfPresent((item as any).asset_type) ?? toStringIfPresent((item as any).assetType) ?? undefined;
+  const assetThumbnail =
     [
-      (item as any).asset_short_url,
-      (item as any).assetShortUrl,
-      (item as any).assetShortURL,
-      (item as any).asset_short_link,
-      (item as any).assetShortLink,
-      (item as any).asset_link,
-      (item as any).assetLink,
-      (item as any).short_url,
-      (item as any).shortUrl,
-      (item as any).url,
-      (item as any).link,
-      (item as any).href,
+      (item as any).asset_thumbnail,
+      (item as any).assetThumbnail,
+      (item as any).asset_thumbnail_url,
+      (item as any).assetThumbnailUrl,
+      (item as any).thumbnail,
+      (item as any).image,
+      (item as any).preview_image,
     ]
       .map(toStringIfPresent)
-      .find((candidate): candidate is string => typeof candidate === 'string') ??
-    null;
+      .find((candidate): candidate is string => typeof candidate === 'string');
+  const assetTitle =
+    toStringIfPresent((item as any).asset_title) ?? toStringIfPresent((item as any).assetTitle) ?? undefined;
+  const assetDescription =
+    toStringIfPresent((item as any).asset_description) ??
+    toStringIfPresent((item as any).assetDescription) ??
+    undefined;
+  const assetEmbedHtml =
+    toStringIfPresent((item as any).asset_embed_html) ??
+    toStringIfPresent((item as any).assetEmbedHtml) ??
+    toStringIfPresent((item as any).embed_html) ??
+    undefined;
   const whyItMatters =
     toStringIfPresent((item as any).whyItMatters) ??
     toStringIfPresent((item as any).why_it_matters) ??
@@ -380,6 +406,16 @@ const parseTrendItem = (item: unknown, index: number): Trend | null => {
     metrics: metrics ?? undefined,
     url,
     whyItMatters: whyItMatters ?? undefined,
+    ...(assetType || assetThumbnail || assetTitle || assetDescription || assetEmbedHtml || url
+      ? {
+          assetType,
+          assetThumbnail: assetThumbnail ?? undefined,
+          assetTitle,
+          assetDescription,
+          assetEmbedHtml,
+          assetUrl: url ?? undefined,
+        }
+      : {}),
   };
 };
 
