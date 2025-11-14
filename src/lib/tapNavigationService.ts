@@ -464,6 +464,20 @@ class TapNavigationService {
             .filter((topic): topic is TopicData => Boolean(topic))
         : null;
 
+    const resolveUrl = (...values: unknown[]): string => {
+      for (const candidate of values) {
+        if (typeof candidate === 'string') {
+          const trimmed = candidate.trim();
+          if (trimmed) {
+            return trimmed;
+          }
+        } else if (typeof candidate === 'number' && Number.isFinite(candidate)) {
+          return String(candidate);
+        }
+      }
+      return '';
+    };
+
     const normalizeTrends = Array.isArray((data as any).trends)
       ? (data as any).trends
           .map((item: any, index: number): TrendData | null => {
@@ -496,12 +510,20 @@ class TapNavigationService {
                 ? item.summary
                 : '';
             const value = typeof item.value === 'string' ? item.value : '';
-            const url =
-              typeof item.url === 'string'
-                ? item.url
-                : typeof item.link === 'string'
-                ? item.link
-                : '';
+            const url = resolveUrl(
+              item.asset_short_url,
+              item.assetShortUrl,
+              item.assetShortURL,
+              item.asset_short_link,
+              item.assetShortLink,
+              item.asset_link,
+              item.assetLink,
+              item.short_url,
+              item.shortUrl,
+              item.url,
+              item.link,
+              item.href,
+            );
             const whyItMatters =
               typeof item.whyItMatters === 'string'
                 ? item.whyItMatters
