@@ -403,19 +403,15 @@ class TapNavigationService {
       return false;
     }
 
-    if (!('metadata' in structuredData)) {
-      return false;
-    }
-
     if (structuredData.layer === 'trends') {
-      return 'trends' in structuredData && 'summary' in structuredData;
+      return Array.isArray(structuredData.trends);
     }
 
     if (structuredData.layer === 'topics') {
-      return 'topics' in structuredData && 'summary' in structuredData;
+      return Array.isArray(structuredData.topics);
     }
 
-    return 'summary' in structuredData;
+    return Boolean(structuredData.summary && typeof structuredData.summary === 'object');
   }
 
   private normalizeStructuredData(data: TapNavigationStructuredData): TapNavigationStructuredData {
