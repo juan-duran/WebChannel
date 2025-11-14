@@ -145,3 +145,73 @@ test('requestFromAgent waits for matching layer structured data', async () => {
   const result = await requestPromise;
   assert.equal(result.layer, 'trends');
 });
+
+test('requestFromAgent ignores assistant messages without valid structured data', async () => {
+  const requestPromise: Promise<TapNavigationStructuredData> = (tapNavigationService as any).requestFromAgent(
+    'Load trends',
+    'trends',
+  );
+
+  let settled = false;
+  requestPromise.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+
+  emit('message', {
+    type: 'message',
+    role: 'assistant',
+  } as any);
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.equal(
+    settled,
+    false,
+    'request should not settle when receiving assistant messages without structured data',
+  );
+
+  emit('message', {
+    type: 'message',
+    role: 'assistant',
+    structuredData: { layer: 'trends' },
+  } as any);
+
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  assert.equal(
+    settled,
+    false,
+    'request should not settle when receiving assistant messages with invalid structured data',
+  );
+
+  emit('message', {
+    type: 'message',
+    role: 'assistant',
+    structuredData: buildTrendsData(),
+  } as any);
+
+  const result = await requestPromise;
+  assert.equal(result.layer, 'trends');
+});
+
+test('requestFromAgent rejects when receiving an error event', async () => {
+  const requestPromise: Promise<TapNavigationStructuredData> = (tapNavigationService as any).requestFromAgent(
+    'Load trends',
+    'trends',
+  );
+
+  emit('error', {
+    type: 'error',
+    error: 'Simulated error',
+  } as any);
+
+  await assert.rejects(requestPromise, (error: any) => {
+    assert.equal(error.message, 'Simulated error');
+    return true;
+  });
+});
