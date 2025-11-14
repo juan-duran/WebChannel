@@ -7,6 +7,7 @@ export interface TrendData {
   value: string;
   url: string;
   whyItMatters: string;
+  topics?: TopicData[];
 }
 
 export interface TopicData {
@@ -36,6 +37,7 @@ export interface SummaryData {
 export interface TapNavigationStructuredData {
   layer: 'trends' | 'topics' | 'summary';
   trends: TrendData[] | null;
+  trendsSummary?: string | null;
   topicsSummary: string | null;
   topics: TopicData[] | null;
   summary: SummaryData | null;

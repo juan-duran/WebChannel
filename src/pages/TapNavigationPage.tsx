@@ -20,6 +20,7 @@ export function TapNavigationPage() {
   const [topicsErrorMap, setTopicsErrorMap] = useState<Record<string, string | null>>({});
   const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
+  const [trendsSummary, setTrendsSummary] = useState<string | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
@@ -313,6 +314,7 @@ export function TapNavigationPage() {
       setTopicsMap({});
       setTopicsSummaryMap({});
       setTopicsErrorMap({});
+      setTrendsSummary(null);
       trendRefs.current = {};
     }
 
@@ -335,7 +337,24 @@ export function TapNavigationPage() {
       }
 
       if (result.success && result.data) {
-        setTrends(result.data as TrendData[]);
+        const trendsList = result.data as TrendData[];
+        setTrends(trendsList);
+        setTrendsSummary(result.trendsSummary ?? null);
+
+        const initialTopicsMap: Record<string, TopicData[]> = {};
+        const initialTopicsSummaryMap: Record<string, string | null> = {};
+
+        trendsList.forEach((trend) => {
+          if (Array.isArray(trend.topics) && trend.topics.length > 0) {
+            initialTopicsMap[trend.id] = trend.topics;
+            initialTopicsSummaryMap[trend.id] = null;
+          }
+        });
+
+        setTopicsMap(initialTopicsMap);
+        setTopicsSummaryMap(initialTopicsSummaryMap);
+        setTopicsErrorMap({});
+
         if (result.error) {
           setError(result.error);
         } else {
@@ -910,6 +929,12 @@ export function TapNavigationPage() {
           </div>
         ) : (
           <>
+            {trendsSummary && trends.length > 0 && (
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                <p className="mb-1 text-xs font-semibold text-gray-900">Panorama do Dia</p>
+                <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{trendsSummary}</p>
+              </div>
+            )}
             <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
               <div
                 className={`w-full transition-transform duration-300 ease-in-out ${selectedTopic ? '-translate-x-full' : 'translate-x-0'}`}
