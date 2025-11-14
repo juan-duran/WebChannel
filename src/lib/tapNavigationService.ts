@@ -28,6 +28,7 @@ export interface TapNavigationResponse {
   error?: string;
   metadata?: Record<string, unknown>;
   topicsSummary?: string | null;
+  trendsSummary?: string | null;
 }
 
 class TapNavigationService {
@@ -67,6 +68,7 @@ class TapNavigationService {
           success: true,
           data: cached.data,
           fromCache: true,
+          trendsSummary: null,
         };
       }
 
@@ -79,6 +81,7 @@ class TapNavigationService {
           data: payload.trends as TrendData[],
           fromCache: false,
           metadata: payload.metadata ?? undefined,
+          trendsSummary: payload.trendsSummary ?? null,
         };
       }
 
@@ -90,6 +93,7 @@ class TapNavigationService {
           data: cached.data,
           fromCache: true,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
+          trendsSummary: null,
         };
       }
 
@@ -108,6 +112,7 @@ class TapNavigationService {
           data: cached.data,
           fromCache: true,
           error: `${errorMessage} Exibindo dados em cache.`,
+          trendsSummary: null,
         };
       }
 
@@ -398,10 +403,71 @@ class TapNavigationService {
       return false;
     }
 
-    return 'trends' in structuredData && 'topics' in structuredData && 'summary' in structuredData;
+    if (!('metadata' in structuredData)) {
+      return false;
+    }
+
+    if (structuredData.layer === 'trends') {
+      return 'trends' in structuredData && 'summary' in structuredData;
+    }
+
+    if (structuredData.layer === 'topics') {
+      return 'topics' in structuredData && 'summary' in structuredData;
+    }
+
+    return 'summary' in structuredData;
   }
 
   private normalizeStructuredData(data: TapNavigationStructuredData): TapNavigationStructuredData {
+    const trendsSummary =
+      typeof (data as any).trendsSummary === 'string' && (data as any).trendsSummary.trim().length > 0
+        ? (data as any).trendsSummary
+        : null;
+
+    const normalizeTopicItem = (topicItem: any, index: number): TopicData | null => {
+      if (!topicItem || typeof topicItem !== 'object') {
+        return null;
+      }
+
+      const id = typeof topicItem.id === 'string' ? topicItem.id : `topic_${index + 1}`;
+      const number =
+        typeof topicItem.number === 'number'
+          ? topicItem.number
+          : typeof topicItem.rank === 'number'
+          ? topicItem.rank
+          : index + 1;
+      const description =
+        typeof topicItem.description === 'string'
+          ? topicItem.description
+          : typeof topicItem.summary === 'string'
+          ? topicItem.summary
+          : '';
+      if (!description) {
+        return null;
+      }
+
+      const likesData =
+        typeof topicItem['likes-data'] === 'string'
+          ? topicItem['likes-data']
+          : typeof topicItem.likesData === 'string'
+          ? topicItem.likesData
+          : '';
+
+      return {
+        id,
+        number,
+        description,
+        likesData,
+      } satisfies TopicData;
+    };
+
+    const normalizeTopicsFromArray = (value: unknown): TopicData[] | null =>
+      Array.isArray(value)
+        ? value
+            .map((item, index) => normalizeTopicItem(item, index))
+            .filter((topic): topic is TopicData => Boolean(topic))
+        : null;
+
     const normalizeTrends = Array.isArray((data as any).trends)
       ? (data as any).trends
           .map((item: any, index: number): TrendData | null => {
@@ -447,6 +513,9 @@ class TapNavigationService {
                 ? item['why_it_matters']
                 : '';
 
+            const rawTopics = Array.isArray(item.topics) ? item.topics : null;
+            const normalizedTopics = rawTopics ? normalizeTopicsFromArray(rawTopics) : null;
+
             return {
               id,
               number,
@@ -456,6 +525,7 @@ class TapNavigationService {
               value,
               url,
               whyItMatters,
+              ...(normalizedTopics && normalizedTopics.length > 0 ? { topics: normalizedTopics } : {}),
             } satisfies TrendData;
           })
           .filter((trend): trend is TrendData => Boolean(trend))
@@ -466,46 +536,7 @@ class TapNavigationService {
         ? (data as any).topicsSummary
         : null;
 
-    const normalizeTopics = Array.isArray((data as any).topics)
-      ? (data as any).topics
-          .map((item: any, index: number): TopicData | null => {
-            if (!item || typeof item !== 'object') {
-              return null;
-            }
-
-            const id = typeof item.id === 'string' ? item.id : `topic_${index + 1}`;
-            const number =
-              typeof item.number === 'number'
-                ? item.number
-                : typeof item.rank === 'number'
-                ? item.rank
-                : index + 1;
-            const description =
-              typeof item.description === 'string'
-                ? item.description
-                : typeof item.summary === 'string'
-                ? item.summary
-                : '';
-            if (!description) {
-              return null;
-            }
-
-            const likesData =
-              typeof item['likes-data'] === 'string'
-                ? item['likes-data']
-                : typeof item.likesData === 'string'
-                ? item.likesData
-                : '';
-
-            return {
-              id,
-              number,
-              description,
-              likesData,
-            } satisfies TopicData;
-          })
-          .filter((topic): topic is TopicData => Boolean(topic))
-      : null;
+    const normalizeTopics = normalizeTopicsFromArray((data as any).topics);
 
     const summary =
       (data as any).summary && typeof (data as any).summary === 'object' && !Array.isArray((data as any).summary)
@@ -620,6 +651,7 @@ class TapNavigationService {
     return {
       layer: data.layer,
       trends: normalizeTrends,
+      trendsSummary,
       topicsSummary,
       topics: normalizeTopics,
       summary,
