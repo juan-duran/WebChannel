@@ -531,7 +531,8 @@ export function TapNavigationPage() {
 
     try {
       setIsLoadingSummary(true);
-      const result = await tapNavigationService.fetchSummary(topic.number, user.id);
+      const trendRank = trend?.number ?? topic.number;
+      const result = await tapNavigationService.fetchSummary(topic.number, trendRank, user.id);
 
       if (result.success && result.data) {
         const summary = result.data as SummaryData;
@@ -583,7 +584,9 @@ export function TapNavigationPage() {
     try {
       setIsRefreshing(true);
       setSummaryError(null);
-      const result = await tapNavigationService.fetchSummary(selectedTopic.number, user.id, { forceRefresh: true });
+      const trend = trends.find((t) => t.id === expandedTrendId);
+      const trendRank = trend?.number ?? selectedTopic.number;
+      const result = await tapNavigationService.fetchSummary(selectedTopic.number, trendRank, user.id, { forceRefresh: true });
 
       if (result.success && result.data) {
         const summary = result.data as SummaryData;
