@@ -5,27 +5,31 @@ export type Topic = {
   number: number;
   name: string;
   description?: string;
+  value?: string;
+  likesData?: string;
 };
 
 type TopicsListProps = {
   topics: Topic[];
   trendName: string;
   onSelect: (topic: Topic) => void;
-  onBack: () => void;
+  onBack?: () => void;
   disabled?: boolean;
 };
 
 export function TopicsList({ topics, trendName, onSelect, onBack, disabled = false }: TopicsListProps) {
   return (
     <div className="space-y-3">
-      <button
-        onClick={onBack}
-        disabled={disabled}
-        className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 disabled:opacity-50"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Voltar para Assuntos
-      </button>
+      {onBack && (
+        <button
+          onClick={onBack}
+          disabled={disabled}
+          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 disabled:opacity-50"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar para Assuntos
+        </button>
+      )}
 
       <div className="flex items-center gap-2 mb-4">
         <FileText className="w-5 h-5 text-blue-600" />
@@ -58,6 +62,9 @@ export function TopicsList({ topics, trendName, onSelect, onBack, disabled = fal
                 <p className="text-sm text-gray-600 line-clamp-2 mt-1">
                   {topic.description}
                 </p>
+              )}
+              {topic.likesData && (
+                <p className="text-xs text-gray-500 mt-1">{topic.likesData}</p>
               )}
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />

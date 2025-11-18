@@ -42,10 +42,21 @@ export interface N8nWebhookPayload {
   correlation_id?: string;
 }
 
+export interface OutgoingMessageButton {
+  label?: string;
+  value?: string;
+  title?: string;
+  text?: string;
+  payload?: string;
+  action?: string;
+  name?: string;
+}
+
 export interface OutgoingMessageRequest {
   sessionId?: string;
   userId?: string;
   userEmail?: string;
+  correlationId?: string;
   content: string;
   contentType?: 'text' | 'image' | 'video' | 'link' | 'trends' | 'topics' | 'summary';
   structuredData?: any;
@@ -54,7 +65,8 @@ export interface OutgoingMessageRequest {
   mediaType?: string;
   mediaCaption?: string;
   cacheTag?: string;
-  correlationId?: string;
+  buttons?: (OutgoingMessageButton | string)[];
+  webhookResponse?: any;
 }
 
 export interface CacheMetrics {
