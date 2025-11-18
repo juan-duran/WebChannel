@@ -48,15 +48,18 @@ export interface SummaryData {
 }
 
 export interface TapNavigationStructuredData {
-  layer: 'trends' | 'summary';
+  layer: 'trends' | 'topics' | 'summary';
   trends: TrendData[] | null;
+  topics?: Record<number, TopicData[]> | null;
   trendsSummary?: string | null;
+  topicsSummary?: string | null;
   summary: SummaryData | null;
   metadata?: {
     'trend-name'?: string | null;
     'topic-name'?: string | null;
     trendName?: string | null;
     topicName?: string | null;
+    topicsSummary?: string | null;
     [key: string]: unknown;
   } | null;
 }
