@@ -52,8 +52,6 @@ const rawStructuredData: TapNavigationStructuredData = {
     } as any,
   ],
   trendsSummary: null,
-  topicsSummary: null,
-  topics: null,
   summary: null,
   metadata: null,
 };
