@@ -23,7 +23,8 @@ export interface TopicData {
   id: string;
   number: number;
   description: string;
-  likesData: string;
+  'likes-data'?: string;
+  likesData?: string;
 }
 
 export interface SourceData {
@@ -33,24 +34,27 @@ export interface SourceData {
 }
 
 export interface SummaryData {
-  topicName: string;
-  likesData: string;
-  context: string[];
+  'topic-name'?: string;
+  topicName?: string;
+  'likes-data'?: string;
+  likesData?: string;
+  context?: string[];
   thesis: string;
-  debate: string[];
-  personalization: string;
+  debate?: string[];
+  personalization?: string;
   sources?: SourceData[];
+  'why-it-matters'?: string;
   whyItMatters?: string;
 }
 
 export interface TapNavigationStructuredData {
-  layer: 'trends' | 'topics' | 'summary';
+  layer: 'trends' | 'summary';
   trends: TrendData[] | null;
   trendsSummary?: string | null;
-  topicsSummary: string | null;
-  topics: TopicData[] | null;
   summary: SummaryData | null;
   metadata?: {
+    'trend-name'?: string | null;
+    'topic-name'?: string | null;
     trendName?: string | null;
     topicName?: string | null;
     [key: string]: unknown;
