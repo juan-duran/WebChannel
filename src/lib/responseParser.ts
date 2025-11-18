@@ -748,6 +748,14 @@ const parseSummaryStructuredData = (value: unknown): SummaryExtraction | null =>
     toStringIfPresent((candidate as any).topicName) ?? toStringIfPresent((candidate as any).topic_name) ?? undefined;
   const likesData =
     toStringIfPresent((candidate as any)['likes-data']) ?? toStringIfPresent((candidate as any).likesData) ?? undefined;
+  const threadId =
+    toStringIfPresent((candidate as any).thread_id) ??
+    toStringIfPresent((candidate as any).threadId) ??
+    toStringIfPresent((candidate as any).thread);
+  const commentId =
+    toStringIfPresent((candidate as any).comment_id) ??
+    toStringIfPresent((candidate as any).commentId) ??
+    toStringIfPresent((candidate as any).comment);
   const thesis =
     toStringIfPresent((candidate as any).thesis) ??
     toStringIfPresent((candidate as any).summary) ??
@@ -800,6 +808,8 @@ const parseSummaryStructuredData = (value: unknown): SummaryExtraction | null =>
   const summary: SummaryData = {
     topicName: topicName ?? thesis ?? 'Resumo',
     likesData: likesData ?? '',
+    ...(threadId ? { thread_id: threadId } : {}),
+    ...(commentId ? { comment_id: commentId } : {}),
     context,
     thesis: thesis ?? topicName ?? 'Resumo',
     debate,
@@ -815,6 +825,12 @@ const parseSummaryStructuredData = (value: unknown): SummaryExtraction | null =>
   }
   if (context.length > 0) {
     metadata.context = context;
+  }
+  if (threadId) {
+    (metadata as Record<string, unknown>).thread_id = threadId;
+  }
+  if (commentId) {
+    (metadata as Record<string, unknown>).comment_id = commentId;
   }
   if (debate.length > 0) {
     metadata.debate = debate;
