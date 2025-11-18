@@ -208,7 +208,12 @@ export class WebSocketService {
       }
 
       if (normalizedImmediateResponse) {
-        const delivered = this.sendMessageToSession(sessionId, normalizedImmediateResponse);
+        const delivered = this.sendMessageToSession(
+          sessionId,
+          normalizedImmediateResponse,
+          userId,
+          userEmail
+        );
 
         if (delivered && channelId) {
           await this.supabaseServiceInstance.saveMessage(
@@ -636,33 +641,91 @@ export class WebSocketService {
     }
   }
 
-  sendMessageToSession(sessionId: string, message: AssistantMessagePayload) {
-    const session = this.sessionManagerService.getSession(sessionId);
-    if (!session) {
-      logger.warn({ sessionId }, 'Session not found for message delivery');
-      return false;
+  sendMessageToSession(
+    sessionId: string,
+    message: AssistantMessagePayload,
+    userId: string,
+    userEmail?: string
+  ) {
+    const attemptedSessions = new Set<string>();
+
+    const trySend = (targetSessionId: string, reason: string) => {
+      const targetSession = this.sessionManagerService.getSession(targetSessionId);
+
+      if (!targetSession) {
+        logger.warn(
+          { sessionId: targetSessionId, userId, reason },
+          'Session unavailable for message delivery'
+        );
+        return false;
+      }
+
+      if (targetSession.ws.readyState !== WebSocket.OPEN) {
+        logger.warn(
+          { sessionId: targetSessionId, userId, readyState: targetSession.ws.readyState, reason },
+          'Session WebSocket not open for message delivery'
+        );
+        return false;
+      }
+
+      try {
+        targetSession.ws.send(JSON.stringify({
+          type: 'message',
+          role: 'assistant',
+          correlationId: message.correlationId,
+          content: message.content,
+          contentType: message.contentType ?? 'text',
+          structuredData: message.structuredData,
+          metadata: message.metadata,
+          cacheTag: message.cacheTag,
+          buttons: message.buttons,
+          webhookResponse: message.webhookResponse,
+          mediaUrl: message.mediaUrl,
+          mediaType: message.mediaType,
+          mediaCaption: message.mediaCaption,
+        }));
+        return true;
+      } catch (error) {
+        logger.error({ sessionId: targetSessionId, userId, error, reason }, 'Failed to send message to session');
+        return false;
+      }
+    };
+
+    const primaryDelivered = trySend(sessionId, 'primary session');
+    attemptedSessions.add(sessionId);
+
+    if (primaryDelivered) {
+      return true;
     }
 
-    try {
-      session.ws.send(JSON.stringify({
-        type: 'message',
-        role: 'assistant',
-        correlationId: message.correlationId,
-        content: message.content,
-        contentType: message.contentType ?? 'text',
-        structuredData: message.structuredData,
-        metadata: message.metadata,
-        cacheTag: message.cacheTag,
-        buttons: message.buttons,
-        webhookResponse: message.webhookResponse,
-        mediaUrl: message.mediaUrl,
-        mediaType: message.mediaType,
-        mediaCaption: message.mediaCaption,
-      }));
-      return true;
-    } catch (error) {
-      logger.error({ sessionId, error }, 'Failed to send message to session');
-      return false;
+    let delivered = false;
+
+    const userSessions = this.sessionManagerService.getSessionsByUserId(userId);
+    for (const session of userSessions) {
+      if (attemptedSessions.has(session.sessionId)) continue;
+      logger.info({ sessionId: session.sessionId, userId }, 'Attempting fallback delivery via user sessions');
+      attemptedSessions.add(session.sessionId);
+      delivered = trySend(session.sessionId, 'fallback by userId');
+      if (delivered) {
+        return true;
+      }
     }
+
+    if (userEmail) {
+      const emailSession = this.sessionManagerService.getSessionByEmail(userEmail);
+      if (emailSession && !attemptedSessions.has(emailSession.sessionId)) {
+        logger.info(
+          { sessionId: emailSession.sessionId, userId, userEmail },
+          'Attempting fallback delivery via user email'
+        );
+        delivered = trySend(emailSession.sessionId, 'fallback by email');
+        if (delivered) {
+          return true;
+        }
+      }
+    }
+
+    logger.error({ sessionId, userId, userEmail }, 'Failed to deliver message to any active session');
+    return false;
   }
 }
