@@ -6,6 +6,9 @@ import { supabaseService } from './supabase.js';
 import { n8nService } from './n8n.js';
 import { logger } from '../utils/logger.js';
 import { WebSocketMessage } from '../types/index.js';
+import { generateCorrelationId } from '../utils/crypto.js';
+import { userRateLimiter } from '../middleware/rateLimit.js';
+import { config } from '../config/index.js';
 
 type AssistantMessagePayload = {
   correlationId?: string;
@@ -20,9 +23,6 @@ type AssistantMessagePayload = {
   mediaType?: string;
   mediaCaption?: string;
 };
-import { generateCorrelationId } from '../utils/crypto.js';
-import { userRateLimiter } from '../middleware/rateLimit.js';
-import { config } from '../config/index.js';
 
 export class WebSocketService {
   private wss: WebSocketServer;
@@ -175,7 +175,20 @@ export class WebSocketService {
 
     const channelId = await this.supabaseServiceInstance.getOrCreateDefaultChannel(userId);
     if (channelId) {
-      await this.supabaseServiceInstance.saveMessage(channelId, userId, 'user', message.content);
+      await this.supabaseServiceInstance.saveMessage(
+        channelId,
+        userId,
+        'user',
+        message.content,
+        'text',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        correlationId
+      );
     }
 
     const session = this.sessionManagerService.getSession(sessionId);
@@ -228,7 +241,7 @@ export class WebSocketService {
             normalizedImmediateResponse.mediaUrl,
             normalizedImmediateResponse.mediaType,
             normalizedImmediateResponse.mediaCaption,
-            normalizedImmediateResponse.correlationId
+            normalizedImmediateResponse.correlationId ?? correlationId
           );
         }
 
