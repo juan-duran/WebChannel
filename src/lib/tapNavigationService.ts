@@ -355,11 +355,39 @@ class TapNavigationService {
     return new Promise((resolve, reject) => {
       let resolved = false;
 
+      const resolveStructuredData = (candidate: unknown): unknown => {
+        if (!candidate) return null;
+
+        if (Array.isArray(candidate)) {
+          if (candidate.length === 1) {
+            return resolveStructuredData(candidate[0]);
+          }
+
+          return null;
+        }
+
+        if (typeof candidate === 'object') {
+          const candidateObject = candidate as Record<string, unknown>;
+
+          if ('structuredData' in candidateObject && candidateObject.structuredData) {
+            return candidateObject.structuredData;
+          }
+
+          if ('structured_data' in candidateObject && candidateObject.structured_data) {
+            return candidateObject.structured_data;
+          }
+        }
+
+        return candidate;
+      };
+
       const handleMessage = (response: WebSocketMessage) => {
         if (resolved) return;
 
         if (response.type === 'message' && response.role === 'assistant') {
-          const structuredData = response.structuredData;
+          const structuredData =
+            resolveStructuredData(response.structuredData ?? (response as any).structured_data) ||
+            resolveStructuredData((response as any).output);
 
           if (!structuredData) {
             console.warn('Received assistant message without structured data. Ignoring message.');

@@ -115,6 +115,20 @@ const buildTrendsData = (): TapNavigationStructuredData => ({
   summary: null,
 });
 
+const buildTopicsData = (): TapNavigationStructuredData => ({
+  layer: 'topics',
+  trends: null,
+  topics: [
+    {
+      id: 'topic-1',
+      number: 1,
+      description: 'Topic 1 description',
+    },
+  ],
+  topicsSummary: null,
+  summary: null,
+});
+
 const buildSummaryData = (): TapNavigationStructuredData => ({
   layer: 'summary',
   trends: null,
@@ -213,6 +227,54 @@ test('requestFromAgent ignores assistant messages without valid structured data'
 
   const result = await requestPromise;
   assert.equal(result.layer, 'trends');
+});
+
+test('requestFromAgent resolves when structured data is nested inside output', async () => {
+  (websocketService as any).sendMessage = async () => {
+    setTimeout(() => {
+      emit(
+        'message',
+        {
+          type: 'message',
+          role: 'assistant',
+          output: { structuredData: buildTrendsData() },
+        } as any,
+      );
+    }, 0);
+  };
+
+  const result: TapNavigationStructuredData = await (tapNavigationService as any).requestFromAgent(
+    'Load trends',
+    'trends',
+  );
+
+  assert.equal(result.layer, 'trends');
+});
+
+test('requestFromAgent resolves when output array contains structured data in snake_case', async () => {
+  (websocketService as any).sendMessage = async () => {
+    setTimeout(() => {
+      emit(
+        'message',
+        {
+          type: 'message',
+          role: 'assistant',
+          output: [
+            {
+              structured_data: buildTopicsData(),
+            },
+          ],
+        } as any,
+      );
+    }, 0);
+  };
+
+  const result: TapNavigationStructuredData = await (tapNavigationService as any).requestFromAgent(
+    'Load topics',
+    'topics',
+  );
+
+  assert.equal(result.layer, 'topics');
 });
 
 test('requestFromAgent rejects when receiving an error event', async () => {
