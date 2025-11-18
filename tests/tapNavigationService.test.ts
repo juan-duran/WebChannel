@@ -2,6 +2,7 @@ import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import type { TapNavigationStructuredData } from '../src/types/tapNavigation';
 import type { WebSocketEventHandler, WebSocketMessageType } from '../src/lib/websocket';
+import type { TopicData } from '../src/types/tapNavigation';
 
 type ListenerMap = Map<WebSocketMessageType, Set<WebSocketEventHandler>>;
 
@@ -44,6 +45,8 @@ let websocketService: typeof import('../src/lib/websocket')['websocketService'];
 let originalOn: typeof import('../src/lib/websocket')['websocketService']['on'];
 let originalOff: typeof import('../src/lib/websocket')['websocketService']['off'];
 let originalSendMessage: typeof import('../src/lib/websocket')['websocketService']['sendMessage'];
+let cacheStorage: typeof import('../src/lib/cacheStorage')['cacheStorage'];
+let originalCacheMethods: Partial<typeof cacheStorage>;
 
 beforeEach(async () => {
   const serviceModule = await import('../src/lib/tapNavigationService');
@@ -51,12 +54,18 @@ beforeEach(async () => {
 
   tapNavigationService = serviceModule.tapNavigationService;
   websocketService = websocketModule.websocketService;
+  cacheStorage = (await import('../src/lib/cacheStorage')).cacheStorage;
 
   listeners.clear();
 
   originalOn = websocketService.on;
   originalOff = websocketService.off;
   originalSendMessage = websocketService.sendMessage;
+  originalCacheMethods = {
+    getTopics: cacheStorage.getTopics,
+    setTopics: cacheStorage.setTopics,
+    isStale: cacheStorage.isStale,
+  };
 
   (websocketService as any).on = (type: WebSocketMessageType, handler: WebSocketEventHandler) => {
     addListener(type, handler);
@@ -65,12 +74,17 @@ beforeEach(async () => {
     removeListener(type, handler);
   };
   (websocketService as any).sendMessage = async () => {};
+
+  (cacheStorage as any).getTopics = async () => null;
+  (cacheStorage as any).setTopics = async () => {};
+  (cacheStorage as any).isStale = () => false;
 });
 
 afterEach(() => {
   (websocketService as any).on = originalOn;
   (websocketService as any).off = originalOff;
   (websocketService as any).sendMessage = originalSendMessage;
+  Object.assign(cacheStorage, originalCacheMethods);
   listeners.clear();
 });
 
@@ -216,4 +230,43 @@ test('requestFromAgent rejects when receiving an error event', async () => {
     assert.equal(error.message, 'Simulated error');
     return true;
   });
+});
+
+test('fetchTopics accepts topic-layer structured data and maps it by trend', async () => {
+  const topicPayload = {
+    layer: 'topics',
+    trends: null,
+    topics: [
+      {
+        id: 'topic-1',
+        number: 1,
+        description: 'Topic from topic layer',
+      },
+    ] satisfies TopicData[],
+    topicsSummary: 'Topic summary',
+    summary: null,
+    metadata: {
+      trendNumber: 2,
+      topicsSummary: 'Topic summary',
+    },
+  } satisfies TapNavigationStructuredData;
+
+  (websocketService as any).sendMessage = async () => {
+    setTimeout(() => {
+      emit(
+        'message',
+        {
+          type: 'message',
+          role: 'assistant',
+          structuredData: topicPayload,
+        } as any,
+      );
+    }, 0);
+  };
+
+  const result = await tapNavigationService.fetchTopics(2);
+
+  assert.equal(result.success, true);
+  assert.equal(Array.isArray(result.data) && result.data[0]?.description, 'Topic from topic layer');
+  assert.equal(result.topicsSummary, 'Topic summary');
 });
