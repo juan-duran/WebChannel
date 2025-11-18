@@ -5,6 +5,13 @@ import { supabaseService } from '../services/supabase.js';
 
 const router = Router();
 
+router.get('/', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    message: 'WebChannel service is running. See /health, /ready, or /metrics for details.',
+  });
+});
+
 router.get('/health', (req: Request, res: Response) => {
   res.json({
     status: 'ok',

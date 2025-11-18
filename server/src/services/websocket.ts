@@ -143,7 +143,20 @@ export class WebSocketService {
 
     const channelId = await supabaseService.getOrCreateDefaultChannel(userId);
     if (channelId) {
-      await supabaseService.saveMessage(channelId, userId, 'user', message.content);
+      await supabaseService.saveMessage(
+        channelId,
+        userId,
+        'user',
+        message.content,
+        'text',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        correlationId
+      );
     }
 
     const session = sessionManager.getSession(sessionId);
@@ -188,7 +201,11 @@ export class WebSocketService {
           'text',
           undefined,
           undefined,
-          response
+          response,
+          undefined,
+          undefined,
+          undefined,
+          correlationId
         );
       }
 
