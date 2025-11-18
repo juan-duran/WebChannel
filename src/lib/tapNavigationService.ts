@@ -250,14 +250,19 @@ class TapNavigationService {
     }
   }
 
-  async fetchSummary(topicRank: number, userId: string, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
-    const cacheKey = `summary_${topicRank}_${userId}`;
+  async fetchSummary(
+    topicRank: number,
+    trendRank: number,
+    userId: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<TapNavigationResponse> {
+    const cacheKey = `summary_${trendRank}_${topicRank}_${userId}`;
 
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey)!;
     }
 
-    const promise = this.fetchSummaryInternal(topicRank, userId, options);
+    const promise = this.fetchSummaryInternal(topicRank, trendRank, userId, options);
     this.pendingRequests.set(cacheKey, promise);
 
     try {
@@ -267,13 +272,18 @@ class TapNavigationService {
     }
   }
 
-  private async fetchSummaryInternal(topicRank: number, userId: string, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
+  private async fetchSummaryInternal(
+    topicRank: number,
+    trendRank: number,
+    userId: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<TapNavigationResponse> {
     try {
       const cached = await cacheStorage.getSummary(topicRank, userId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
-          this.refreshSummaryInBackground(topicRank, userId);
+          this.refreshSummaryInBackground(topicRank, trendRank, userId);
         }
 
         return {
@@ -283,7 +293,8 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
+      const message = `Assunto #${trendRank} Tópico #${topicRank}`;
+      const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
@@ -331,9 +342,10 @@ class TapNavigationService {
     }
   }
 
-  private async refreshSummaryInBackground(topicRank: number, userId: string): Promise<void> {
+  private async refreshSummaryInBackground(topicRank: number, trendRank: number, userId: string): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
+      const message = `Assunto #${trendRank} Tópico #${topicRank}`;
+      const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
       }
