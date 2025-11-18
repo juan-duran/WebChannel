@@ -20,6 +20,45 @@ import { safeJsonParse } from '../lib/safeJsonParse';
 import { websocketService, WebSocketMessage } from '../lib/websocket';
 import type { SourceData, SummaryData } from '../types/tapNavigation';
 
+const allowedAssistantContentTypes: ChatMessage['contentType'][] = ['text', 'trends', 'topics', 'summary'];
+
+export function inferContentTypeFromStructuredData(
+  structuredData: unknown
+): ChatMessage['contentType'] | undefined {
+  if (!structuredData) {
+    return undefined;
+  }
+
+  if (Array.isArray(structuredData)) {
+    return undefined;
+  }
+
+  if (typeof structuredData === 'object') {
+    const layer = (structuredData as any).layer;
+    if (
+      typeof layer === 'string' &&
+      (allowedAssistantContentTypes as string[]).includes(layer) &&
+      layer !== 'text'
+    ) {
+      return layer as ChatMessage['contentType'];
+    }
+
+    if (Array.isArray((structuredData as any).trends)) {
+      return 'trends';
+    }
+
+    if (Array.isArray((structuredData as any).topics)) {
+      return 'topics';
+    }
+
+    if ((structuredData as any).summary && typeof (structuredData as any).summary === 'object') {
+      return 'summary';
+    }
+  }
+
+  return undefined;
+}
+
 export function ChatPageWebSocket() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -123,14 +162,16 @@ export function ChatPageWebSocket() {
 
       const parsedContent = safeJsonParse<any>(message.content);
       const parsedType = typeof parsedContent?.type === 'string' ? parsedContent.type : undefined;
-      const allowedTypes: ChatMessage['contentType'][] = ['text', 'trends', 'topics', 'summary'];
+      const structuredDataType = inferContentTypeFromStructuredData(message.structuredData);
       const resolvedContentType =
-        (message.contentType && (allowedTypes as string[]).includes(message.contentType)
+        (message.contentType && (allowedAssistantContentTypes as string[]).includes(message.contentType)
           ? (message.contentType as ChatMessage['contentType'])
           : undefined) ||
-        (parsedType && (allowedTypes as string[]).includes(parsedType)
+        (parsedType && (allowedAssistantContentTypes as string[]).includes(parsedType)
           ? (parsedType as ChatMessage['contentType'])
-          : 'text');
+          : undefined) ||
+        structuredDataType ||
+        'text';
 
       const primaryButtons = parsedContent?.buttons ?? undefined;
       const fallbackButtons = message.buttons ?? undefined;
