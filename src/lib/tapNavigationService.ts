@@ -167,17 +167,20 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'topics');
-      const topicsSummary = typeof payload.topicsSummary === 'string' ? payload.topicsSummary : null;
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'trends');
 
-      if (Array.isArray(payload.topics)) {
-        await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
+      const topicsFromTrends = Array.isArray(payload.trends)
+        ? (payload.trends.find((trend) => trend?.number === trendRank)?.topics ?? payload.trends[0]?.topics)
+        : null;
+
+      if (Array.isArray(topicsFromTrends)) {
+        await cacheStorage.setTopics(trendRank, topicsFromTrends as TopicData[]);
         return {
           success: true,
-          data: payload.topics as TopicData[],
+          data: topicsFromTrends as TopicData[],
           fromCache: false,
           metadata: payload.metadata ?? undefined,
-          topicsSummary,
+          topicsSummary: null,
         };
       }
 
@@ -189,7 +192,7 @@ class TapNavigationService {
           data: cached.data,
           fromCache: true,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
-          topicsSummary,
+          topicsSummary: null,
         };
       }
 
@@ -220,9 +223,13 @@ class TapNavigationService {
 
   private async refreshTopicsInBackground(trendRank: number): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'topics');
-      if (Array.isArray(payload.topics)) {
-        await cacheStorage.setTopics(trendRank, payload.topics as TopicData[]);
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'trends');
+      const topicsFromTrends = Array.isArray(payload.trends)
+        ? (payload.trends.find((trend) => trend?.number === trendRank)?.topics ?? payload.trends[0]?.topics)
+        : null;
+
+      if (Array.isArray(topicsFromTrends)) {
+        await cacheStorage.setTopics(trendRank, topicsFromTrends as TopicData[]);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -484,7 +491,7 @@ class TapNavigationService {
         id,
         number,
         description,
-        likesData,
+        ...(likesData ? { 'likes-data': likesData, likesData } : {}),
       } satisfies TopicData;
     };
 
@@ -623,13 +630,6 @@ class TapNavigationService {
           .filter((trend: TrendData | null): trend is TrendData => Boolean(trend))
       : null;
 
-    const topicsSummary =
-      typeof (data as any).topicsSummary === 'string' && (data as any).topicsSummary.trim().length > 0
-        ? (data as any).topicsSummary
-        : null;
-
-    const normalizeTopics = normalizeTopicsFromArray((data as any).topics);
-
     const summary =
       (data as any).summary && typeof (data as any).summary === 'object' && !Array.isArray((data as any).summary)
         ? (() => {
@@ -702,24 +702,39 @@ class TapNavigationService {
               : undefined;
 
             return {
-              topicName:
-                typeof rawSummary.topicName === 'string' && rawSummary.topicName.trim().length > 0
+              'topic-name':
+                typeof rawSummary['topic-name'] === 'string'
+                  ? (rawSummary['topic-name'] as string)
+                  : typeof rawSummary.topicName === 'string' && rawSummary.topicName.trim().length > 0
                   ? (rawSummary.topicName as string)
                   : 'Tópico',
-              likesData: likesDataCandidate,
-              context,
+              ...(() => {
+                const topicName =
+                  typeof rawSummary['topic-name'] === 'string'
+                    ? (rawSummary['topic-name'] as string)
+                    : typeof rawSummary.topicName === 'string'
+                    ? (rawSummary.topicName as string)
+                    : undefined;
+
+                return topicName ? { topicName } : {};
+              })(),
+              ...(likesDataCandidate
+                ? { 'likes-data': likesDataCandidate, likesData: likesDataCandidate }
+                : {}),
+              ...(context.length ? { context } : {}),
               thesis:
                 typeof rawSummary.thesis === 'string' ? (rawSummary.thesis as string) : (rawSummary.summary as string) || '',
-              debate,
-              personalization:
-                typeof rawSummary.personalization === 'string'
-                  ? (rawSummary.personalization as string)
-                  : '',
-              ...(typeof rawSummary.whyItMatters === 'string'
-                ? { whyItMatters: rawSummary.whyItMatters as string }
-                : typeof rawSummary['why_it_matters'] === 'string'
-                ? { whyItMatters: rawSummary['why_it_matters'] as string }
+              ...(debate.length ? { debate } : {}),
+              ...(typeof rawSummary.personalization === 'string'
+                ? { personalization: rawSummary.personalization as string }
                 : {}),
+              ...(
+                typeof rawSummary.whyItMatters === 'string'
+                  ? { 'why-it-matters': rawSummary.whyItMatters as string, whyItMatters: rawSummary.whyItMatters as string }
+                  : typeof rawSummary['why_it_matters'] === 'string'
+                  ? { 'why-it-matters': rawSummary['why_it_matters'] as string, whyItMatters: rawSummary['why_it_matters'] as string }
+                  : {}
+              ),
               ...(sources ? { sources } : {}),
             } satisfies SummaryData;
           })()
@@ -727,25 +742,35 @@ class TapNavigationService {
 
     const metadata =
       data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata)
-        ? {
-            ...data.metadata,
-            trendName:
-              typeof data.metadata.trendName === 'string' && data.metadata.trendName.trim().length > 0
-                ? data.metadata.trendName
-                : null,
-            topicName:
-              typeof data.metadata.topicName === 'string' && data.metadata.topicName.trim().length > 0
-                ? data.metadata.topicName
-                : null,
-          }
+        ? (() => {
+            const trendName =
+              typeof (data.metadata as any)['trend-name'] === 'string'
+                ? (data.metadata as any)['trend-name']
+                : typeof (data.metadata as any).trendName === 'string' && (data.metadata as any).trendName.trim().length > 0
+                ? (data.metadata as any).trendName
+                : null;
+
+            const topicName =
+              typeof (data.metadata as any)['topic-name'] === 'string'
+                ? (data.metadata as any)['topic-name']
+                : typeof (data.metadata as any).topicName === 'string' && (data.metadata as any).topicName.trim().length > 0
+                ? (data.metadata as any).topicName
+                : null;
+
+            return {
+              ...data.metadata,
+              'trend-name': trendName,
+              'topic-name': topicName,
+              ...(trendName ? { trendName } : {}),
+              ...(topicName ? { topicName } : {}),
+            };
+          })()
         : null;
 
     return {
       layer: data.layer,
       trends: normalizeTrends,
       trendsSummary,
-      topicsSummary,
-      topics: normalizeTopics,
       summary,
       metadata,
     };

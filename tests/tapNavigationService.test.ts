@@ -86,28 +86,30 @@ const buildTrendsData = (): TapNavigationStructuredData => ({
       value: 'Value',
       url: 'https://example.com',
       whyItMatters: 'Why it matters',
+      topics: [
+        {
+          id: 'topic-1',
+          number: 1,
+          description: 'Topic description',
+          likesData: 'Topic likes',
+          'likes-data': 'Topic likes',
+        },
+      ],
     },
   ],
   trendsSummary: null,
-  topicsSummary: null,
-  topics: null,
   summary: null,
 });
 
-const buildTopicsData = (): TapNavigationStructuredData => ({
-  layer: 'topics',
+const buildSummaryData = (): TapNavigationStructuredData => ({
+  layer: 'summary',
   trends: null,
   trendsSummary: null,
-  topicsSummary: null,
-  topics: [
-    {
-      id: 'topic-1',
-      number: 1,
-      description: 'Topic description',
-      likesData: 'Topic likes',
-    },
-  ],
-  summary: null,
+  summary: {
+    'topic-name': 'Topic title',
+    topicName: 'Topic title',
+    thesis: 'Thesis',
+  },
 });
 
 test('requestFromAgent waits for matching layer structured data', async () => {
@@ -129,7 +131,7 @@ test('requestFromAgent waits for matching layer structured data', async () => {
   emit('message', {
     type: 'message',
     role: 'assistant',
-    structuredData: buildTopicsData(),
+    structuredData: buildSummaryData(),
   } as any);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
