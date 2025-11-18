@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
+const VALID_CONTENT_TYPES = new Set(['text', 'trends', 'topics', 'summary']);
+
 class SupabaseService {
   public client: SupabaseClient;
 
@@ -61,12 +63,16 @@ class SupabaseService {
     correlationId?: string
   ): Promise<string | null> {
     try {
+      const normalizedContentType = VALID_CONTENT_TYPES.has(contentType)
+        ? contentType
+        : 'text';
+
       const payload: Record<string, any> = {
         channel_id: channelId,
         user_id: userId,
         role,
         content,
-        content_type: contentType,
+        content_type: normalizedContentType,
         structured_data: structuredData,
         metadata,
         webhook_response: webhookResponse,

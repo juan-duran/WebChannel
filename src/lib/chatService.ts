@@ -154,6 +154,11 @@ export async function saveMessageToDatabase(
   webhookResponse?: any,
   correlationId?: string
 ): Promise<string | null> {
+  const normalizedContentType =
+    ['text', 'trends', 'topics', 'summary'].includes(contentType)
+      ? contentType
+      : 'text';
+
   try {
     const { data, error } = await supabase
       .from('chat_messages')
@@ -162,7 +167,7 @@ export async function saveMessageToDatabase(
         user_id: userId,
         role,
         content,
-        content_type: contentType,
+        content_type: normalizedContentType,
         structured_data: structuredData,
         metadata,
         webhook_response: webhookResponse,
