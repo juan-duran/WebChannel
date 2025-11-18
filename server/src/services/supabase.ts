@@ -57,7 +57,8 @@ class SupabaseService {
     webhookResponse?: any,
     mediaUrl?: string,
     mediaType?: string,
-    mediaCaption?: string
+    mediaCaption?: string,
+    correlationId?: string
   ): Promise<string | null> {
     try {
       const { data, error } = await this.client
@@ -75,6 +76,7 @@ class SupabaseService {
           media_url: mediaUrl,
           media_type: mediaType,
           media_caption: mediaCaption,
+          correlation_id: correlationId,
         })
         .select('id')
         .single();

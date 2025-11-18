@@ -97,7 +97,8 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
           undefined,
           message.mediaUrl,
           message.mediaType,
-          message.mediaCaption
+          message.mediaCaption,
+          message.correlationId
         );
         logger.info({ userId }, 'Message saved to database for offline delivery');
       }

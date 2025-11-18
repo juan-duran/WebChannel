@@ -143,7 +143,8 @@ export async function saveMessageToDatabase(
   contentType: string = 'text',
   structuredData?: any,
   metadata?: any,
-  webhookResponse?: any
+  webhookResponse?: any,
+  correlationId?: string
 ): Promise<string | null> {
   try {
     const { data, error } = await supabase
@@ -157,7 +158,8 @@ export async function saveMessageToDatabase(
         structured_data: structuredData,
         metadata,
         webhook_response: webhookResponse,
-        status: 'sent'
+        status: 'sent',
+        correlation_id: correlationId
       })
       .select('id')
       .single();

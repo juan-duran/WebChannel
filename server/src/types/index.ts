@@ -54,6 +54,7 @@ export interface OutgoingMessageRequest {
   mediaType?: string;
   mediaCaption?: string;
   cacheTag?: string;
+  correlationId?: string;
 }
 
 export interface CacheMetrics {
