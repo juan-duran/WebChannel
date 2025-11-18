@@ -591,15 +591,35 @@ class TapNavigationService {
                 ? item.rank
                 : index + 1;
             const category = typeof item.category === 'string' ? item.category : '';
-            const name =
+
+            const fallbackNameFromDescription = (value: unknown): string | undefined => {
+              if (typeof value !== 'string') {
+                return undefined;
+              }
+
+              const trimmed = value.trim();
+              if (!trimmed) {
+                return undefined;
+              }
+
+              const [firstSentence] = trimmed.split(/(?<=[.!?])\s+/);
+              return firstSentence || trimmed;
+            };
+
+            const rawName =
               typeof item.name === 'string'
                 ? item.name
                 : typeof item.title === 'string'
                 ? item.title
-                : '';
-            if (!name) {
-              return null;
-            }
+                : typeof item.label === 'string'
+                ? item.label
+                : undefined;
+
+            const name =
+              rawName ??
+              fallbackNameFromDescription(item.headline) ??
+              fallbackNameFromDescription(item.description) ??
+              `Assunto #${number}`;
 
             const description =
               typeof item.description === 'string'
