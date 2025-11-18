@@ -279,7 +279,7 @@ class TapNavigationService {
     options?: { forceRefresh?: boolean },
   ): Promise<TapNavigationResponse> {
     try {
-      const cached = await cacheStorage.getSummary(topicRank, userId);
+      const cached = await cacheStorage.getSummary(topicRank, trendRank, userId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
@@ -297,7 +297,7 @@ class TapNavigationService {
       const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
         return {
           success: true,
           data: payload.summary as SummaryData,
@@ -324,7 +324,7 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching summary:', error);
 
-      const cached = await cacheStorage.getSummary(topicRank, userId);
+      const cached = await cacheStorage.getSummary(topicRank, trendRank, userId);
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
@@ -347,7 +347,7 @@ class TapNavigationService {
       const message = `Assunto #${trendRank} Tópico #${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);

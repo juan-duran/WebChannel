@@ -1,7 +1,7 @@
 import { TrendData, TopicData, SummaryData, CachedEntry } from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAMES = {
   trends: 'trends',
   topics: 'topics',
@@ -30,6 +30,7 @@ class CacheStorage {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = request.transaction;
 
         if (!db.objectStoreNames.contains(STORE_NAMES.trends)) {
           db.createObjectStore(STORE_NAMES.trends);
@@ -39,6 +40,10 @@ class CacheStorage {
         }
         if (!db.objectStoreNames.contains(STORE_NAMES.summaries)) {
           db.createObjectStore(STORE_NAMES.summaries);
+        }
+
+        if (event.oldVersion < 2 && transaction?.objectStoreNames.contains(STORE_NAMES.summaries)) {
+          transaction.objectStore(STORE_NAMES.summaries).clear();
         }
       };
     });
@@ -88,8 +93,9 @@ class CacheStorage {
     return this.set(STORE_NAMES.topics, key, entry);
   }
 
-  async getSummary(topicId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
+  async getSummary(topicId: number, trendId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
     const key = this.generateKey('summaries', {
+      thread_id: String(trendId),
       topic_id: String(topicId),
       uid: userId,
       d: this.getToday(),
@@ -97,8 +103,9 @@ class CacheStorage {
     return this.get<SummaryData>(STORE_NAMES.summaries, key);
   }
 
-  async setSummary(topicId: number, userId: string, data: SummaryData): Promise<void> {
+  async setSummary(topicId: number, trendId: number, userId: string, data: SummaryData): Promise<void> {
     const key = this.generateKey('summaries', {
+      thread_id: String(trendId),
       topic_id: String(topicId),
       uid: userId,
       d: this.getToday(),
