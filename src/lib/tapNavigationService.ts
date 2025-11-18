@@ -416,16 +416,30 @@ class TapNavigationService {
 
     const structuredData = data as Partial<TapNavigationStructuredData>;
 
-    if (!structuredData.layer || !['trends', 'topics', 'summary'].includes(structuredData.layer)) {
+    if (!structuredData.layer || !['trends', 'summary'].includes(structuredData.layer)) {
       return false;
     }
 
     if (structuredData.layer === 'trends') {
-      return Array.isArray(structuredData.trends);
-    }
+      const hasValidTrends = Array.isArray(structuredData.trends);
 
-    if (structuredData.layer === 'topics') {
-      return Array.isArray(structuredData.topics);
+      if (!hasValidTrends) {
+        return false;
+      }
+
+      const trendsWithValidTopics = structuredData.trends.every((trend) => {
+        if (!trend || typeof trend !== 'object') {
+          return false;
+        }
+
+        if (!('topics' in trend)) {
+          return true;
+        }
+
+        return Array.isArray((trend as Record<string, unknown>).topics);
+      });
+
+      return trendsWithValidTopics;
     }
 
     return Boolean(structuredData.summary && typeof structuredData.summary === 'object');
