@@ -44,6 +44,11 @@ export function TapNavigationPage() {
     'disconnected',
   );
 
+  const isAssistantConnected =
+    connectionStatus === 'connected' && chatConnectionState === 'connected';
+  const isAssistantConnecting =
+    connectionStatus === 'connecting' || chatConnectionState === 'connecting';
+
   const trendRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const mobileSummaryContentRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryContentRef = useRef<HTMLDivElement | null>(null);
@@ -306,6 +311,39 @@ export function TapNavigationPage() {
     }
   };
 
+  const ensureAssistantConnection = async () => {
+    const socketState = websocketService.getConnectionState();
+
+    if (socketState === 'connected') {
+      setConnectionStatus('connected');
+      setConnectionError(null);
+      setChatConnectionState(socketState);
+      return;
+    }
+
+    setConnectionStatus('connecting');
+    setConnectionError(null);
+    setChatConnectionState(socketState);
+
+    try {
+      await websocketService.connect();
+      setConnectionStatus('connected');
+      setConnectionError(null);
+      setChatConnectionState(websocketService.getConnectionState());
+    } catch (err) {
+      if (err instanceof Error && err.message === 'WebSocket connection intentionally closed') {
+        throw err;
+      }
+
+      const message = err instanceof Error ? err.message : 'Não foi possível conectar ao assistente.';
+      setConnectionStatus('error');
+      setConnectionError(message);
+      setChatConnectionState(websocketService.getConnectionState());
+      setError(message);
+      throw err;
+    }
+  };
+
   const loadTrends = async (forceRefresh = false) => {
     setHasRequestedTrends(true);
 
@@ -326,6 +364,8 @@ export function TapNavigationPage() {
     try {
       setIsLoadingTrends(true);
       setError(null);
+
+      await ensureAssistantConnection();
 
       const result = await tapNavigationService.fetchTrends({ forceRefresh });
 
@@ -846,6 +886,13 @@ export function TapNavigationPage() {
     );
   };
 
+  const startDisabled = isLoadingTrends || !isAssistantConnected;
+  const startDisabledReason = !isAssistantConnected
+    ? connectionError || (isAssistantConnecting
+        ? 'Aguardando reconexão com o assistente.'
+        : 'Conecte-se ao assistente para iniciar.')
+    : undefined;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm sticky top-0 z-30">
@@ -857,7 +904,8 @@ export function TapNavigationPage() {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleStartTrends}
-              disabled={isLoadingTrends}
+              disabled={startDisabled}
+              title={startDisabledReason}
               className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
@@ -915,11 +963,38 @@ export function TapNavigationPage() {
             <p className="mt-2 text-sm text-gray-600">
               Start a manual request to fetch the latest trends from the assistant only when you need it.
             </p>
+            {!isAssistantConnected && (
+              <div className="mt-3 inline-flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs text-amber-800">
+                <WifiOff className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    {connectionStatus === 'error'
+                      ? 'O assistente está offline no momento.'
+                      : 'Conecte-se ao assistente para começar.'}
+                  </p>
+                  <p className="text-[11px] text-amber-700">
+                    {isAssistantConnecting
+                      ? 'Tentando reconectar automaticamente...'
+                      : 'Toque em reconectar para retomar a experiência.'}
+                  </p>
+                  {connectionStatus !== 'connecting' && (
+                    <button
+                      type="button"
+                      onClick={handleReconnect}
+                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                    >
+                      Reconectar
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={handleStartTrends}
-                disabled={isLoadingTrends}
+                disabled={startDisabled}
+                title={startDisabledReason}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
