@@ -167,20 +167,27 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'trends');
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, ['topics', 'trends']);
+
+      const topicsFromTopicsLayer =
+        payload.layer === 'topics'
+          ? payload.topics?.[trendRank] ?? Object.values(payload.topics ?? {})[0] ?? null
+          : null;
 
       const topicsFromTrends = Array.isArray(payload.trends)
         ? (payload.trends.find((trend) => trend?.number === trendRank)?.topics ?? payload.trends[0]?.topics)
         : null;
 
-      if (Array.isArray(topicsFromTrends)) {
-        await cacheStorage.setTopics(trendRank, topicsFromTrends as TopicData[]);
+      const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
+
+      if (Array.isArray(topicsResult)) {
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
         return {
           success: true,
-          data: topicsFromTrends as TopicData[],
+          data: topicsResult as TopicData[],
           fromCache: false,
           metadata: payload.metadata ?? undefined,
-          topicsSummary: null,
+          topicsSummary: payload.metadata?.topicsSummary ?? payload.topicsSummary ?? null,
         };
       }
 
@@ -223,13 +230,20 @@ class TapNavigationService {
 
   private async refreshTopicsInBackground(trendRank: number): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, 'trends');
+      const payload = await this.requestFromAgent(`Assunto #${trendRank}`, ['topics', 'trends']);
+      const topicsFromTopicsLayer =
+        payload.layer === 'topics'
+          ? payload.topics?.[trendRank] ?? Object.values(payload.topics ?? {})[0] ?? null
+          : null;
+
       const topicsFromTrends = Array.isArray(payload.trends)
         ? (payload.trends.find((trend) => trend?.number === trendRank)?.topics ?? payload.trends[0]?.topics)
         : null;
 
-      if (Array.isArray(topicsFromTrends)) {
-        await cacheStorage.setTopics(trendRank, topicsFromTrends as TopicData[]);
+      const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
+
+      if (Array.isArray(topicsResult)) {
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -336,7 +350,7 @@ class TapNavigationService {
 
   private async requestFromAgent(
     message: string,
-    expectedLayer: TapNavigationStructuredData['layer'],
+    expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][],
   ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
@@ -358,8 +372,9 @@ class TapNavigationService {
           }
 
           const normalized = this.normalizeStructuredData(structuredData);
+          const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
 
-          if (normalized.layer !== expectedLayer) {
+          if (!expectedLayers.includes(normalized.layer)) {
             return;
           }
 
@@ -423,7 +438,7 @@ class TapNavigationService {
 
     const structuredData = data as Partial<TapNavigationStructuredData>;
 
-    if (!structuredData.layer || !['trends', 'summary'].includes(structuredData.layer)) {
+    if (!structuredData.layer || !['trends', 'topics', 'summary'].includes(structuredData.layer)) {
       return false;
     }
 
@@ -447,6 +462,11 @@ class TapNavigationService {
       });
 
       return trendsWithValidTopics;
+    }
+
+    if (structuredData.layer === 'topics') {
+      const hasValidTopics = Array.isArray((structuredData as any).topics);
+      return hasValidTopics;
     }
 
     return Boolean(structuredData.summary && typeof structuredData.summary === 'object');
@@ -630,6 +650,35 @@ class TapNavigationService {
           .filter((trend: TrendData | null): trend is TrendData => Boolean(trend))
       : null;
 
+    const topicsFromPayload = normalizeTopicsFromArray((data as any).topics);
+
+    const topicsMap = topicsFromPayload
+      ? (() => {
+          const trendNumberCandidate = (value: unknown): number | null => {
+            if (typeof value === 'number' && Number.isFinite(value)) {
+              return value;
+            }
+
+            if (typeof value === 'string') {
+              const parsed = Number(value.trim());
+              return Number.isFinite(parsed) ? parsed : null;
+            }
+
+            return null;
+          };
+
+          const inferredTrendNumber =
+            trendNumberCandidate((data as any).trendNumber) ??
+            trendNumberCandidate((data as any).trendRank) ??
+            trendNumberCandidate((data as any).rank) ??
+            trendNumberCandidate((data.metadata as any)?.trendNumber) ??
+            trendNumberCandidate((data.metadata as any)?.trendRank) ??
+            1;
+
+          return { [inferredTrendNumber]: topicsFromPayload } as Record<number, TopicData[]>;
+        })()
+      : null;
+
     const summary =
       (data as any).summary && typeof (data as any).summary === 'object' && !Array.isArray((data as any).summary)
         ? (() => {
@@ -757,12 +806,19 @@ class TapNavigationService {
                 ? (data.metadata as any).topicName
                 : null;
 
+            const topicsSummary =
+              typeof (data.metadata as any).topicsSummary === 'string' &&
+              (data.metadata as any).topicsSummary.trim().length > 0
+                ? (data.metadata as any).topicsSummary
+                : null;
+
             return {
               ...data.metadata,
               'trend-name': trendName,
               'topic-name': topicName,
               ...(trendName ? { trendName } : {}),
               ...(topicName ? { topicName } : {}),
+              ...(topicsSummary ? { topicsSummary } : {}),
             };
           })()
         : null;
@@ -770,7 +826,12 @@ class TapNavigationService {
     return {
       layer: data.layer,
       trends: normalizeTrends,
+      topics: topicsMap,
       trendsSummary,
+      topicsSummary:
+        typeof (data as any).topicsSummary === 'string' && (data as any).topicsSummary.trim().length > 0
+          ? (data as any).topicsSummary
+          : null,
       summary,
       metadata,
     };
