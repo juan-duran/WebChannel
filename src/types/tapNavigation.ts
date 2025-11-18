@@ -38,6 +38,8 @@ export interface SummaryData {
   topicName?: string;
   'likes-data'?: string;
   likesData?: string;
+  thread_id?: string;
+  comment_id?: string;
   context?: string[];
   thesis: string;
   debate?: string[];

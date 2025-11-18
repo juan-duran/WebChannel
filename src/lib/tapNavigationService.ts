@@ -354,6 +354,14 @@ class TapNavigationService {
     }
   }
 
+  async invalidateSummaryCache(
+    topicRank: number | string,
+    trendRank: number | string,
+    userId: string,
+  ): Promise<void> {
+    await cacheStorage.deleteSummary(topicRank, trendRank, userId);
+  }
+
   private cancelPendingRequest(cacheKey: string) {
     if (this.pendingRequests.has(cacheKey)) {
       this.pendingRequests.delete(cacheKey);
@@ -765,6 +773,21 @@ class TapNavigationService {
               ? [debateValue]
               : [];
 
+            const resolveId = (...values: unknown[]): string | undefined => {
+              for (const value of values) {
+                if (typeof value === 'string' || typeof value === 'number') {
+                  const normalized = String(value).trim();
+                  if (normalized) {
+                    return normalized;
+                  }
+                }
+              }
+              return undefined;
+            };
+
+            const threadId = resolveId(rawSummary.thread_id, rawSummary.threadId, rawSummary.thread);
+            const commentId = resolveId(rawSummary.comment_id, rawSummary.commentId, rawSummary.comment);
+
             const sourcesValue = rawSummary.sources;
             const sources = Array.isArray(sourcesValue)
               ? sourcesValue
@@ -830,6 +853,8 @@ class TapNavigationService {
               ...(likesDataCandidate
                 ? { 'likes-data': likesDataCandidate, likesData: likesDataCandidate }
                 : {}),
+              ...(threadId ? { thread_id: threadId } : {}),
+              ...(commentId ? { comment_id: commentId } : {}),
               ...(context.length ? { context } : {}),
               thesis:
                 typeof rawSummary.thesis === 'string' ? (rawSummary.thesis as string) : (rawSummary.summary as string) || '',
@@ -866,6 +891,17 @@ class TapNavigationService {
                 ? (data.metadata as any).topicName
                 : null;
 
+            const threadId = resolveOptionalString(
+              (data.metadata as any).thread_id,
+              (data.metadata as any).threadId,
+              (data.metadata as any).thread,
+            );
+            const commentId = resolveOptionalString(
+              (data.metadata as any).comment_id,
+              (data.metadata as any).commentId,
+              (data.metadata as any).comment,
+            );
+
             const topicsSummary =
               typeof (data.metadata as any).topicsSummary === 'string' &&
               (data.metadata as any).topicsSummary.trim().length > 0
@@ -879,6 +915,8 @@ class TapNavigationService {
               ...(trendName ? { trendName } : {}),
               ...(topicName ? { topicName } : {}),
               ...(topicsSummary ? { topicsSummary } : {}),
+              ...(threadId ? { thread_id: threadId } : {}),
+              ...(commentId ? { comment_id: commentId } : {}),
             };
           })()
         : null;

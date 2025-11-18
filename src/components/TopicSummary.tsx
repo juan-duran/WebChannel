@@ -46,6 +46,13 @@ export function TopicSummary({ summary, trendName, onBack, disabled = false }: T
             {summary.likesData && (
               <p className="text-xs font-medium text-blue-700">{summary.likesData}</p>
             )}
+            {(summary.thread_id || summary.comment_id) && (
+              <p className="text-[11px] text-gray-500 mt-1">
+                {summary.thread_id && <span>Thread ID: {summary.thread_id}</span>}
+                {summary.thread_id && summary.comment_id && <span className="mx-1">•</span>}
+                {summary.comment_id && <span>Comment ID: {summary.comment_id}</span>}
+              </p>
+            )}
           </div>
         </div>
 
