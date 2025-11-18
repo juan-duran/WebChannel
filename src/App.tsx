@@ -3,10 +3,13 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthForm } from './components/AuthForm';
 import { Layout } from './components/Layout';
 import { ChatPageWebSocket } from './pages/ChatPageWebSocket';
+import { TapNavigationPage } from './pages/TapNavigationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
 
 type Page = 'chat' | 'profile';
+
+const CHANNEL_UI = import.meta.env.VITE_CHANNEL_UI || 'chat';
 
 function AppContent() {
   const { user, loading } = useAuth();
@@ -26,6 +29,10 @@ function AppContent() {
 
   if (!user) {
     return <AuthForm />;
+  }
+
+  if (CHANNEL_UI === 'tap') {
+    return <TapNavigationPage />;
   }
 
   return (

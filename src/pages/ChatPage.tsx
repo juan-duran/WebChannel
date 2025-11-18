@@ -8,6 +8,7 @@ import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
 import { TopicSummary } from '../components/TopicSummary';
+import type { SourceData, SummaryData } from '../types/tapNavigation';
 import {
   ChatMessage,
   sendMessageToAgent,
@@ -30,14 +31,28 @@ export function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isUserNearBottomRef = useRef(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isProcessing]);
+    if (isUserNearBottomRef.current) {
+      scrollToBottom();
+    }
+  }, [messages.length, isProcessing]);
+
+  const handleScroll = () => {
+    const container = messagesContainerRef.current;
+
+    if (!container) return;
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+
+    isUserNearBottomRef.current = distanceFromBottom < 100;
+  };
 
   useEffect(() => {
     const initializeChannel = async () => {
@@ -141,8 +156,10 @@ export function ChatPage() {
       setProcessingStartTime(undefined);
 
       if (response.success && response.data) {
-        const aiContent = extractResponseText(response.data);
-        const parsed = parseAgentResponse(aiContent, currentContext);
+        const parsed = parseAgentResponse(response.data, currentContext);
+        const aiContentFromResponse = extractResponseText(response.data);
+        const aiContent =
+          parsed.content && parsed.content.trim().length > 0 ? parsed.content : aiContentFromResponse;
 
         const aiMessage: ChatMessage = {
           id: generateMessageId(),
@@ -150,7 +167,15 @@ export function ChatPage() {
           content: aiContent,
           timestamp: new Date(),
           contentType: parsed.type,
-          structuredData: parsed.type === 'trends' ? parsed.trends : parsed.type === 'topics' ? parsed.topics : undefined,
+          structuredData:
+            parsed.structuredData ??
+            (parsed.type === 'trends'
+              ? parsed.trends
+              : parsed.type === 'topics'
+              ? parsed.topics
+              : parsed.type === 'summary'
+              ? parsed.summary
+              : undefined),
           metadata: parsed.metadata
         };
 
@@ -231,7 +256,7 @@ export function ChatPage() {
 
   if (isLoadingHistory) {
     return (
-      <div className="h-full flex items-center justify-center">
+      <div className="flex h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
         <div className="text-center">
           <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
           <p className="text-gray-600">Loading chat history...</p>
@@ -241,7 +266,7 @@ export function ChatPage() {
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="flex h-screen flex-col bg-gradient-to-b from-blue-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -296,6 +321,11 @@ export function ChatPage() {
                     <MessageBubble message={{ ...message, content: '' }} />
                     <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
                       <TrendsList
+                        summary={
+                          typeof message.metadata?.trendsSummary === 'string'
+                            ? message.metadata.trendsSummary
+                            : undefined
+                        }
                         trends={message.structuredData as Trend[]}
                         onSelect={handleTrendSelect}
                         disabled={isProcessing}
@@ -323,14 +353,182 @@ export function ChatPage() {
               }
 
               if (message.contentType === 'summary') {
+                const structured =
+                  message.structuredData &&
+                  typeof message.structuredData === 'object' &&
+                  !Array.isArray(message.structuredData)
+                    ? (message.structuredData as Record<string, any>)
+                    : undefined;
+
+                const structuredSummary =
+                  structured && structured.summary && typeof structured.summary === 'object' && !Array.isArray(structured.summary)
+                    ? (structured.summary as Record<string, any>)
+                    : structured;
+
+                const summaryText = [
+                  structuredSummary && typeof structuredSummary.content === 'string'
+                    ? (structuredSummary.content as string)
+                    : undefined,
+                  structuredSummary && typeof structuredSummary.summary === 'string'
+                    ? (structuredSummary.summary as string)
+                    : undefined,
+                  message.content,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const summaryWhyItMatters = [
+                  structuredSummary && typeof structuredSummary.whyItMatters === 'string'
+                    ? (structuredSummary.whyItMatters as string)
+                    : undefined,
+                  structuredSummary && typeof structuredSummary.why_it_matters === 'string'
+                    ? (structuredSummary.why_it_matters as string)
+                    : undefined,
+                  typeof message.metadata?.whyItMatters === 'string' ? message.metadata.whyItMatters : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const normalizeSources = (value: unknown): SourceData[] => {
+                  if (!value) return [];
+                  if (Array.isArray(value)) {
+                    return value
+                      .map((item) => {
+                        if (typeof item === 'string') {
+                          return { title: item, url: item } satisfies SourceData;
+                        }
+
+                        if (!item || typeof item !== 'object') {
+                          return null;
+                        }
+
+                        const maybeUrl =
+                          typeof (item as any).url === 'string'
+                            ? (item as any).url
+                            : typeof (item as any).link === 'string'
+                            ? (item as any).link
+                            : undefined;
+
+                        if (!maybeUrl) {
+                          return null;
+                        }
+
+                        const maybeTitle =
+                          typeof (item as any).title === 'string'
+                            ? (item as any).title
+                            : typeof (item as any).name === 'string'
+                            ? (item as any).name
+                            : undefined;
+
+                        const maybeDate = [
+                          typeof (item as any).publishedAt === 'string' ? (item as any).publishedAt : undefined,
+                          typeof (item as any).published_at === 'string' ? (item as any).published_at : undefined,
+                          typeof (item as any).date === 'string' ? (item as any).date : undefined,
+                        ].find((candidate): candidate is string => typeof candidate === 'string' && candidate.trim().length > 0);
+
+                        return {
+                          title: maybeTitle || maybeUrl,
+                          url: maybeUrl,
+                          ...(maybeDate ? { publishedAt: maybeDate } : {}),
+                        } satisfies SourceData;
+                      })
+                      .filter((item): item is SourceData => Boolean(item));
+                  }
+
+                  if (typeof value === 'string') {
+                    return [{ title: value, url: value }];
+                  }
+
+                  return [];
+                };
+
+                const candidateSources = [
+                  structuredSummary && 'sources' in structuredSummary ? (structuredSummary as any).sources : undefined,
+                  structuredSummary && 'references' in structuredSummary ? (structuredSummary as any).references : undefined,
+                  structuredSummary && 'links' in structuredSummary ? (structuredSummary as any).links : undefined,
+                  structuredSummary && 'sourceList' in structuredSummary ? (structuredSummary as any).sourceList : undefined,
+                  message.metadata && Array.isArray((message.metadata as any).sources)
+                    ? (message.metadata as any).sources
+                    : undefined,
+                ];
+
+                const summarySources = candidateSources
+                  .flatMap((value) => normalizeSources(value))
+                  .filter((source, index, self) => index === self.findIndex((item) => item.url === source.url && item.title === source.title));
+
+                const toStringArray = (value: unknown): string[] => {
+                  if (!value) return [];
+                  if (Array.isArray(value)) {
+                    return value
+                      .map((item) => (typeof item === 'string' ? item : undefined))
+                      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+                  }
+                  if (typeof value === 'string' && value.trim().length > 0) {
+                    return [value];
+                  }
+                  return [];
+                };
+
+                const likesData = [
+                  structuredSummary && structuredSummary['likes-data'],
+                  structuredSummary && structuredSummary.likesData,
+                  typeof message.metadata?.likesData === 'string' ? message.metadata.likesData : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const contextItems = Array.from(
+                  new Set(
+                    [
+                      ...toStringArray(structuredSummary?.context),
+                      ...toStringArray(structuredSummary?.background),
+                      ...toStringArray(message.metadata?.context),
+                    ],
+                  ),
+                );
+
+                const debateItems = Array.from(
+                  new Set(
+                    [
+                      ...toStringArray(structuredSummary?.debate),
+                      ...toStringArray(structuredSummary?.arguments),
+                      ...toStringArray(message.metadata?.debate),
+                    ],
+                  ),
+                );
+
+                const personalization = [
+                  structuredSummary && structuredSummary.personalization,
+                  typeof message.metadata?.personalization === 'string' ? message.metadata.personalization : undefined,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const thesisText = [
+                  structuredSummary && structuredSummary.thesis,
+                  summaryText,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const topicName = [
+                  structuredSummary && structuredSummary.topicName,
+                  message.metadata?.topicName,
+                  currentContext.topicName,
+                ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+                const summaryData: SummaryData = {
+                  topicName: topicName || 'Tópico',
+                  likesData: likesData || '',
+                  context: contextItems,
+                  thesis: thesisText || '',
+                  debate: debateItems,
+                  personalization: personalization || '',
+                  ...(summaryWhyItMatters ? { whyItMatters: summaryWhyItMatters } : {}),
+                  ...(summarySources.length > 0 ? { sources: summarySources } : {}),
+                };
+
+                const trendLabel =
+                  (typeof message.metadata?.trendName === 'string' && message.metadata.trendName.trim().length > 0
+                    ? message.metadata.trendName
+                    : undefined) || currentContext.trendName || 'Assunto';
+
                 return (
                   <div key={message.id} className="mb-4">
                     <div className="max-w-[85%] sm:max-w-[75%] animate-fadeIn">
                       <TopicSummary
-                        topicName={currentContext.topicName || 'Tópico'}
-                        trendName={currentContext.trendName || 'Assunto'}
-                        content={message.content}
-                        date={message.timestamp.toLocaleDateString('pt-BR')}
+                        summary={summaryData}
+                        trendName={trendLabel}
                         onBack={handleBackToTopics}
                         disabled={isProcessing}
                       />
@@ -342,8 +540,6 @@ export function ChatPage() {
 
             return <MessageBubble key={message.id} message={message} />;
           })}
-
-          {isProcessing && <TypingIndicator startTime={processingStartTime} />}
 
           {error && (
             <div className="flex justify-center mb-4 animate-fadeIn">
@@ -375,6 +571,7 @@ export function ChatPage() {
         onSend={handleSendMessage}
         disabled={isProcessing}
         placeholder={isProcessing ? 'Please wait...' : 'Type a message...'}
+        onFocus={scrollToBottom}
       />
     </div>
   );

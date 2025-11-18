@@ -2,12 +2,18 @@ import { useState, useRef, KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 
 type MessageInputProps = {
-  onSend: (message: string) => void;
+  onSend: (message: string) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
+  onFocus?: () => void;
 };
 
-export function MessageInput({ onSend, disabled = false, placeholder = 'Type a message...' }: MessageInputProps) {
+export function MessageInput({
+  onSend,
+  disabled = false,
+  placeholder = 'Type a message...',
+  onFocus,
+}: MessageInputProps) {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -37,8 +43,15 @@ export function MessageInput({ onSend, disabled = false, placeholder = 'Type a m
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
   };
 
+  const handleFocus = () => {
+    if (textareaRef.current) {
+      textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    onFocus?.();
+  };
+
   return (
-    <div className="border-t border-gray-200 bg-white p-4 safe-bottom">
+    <div className="border-t border-gray-200 bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
@@ -47,10 +60,11 @@ export function MessageInput({ onSend, disabled = false, placeholder = 'Type a m
               value={message}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
+              onFocus={handleFocus}
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
-              className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-[15px] leading-relaxed max-h-[120px] overflow-y-auto"
+              className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-[15px] leading-relaxed max-h-[120px] overflow-y-auto scrollbar-none"
               style={{ minHeight: '48px' }}
             />
             <div className="absolute bottom-3 right-3 text-xs text-gray-400">

@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
+import path from 'path';
+
 import { config, validateConfig } from './config/index.js';
 import { logger } from './utils/logger.js';
 import { WebSocketService } from './services/websocket.js';
@@ -19,29 +21,36 @@ async function startServer() {
     const app = express();
     const server = createServer(app);
 
-    app.use(cors({
-      origin: config.server.corsOrigins,
-      credentials: true,
-    }));
+    app.use(
+      cors({
+        origin: config.server.corsOrigins,
+        credentials: true,
+      }),
+    );
 
     app.use(express.json({ limit: '10mb' }));
 
-    app.use((req, res, next) => {
+    app.use((req, _res, next) => {
       logger.debug({ method: req.method, path: req.path }, 'HTTP request');
       next();
     });
 
     app.use(apiRateLimit);
 
-    app.use('/', healthRouter);
+    // rotas de API/health/admin
+    app.use('/health', healthRouter);
     app.use('/api/messages', messagesRouter);
     app.use('/admin', adminRouter);
 
+    // --- servir FRONT (dist do Vite) ---
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath)); // isso já serve / -> index.html
+
+    // WebSocket
     const wss = new WebSocketServer({
       server,
-      path: config.server.path,
+      path: config.server.path, // "/ws"
     });
-
     new WebSocketService(wss);
 
     server.listen(config.server.port, () => {
@@ -51,20 +60,15 @@ async function startServer() {
           wsPath: config.server.path,
           corsOrigins: config.server.corsOrigins,
         },
-        'WebChannel server started'
+        'WebChannel server started',
       );
     });
 
     const gracefulShutdown = () => {
       logger.info('Shutting down gracefully...');
 
-      server.close(() => {
-        logger.info('HTTP server closed');
-      });
-
-      wss.close(() => {
-        logger.info('WebSocket server closed');
-      });
+      server.close(() => logger.info('HTTP server closed'));
+      wss.close(() => logger.info('WebSocket server closed'));
 
       sessionManager.shutdown();
 
@@ -76,7 +80,6 @@ async function startServer() {
 
     process.on('SIGTERM', gracefulShutdown);
     process.on('SIGINT', gracefulShutdown);
-
   } catch (error) {
     logger.error({ error }, 'Failed to start server');
     process.exit(1);

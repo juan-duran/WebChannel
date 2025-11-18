@@ -1,0 +1,177 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                   TAP NAVIGATION - QUICK REFERENCE                       ║
+║                     Quenty WebChannel 2.0 API                            ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ REQUEST 1: GET TRENDS                                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Pattern:  "assuntos"                                                     │
+│ Returns:  Array[15] of trend objects                                     │
+│ Cache:    30 minutes                                                     │
+│                                                                          │
+│ Response Structure:                                                      │
+│ {                                                                        │
+│   contentType: "trends",                                                 │
+│   structuredData: [                                                      │
+│     {                                                                    │
+│       id: "trend_1",           // Unique ID                             │
+│       rank: 1,                 // 1-15                                  │
+│       title: "...",            // ALL CAPS                              │
+│       summary: "...",          // 1-2 sentences                         │
+│       upvotes: 406,            // Like count                            │
+│       comments: 112,           // Total comments                        │
+│       newComments: 0,          // New since last                        │
+│       threads: 36,             // Discussion threads                    │
+│       link: "https://...",     // Short link                            │
+│       whyItMatters: "..."      // Context                               │
+│     }                                                                    │
+│   ]                                                                      │
+│ }                                                                        │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ REQUEST 2: GET TOPICS                                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Pattern:  "Assunto #N" (N = 1-15)                                        │
+│ Returns:  Array[10] of topic objects + metadata                          │
+│ Cache:    30 minutes                                                     │
+│                                                                          │
+│ Response Structure:                                                      │
+│ {                                                                        │
+│   contentType: "topics",                                                 │
+│   structuredData: [                                                      │
+│     {                                                                    │
+│       id: "topic_1_3",         // Unique ID                             │
+│       rank: 3,                 // 1-10                                  │
+│       title: "...",            // Topic headline                        │
+│       summary: "...",          // 1-2 sentences                         │
+│       comments: 54,            // Comment count                         │
+│       threads: 12,             // Thread count                          │
+│       link: "https://...",     // Short link                            │
+│       whyItMatters: "..."      // Context                               │
+│     }                                                                    │
+│   ],                                                                     │
+│   metadata: {                                                            │
+│     trendName: "TECHNOLOGY & COMPETITION",                               │
+│     trendRank: 1                                                         │
+│   }                                                                      │
+│ }                                                                        │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ REQUEST 3: GET SUMMARY                                                   │
+├──────────────────────────────────────────────────────────────────────────┤
+│ Pattern:  "Tópico #N" (N = 1-10)                                         │
+│ Returns:  Summary object with content                                    │
+│ Cache:    15 minutes                                                     │
+│                                                                          │
+│ Response Structure:                                                      │
+│ {                                                                        │
+│   contentType: "summary",                                                │
+│   structuredData: {                                                      │
+│     topicName: "...",          // Topic title                           │
+│     trendName: "...",          // Parent trend                          │
+│     content: "...",            // Full markdown text                    │
+│     sources: [                 // Optional                              │
+│       {                                                                  │
+│         title: "...",          // Source title                          │
+│         url: "https://...",    // Full URL                              │
+│         publishedAt: "..."     // ISO timestamp (optional)              │
+│       }                                                                  │
+│     ],                                                                   │
+│     lastUpdated: "2025-11-10T13:00:00Z",  // ISO timestamp              │
+│     whyItMatters: "..."        // Context                               │
+│   }                                                                      │
+│ }                                                                        │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ N8N PATTERN DETECTION (Pseudocode)                                      │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│ const msg = input.data.message.conversation;                            │
+│                                                                          │
+│ // Pattern 1: Exact match                                               │
+│ if (msg === "assuntos") {                                                │
+│   return generateTrends();                                               │
+│ }                                                                        │
+│                                                                          │
+│ // Pattern 2: Regex match                                               │
+│ const trendMatch = msg.match(/^Assunto #(\d+)$/);                       │
+│ if (trendMatch) {                                                        │
+│   const trendId = trendMatch[1];                                        │
+│   return generateTopics(trendId);                                       │
+│ }                                                                        │
+│                                                                          │
+│ // Pattern 3: Regex match                                               │
+│ const topicMatch = msg.match(/^Tópico #(\d+)$/);                        │
+│ if (topicMatch) {                                                        │
+│   const topicId = topicMatch[1];                                        │
+│   return generateSummary(topicId);                                      │
+│ }                                                                        │
+│                                                                          │
+│ // Default: existing chat                                               │
+│ return generateChatResponse(msg);                                       │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ RESPONSE DELIVERY                                                        │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│ POST {WEBCHANNEL_SERVER}/api/messages/send                              │
+│ Authorization: Bearer {N8N_API_KEY}                                      │
+│ Content-Type: application/json                                           │
+│                                                                          │
+│ {                                                                        │
+│   "sessionId": "session_abc123",      // From original request          │
+│   "userEmail": "user@example.com",    // From original request          │
+│   "content": "Human-readable text",   // Fallback text                  │
+│   "contentType": "trends|topics|summary",                               │
+│   "structuredData": { ... },          // See above                      │
+│   "metadata": { ... }                 // Optional                       │
+│ }                                                                        │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ TESTING COMMANDS                                                         │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│ # Test 1: Trends                                                         │
+│ curl -X POST $N8N_WEBHOOK \                                              │
+│   -H "Content-Type: application/json" \                                  │
+│   -d '[{"event":"messages.upsert","data":{"message":{                   │
+│        "conversation":"assuntos"}}}]'                                    │
+│                                                                          │
+│ # Test 2: Topics                                                         │
+│ curl -X POST $N8N_WEBHOOK \                                              │
+│   -H "Content-Type: application/json" \                                  │
+│   -d '[{"event":"messages.upsert","data":{"message":{                   │
+│        "conversation":"Assunto #1"}}}]'                                  │
+│                                                                          │
+│ # Test 3: Summary                                                        │
+│ curl -X POST $N8N_WEBHOOK \                                              │
+│   -H "Content-Type: application/json" \                                  │
+│   -d '[{"event":"messages.upsert","data":{"message":{                   │
+│        "conversation":"Tópico #3"}}}]'                                   │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ KEY FACTS                                                                │
+├──────────────────────────────────────────────────────────────────────────┤
+│ • Same webhook endpoint (no changes needed)                              │
+│ • Caching handled by WebChannel server                                   │
+│ • 70-90% cache hit rate (reduced load)                                   │
+│ • Existing chat interface unchanged                                      │
+│ • Response time target: < 10 seconds                                     │
+│ • Expected load: 100-300 calls/day (2000 users)                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+For complete documentation, see:
+• TAP_NAVIGATION_README.md (start here)
+• TAP_NAVIGATION_SUMMARY.md (5-min overview)
+• TAP_NAVIGATION_API_SPEC.md (full reference)
+• TAP_NAVIGATION_FLOW.md (visual diagrams)
