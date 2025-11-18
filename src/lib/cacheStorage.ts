@@ -55,6 +55,15 @@ class CacheStorage {
     return new Date().toISOString().slice(0, 10);
   }
 
+  private buildSummaryKey(threadId: string, commentId: string, userId: string): string {
+    return this.generateKey('summaries', {
+      thread_id: String(threadId),
+      comment_id: String(commentId),
+      uid: userId,
+      d: this.getToday(),
+    });
+  }
+
   private generateKey(type: 'trends' | 'topics' | 'summaries', params: Record<string, string>): string {
     const sortedParams = Object.keys(params)
       .sort()
@@ -94,28 +103,23 @@ class CacheStorage {
   }
 
   async getSummary(topicId: number, trendId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
-    const key = this.generateKey('summaries', {
-      thread_id: String(trendId),
-      topic_id: String(topicId),
-      uid: userId,
-      d: this.getToday(),
-    });
+    const key = this.buildSummaryKey(trendId, topicId, userId);
     return this.get<SummaryData>(STORE_NAMES.summaries, key);
   }
 
   async setSummary(topicId: number, trendId: number, userId: string, data: SummaryData): Promise<void> {
-    const key = this.generateKey('summaries', {
-      thread_id: String(trendId),
-      topic_id: String(topicId),
-      uid: userId,
-      d: this.getToday(),
-    });
+    const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
     const entry: CachedEntry<SummaryData> = {
       data,
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.summaries,
     };
     return this.set(STORE_NAMES.summaries, key, entry);
+  }
+
+  async deleteSummary(topicId: number | string, trendId: number | string, userId: string): Promise<void> {
+    const key = this.buildSummaryKey(trendId, topicId, userId);
+    return this.delete(STORE_NAMES.summaries, key);
   }
 
   private async get<T>(storeName: string, key: string): Promise<CachedEntry<T> | null> {
