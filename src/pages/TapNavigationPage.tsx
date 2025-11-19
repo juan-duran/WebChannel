@@ -473,7 +473,10 @@ export function TapNavigationPage() {
     try {
       setIsLoadingTopics(true);
       setLoadingTopicsTrendId(trend.id);
-      const result = await tapNavigationService.fetchTopics(trend.number, options);
+      const result = await tapNavigationService.fetchTopics(trend.number, {
+        ...options,
+        threadId: trend.thread_id ?? trend.id,
+      });
 
       if (result.success && Array.isArray(result.data)) {
         setTopicsMap((prev) => ({
@@ -483,7 +486,7 @@ export function TapNavigationPage() {
         if (result.topicsSummary !== undefined) {
           setTopicsSummaryMap((prev) => ({
             ...prev,
-            [trend.id]: result.topicsSummary,
+            [trend.id]: result.topicsSummary ?? null,
           }));
         }
         setTopicsErrorMap((prev) => ({
