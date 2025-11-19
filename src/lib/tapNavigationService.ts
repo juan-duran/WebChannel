@@ -5,6 +5,7 @@ import {
   TopicData,
   SummaryData,
   TapNavigationStructuredData,
+  SourceData,
 } from '../types/tapNavigation';
 
 class StructuredDataValidationError extends Error {
@@ -31,45 +32,42 @@ export interface TapNavigationResponse {
   trendsSummary?: string | null;
 }
 
-type PendingRequestEntry = {
-  promise: Promise<TapNavigationResponse>;
-  abort: () => void;
-};
-
 class TapNavigationService {
-  private pendingRequests = new Map<string, PendingRequestEntry>();
+  private pendingRequests = new Map<string, Promise<TapNavigationResponse>>();
+  private currentTrendsAbort?: AbortController;
 
   cancelTrendsRequest() {
-    const entry = this.pendingRequests.get('trends');
-    if (!entry) return;
-    entry.abort();
-    this.pendingRequests.delete('trends');
+    if (this.currentTrendsAbort) {
+      this.currentTrendsAbort.abort();
+      this.currentTrendsAbort = undefined;
+    }
+    this.cancelPendingRequest('trends');
   }
 
   async fetchTrends(options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
     const cacheKey = 'trends';
 
-    const existing = this.pendingRequests.get(cacheKey);
-    if (existing) {
-      return existing.promise;
+    if (this.pendingRequests.has(cacheKey)) {
+      return this.pendingRequests.get(cacheKey)!;
     }
 
     const controller = new AbortController();
+    this.currentTrendsAbort = controller;
+
     const promise = this.fetchTrendsInternal(options, controller.signal).finally(() => {
       this.pendingRequests.delete(cacheKey);
+      if (this.currentTrendsAbort === controller) {
+        this.currentTrendsAbort = undefined;
+      }
     });
 
-    this.pendingRequests.set(cacheKey, {
-      promise,
-      abort: () => controller.abort(),
-    });
-
+    this.pendingRequests.set(cacheKey, promise);
     return promise;
   }
 
   private async fetchTrendsInternal(
     options?: { forceRefresh?: boolean },
-    signal?: AbortSignal
+    signal?: AbortSignal,
   ): Promise<TapNavigationResponse> {
     try {
       if (signal?.aborted) {
@@ -77,6 +75,8 @@ class TapNavigationService {
       }
 
       const cached = await cacheStorage.getTrends();
+      const previousTrends = cached?.data ?? null;
+
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
           this.refreshTrendsInBackground();
@@ -93,7 +93,7 @@ class TapNavigationService {
       const payload = await this.requestFromAgent('assuntos', 'trends', { signal });
 
       if (Array.isArray(payload.trends)) {
-        await cacheStorage.setTrends(payload.trends as TrendData[]);
+        await this.updateTrendsCache(payload.trends as TrendData[], previousTrends, options?.forceRefresh);
         return {
           success: true,
           data: payload.trends as TrendData[],
@@ -143,17 +143,21 @@ class TapNavigationService {
 
   private async refreshTrendsInBackground(): Promise<void> {
     try {
+      const cached = await cacheStorage.getTrends();
       const payload = await this.requestFromAgent('assuntos', 'trends');
       if (Array.isArray(payload.trends)) {
-        await cacheStorage.setTrends(payload.trends as TrendData[]);
+        await this.updateTrendsCache(payload.trends as TrendData[], cached?.data ?? null);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
     }
   }
 
-  async fetchTopics(trendRank: number, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
-    const cacheKey = `topics_${trendRank}`;
+  async fetchTopics(
+    trendRank: number,
+    options?: { forceRefresh?: boolean; threadId?: string },
+  ): Promise<TapNavigationResponse> {
+    const cacheKey = this.buildTopicsRequestKey(trendRank, options?.threadId);
 
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey)!;
@@ -169,13 +173,18 @@ class TapNavigationService {
     }
   }
 
-  private async fetchTopicsInternal(trendRank: number, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
+  private async fetchTopicsInternal(
+    trendRank: number,
+    options?: { forceRefresh?: boolean; threadId?: string },
+  ): Promise<TapNavigationResponse> {
+    const threadId = options?.threadId;
+
     try {
-      const cached = await cacheStorage.getTopics(trendRank);
+      const cached = await cacheStorage.getTopics(trendRank, threadId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
-          this.refreshTopicsInBackground(trendRank);
+          this.refreshTopicsInBackground(trendRank, threadId);
         }
 
         return {
@@ -198,8 +207,10 @@ class TapNavigationService {
 
       const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
 
+      const resolvedThreadId = this.resolveTrendThreadId(payload, trendRank, threadId);
+
       if (Array.isArray(topicsResult)) {
-        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[], resolvedThreadId);
         return {
           success: true,
           data: topicsResult as TopicData[],
@@ -228,7 +239,7 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching topics:', error);
 
-      const cached = await cacheStorage.getTopics(trendRank);
+      const cached = await cacheStorage.getTopics(trendRank, threadId);
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar os tópicos.');
         return {
@@ -246,7 +257,7 @@ class TapNavigationService {
     }
   }
 
-  private async refreshTopicsInBackground(trendRank: number): Promise<void> {
+  private async refreshTopicsInBackground(trendRank: number, threadId?: string): Promise<void> {
     try {
       const payload = await this.requestFromAgent(`Assunto #${trendRank}`, ['topics', 'trends']);
       const topicsFromTopicsLayer =
@@ -260,22 +271,29 @@ class TapNavigationService {
 
       const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
 
+      const resolvedThreadId = this.resolveTrendThreadId(payload, trendRank, threadId);
+
       if (Array.isArray(topicsResult)) {
-        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[], resolvedThreadId);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
     }
   }
 
-  async fetchSummary(topicRank: number, userId: string, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
-    const cacheKey = `summary_${topicRank}_${userId}`;
+  async fetchSummary(
+    topicRank: number,
+    trendRank: number,
+    userId: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<TapNavigationResponse> {
+    const cacheKey = `summary_${trendRank}_${topicRank}_${userId}`;
 
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey)!;
     }
 
-    const promise = this.fetchSummaryInternal(topicRank, userId, options);
+    const promise = this.fetchSummaryInternal(topicRank, trendRank, userId, options);
     this.pendingRequests.set(cacheKey, promise);
 
     try {
@@ -285,13 +303,18 @@ class TapNavigationService {
     }
   }
 
-  private async fetchSummaryInternal(topicRank: number, userId: string, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
+  private async fetchSummaryInternal(
+    topicRank: number,
+    trendRank: number,
+    userId: string,
+    options?: { forceRefresh?: boolean },
+  ): Promise<TapNavigationResponse> {
     try {
-      const cached = await cacheStorage.getSummary(topicRank, userId);
+      const cached = await cacheStorage.getSummary(topicRank, trendRank, userId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
-          this.refreshSummaryInBackground(topicRank, userId);
+          this.refreshSummaryInBackground(topicRank, trendRank, userId);
         }
 
         return {
@@ -301,10 +324,11 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
+      const message = `Assunto #${trendRank} Tópico #${topicRank}`;
+      const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
         return {
           success: true,
           data: payload.summary as SummaryData,
@@ -331,7 +355,7 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching summary:', error);
 
-      const cached = await cacheStorage.getSummary(topicRank, userId);
+      const cached = await cacheStorage.getSummary(topicRank, trendRank, userId);
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
@@ -349,24 +373,41 @@ class TapNavigationService {
     }
   }
 
-  private async refreshSummaryInBackground(topicRank: number, userId: string): Promise<void> {
+  private async refreshSummaryInBackground(topicRank: number, trendRank: number, userId: string): Promise<void> {
     try {
-      const payload = await this.requestFromAgent(`Tópico #${topicRank}`, 'summary');
+      const message = `Assunto #${trendRank} Tópico #${topicRank}`;
+      const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
     }
   }
 
+  async invalidateSummaryCache(
+    topicRank: number | string,
+    trendRank: number | string,
+    userId: string,
+  ): Promise<void> {
+    await cacheStorage.deleteSummary(topicRank, trendRank, userId);
+  }
+
+  private cancelPendingRequest(cacheKey: string) {
+    if (this.pendingRequests.has(cacheKey)) {
+      this.pendingRequests.delete(cacheKey);
+    }
+  }
+
   private async requestFromAgent(
     message: string,
     expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][],
-    options?: { signal?: AbortSignal }
+    options?: { signal?: AbortSignal },
   ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
+      const correlationId = websocketService.generateCorrelationId();
+      const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
@@ -395,16 +436,12 @@ class TapNavigationService {
         return candidate;
       };
 
-      const cleanup = () => {
-        websocketService.off('message', handleMessage);
-        websocketService.off('error', handleError);
-        if (abortSignal) {
-          abortSignal.removeEventListener('abort', handleAbort);
-        }
-      };
-
       const handleMessage = (response: WebSocketMessage) => {
         if (resolved) return;
+
+        if (response.correlationId && response.correlationId !== correlationId) {
+          return;
+        }
 
         if (response.type === 'message' && response.role === 'assistant') {
           const structuredData =
@@ -437,8 +474,22 @@ class TapNavigationService {
         }
       };
 
+      const handleLegacyMessage = (response: WebSocketMessage) => {
+        if (response.correlationId) return;
+        handleMessage(response);
+      };
+
       const handleError = (error: WebSocketMessage) => {
         if (resolved) return;
+
+        const connectionState = websocketService.getConnectionState();
+        const fatalConnectionFailure =
+          !websocketService.isReconnectingInProgress() &&
+          (connectionState === 'disconnected' || connectionState === 'error');
+
+        if (!fatalConnectionFailure) {
+          return;
+        }
 
         resolved = true;
         clearTimeout(timeout);
@@ -447,6 +498,33 @@ class TapNavigationService {
 
         reject(new Error(error.error || 'Request failed'));
       };
+
+      const handleReplayFailure = () => {
+        if (resolved) return;
+
+        resolved = true;
+        clearTimeout(timeout);
+
+        cleanup();
+
+        reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
+      };
+
+      const cleanup = () => {
+        websocketService.offCorrelation(correlationId, handleMessage);
+        websocketService.off('message', handleLegacyMessage);
+        websocketService.off('error', handleError);
+        websocketService.offRequestReplayExhausted(correlationId, handleReplayFailure);
+        websocketService.cancelQueuedRequest(correlationId);
+        if (abortSignal) {
+          abortSignal.removeEventListener('abort', handleAbort);
+        }
+      };
+
+      websocketService.onCorrelation(correlationId, handleMessage);
+      websocketService.on('message', handleLegacyMessage);
+      websocketService.on('error', handleError);
+      websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
 
       const handleAbort = () => {
         if (resolved) return;
@@ -464,9 +542,6 @@ class TapNavigationService {
         abortSignal.addEventListener('abort', handleAbort, { once: true });
       }
 
-      websocketService.on('message', handleMessage);
-      websocketService.on('error', handleError);
-
       const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
 
       const timeout = setTimeout(() => {
@@ -478,17 +553,25 @@ class TapNavigationService {
         reject(new RequestTimeoutError());
       }, timeoutDuration);
 
-      websocketService.sendMessage(message).catch((sendError: unknown) => {
-        if (resolved) return;
+      websocketService
+        .sendMessage(message, undefined, {
+          correlationId,
+          track: true,
+          maxRetries: maxReplayAttempts,
+        })
+        .catch((sendError: unknown) => {
+          if (resolved) return;
 
-        resolved = true;
-        clearTimeout(timeout);
-        cleanup();
+          resolved = true;
+          clearTimeout(timeout);
+          cleanup();
 
-        reject(
-          sendError instanceof Error ? sendError : new Error('Falha ao enviar mensagem ao assistente.'),
-        );
-      });
+          reject(
+            sendError instanceof Error
+              ? sendError
+              : new Error('Falha ao enviar mensagem ao assistente.'),
+          );
+        });
     });
   }
 
@@ -504,9 +587,7 @@ class TapNavigationService {
     }
 
     if (structuredData.layer === 'trends') {
-      const hasValidTrends = Array.isArray(structuredData.trends);
-
-      if (!hasValidTrends) {
+      if (!Array.isArray(structuredData.trends)) {
         return false;
       }
 
@@ -519,7 +600,8 @@ class TapNavigationService {
           return true;
         }
 
-        return Array.isArray((trend as Record<string, unknown>).topics);
+        const trendRecord = trend as { topics?: unknown };
+        return Array.isArray(trendRecord.topics);
       });
 
       return trendsWithValidTopics;
@@ -675,6 +757,9 @@ class TapNavigationService {
               item.link,
               item.href,
             );
+            const threadId = this.normalizeId(
+              (item as any).thread_id ?? (item as any).threadId ?? (item as any).thread,
+            );
             const assetType = resolveOptionalString(item.asset_type, item.assetType);
             const assetThumbnail = resolveOptionalString(
               item.asset_thumbnail,
@@ -714,6 +799,7 @@ class TapNavigationService {
               description,
               value,
               url,
+              ...(threadId ? { thread_id: threadId } : {}),
               whyItMatters,
               ...(assetType || assetThumbnail || assetTitle || assetDescription || assetEmbedHtml || url
                 ? {
@@ -786,6 +872,21 @@ class TapNavigationService {
               ? [debateValue]
               : [];
 
+            const resolveId = (...values: unknown[]): string | undefined => {
+              for (const value of values) {
+                if (typeof value === 'string' || typeof value === 'number') {
+                  const normalized = String(value).trim();
+                  if (normalized) {
+                    return normalized;
+                  }
+                }
+              }
+              return undefined;
+            };
+
+            const threadId = resolveId(rawSummary.thread_id, rawSummary.threadId, rawSummary.thread);
+            const commentId = resolveId(rawSummary.comment_id, rawSummary.commentId, rawSummary.comment);
+
             const sourcesValue = rawSummary.sources;
             const sources = Array.isArray(sourcesValue)
               ? sourcesValue
@@ -828,7 +929,7 @@ class TapNavigationService {
                       ...(publishedAtCandidate ? { publishedAt: publishedAtCandidate } : {}),
                     };
                   })
-                  .filter((item): item is SummaryData['sources'][number] => Boolean(item))
+                  .filter((item): item is SourceData => Boolean(item))
               : undefined;
 
             return {
@@ -851,6 +952,8 @@ class TapNavigationService {
               ...(likesDataCandidate
                 ? { 'likes-data': likesDataCandidate, likesData: likesDataCandidate }
                 : {}),
+              ...(threadId ? { thread_id: threadId } : {}),
+              ...(commentId ? { comment_id: commentId } : {}),
               ...(context.length ? { context } : {}),
               thesis:
                 typeof rawSummary.thesis === 'string' ? (rawSummary.thesis as string) : (rawSummary.summary as string) || '',
@@ -887,6 +990,17 @@ class TapNavigationService {
                 ? (data.metadata as any).topicName
                 : null;
 
+            const threadId = resolveOptionalString(
+              (data.metadata as any).thread_id,
+              (data.metadata as any).threadId,
+              (data.metadata as any).thread,
+            );
+            const commentId = resolveOptionalString(
+              (data.metadata as any).comment_id,
+              (data.metadata as any).commentId,
+              (data.metadata as any).comment,
+            );
+
             const topicsSummary =
               typeof (data.metadata as any).topicsSummary === 'string' &&
               (data.metadata as any).topicsSummary.trim().length > 0
@@ -900,6 +1014,8 @@ class TapNavigationService {
               ...(trendName ? { trendName } : {}),
               ...(topicName ? { topicName } : {}),
               ...(topicsSummary ? { topicsSummary } : {}),
+              ...(threadId ? { thread_id: threadId } : {}),
+              ...(commentId ? { comment_id: commentId } : {}),
             };
           })()
         : null;
@@ -916,6 +1032,71 @@ class TapNavigationService {
       summary,
       metadata,
     };
+  }
+
+  private buildTopicsRequestKey(trendRank: number, threadId?: string): string {
+    return `topics_${trendRank}_${threadId ?? 'no-thread'}`;
+  }
+
+  private normalizeId(value: unknown): string | undefined {
+    if (typeof value === 'string' || typeof value === 'number') {
+      const normalized = String(value).trim();
+      return normalized || undefined;
+    }
+
+    return undefined;
+  }
+
+  private resolveTrendThreadId(
+    payload: TapNavigationStructuredData,
+    trendRank: number,
+    fallbackThreadId?: string,
+  ): string | undefined {
+    const metadata = payload.metadata as Record<string, unknown> | null | undefined;
+    const metadataThreadId = metadata
+      ? this.normalizeId(metadata.thread_id ?? metadata.threadId ?? (metadata as any).thread)
+      : undefined;
+
+    const trendThreadId = Array.isArray(payload.trends)
+      ? this.normalizeId(
+          payload.trends.find((trend) => trend?.number === trendRank)?.thread_id ?? payload.trends[0]?.thread_id,
+        )
+      : undefined;
+
+    return metadataThreadId ?? trendThreadId ?? this.normalizeId(fallbackThreadId);
+  }
+
+  private extractTrendIdentifiers(trends?: TrendData[] | null): string[] {
+    if (!Array.isArray(trends)) {
+      return [];
+    }
+
+    return trends
+      .map((trend) => this.normalizeId(trend.thread_id ?? trend.id ?? trend.number))
+      .filter((id): id is string => Boolean(id));
+  }
+
+  private hasTrendListMismatch(previous: string[], next: string[]): boolean {
+    if (previous.length !== next.length) {
+      return true;
+    }
+
+    return previous.some((id, index) => id !== next[index]);
+  }
+
+  private async updateTrendsCache(
+    newTrends: TrendData[],
+    previousTrends?: TrendData[] | null,
+    forceClear?: boolean,
+  ): Promise<void> {
+    const previousIdentifiers = this.extractTrendIdentifiers(previousTrends ?? null);
+    const newIdentifiers = this.extractTrendIdentifiers(newTrends);
+
+    if (previousIdentifiers.length && (forceClear || this.hasTrendListMismatch(previousIdentifiers, newIdentifiers))) {
+      await cacheStorage.clearTopicsByThreadIds(previousIdentifiers);
+    }
+
+    await cacheStorage.setTrends(newTrends);
   }
 
   private formatErrorMessage(error: unknown, fallback: string): string {

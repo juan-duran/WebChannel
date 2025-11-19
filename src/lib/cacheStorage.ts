@@ -1,7 +1,7 @@
 import { TrendData, TopicData, SummaryData, CachedEntry } from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAMES = {
   trends: 'trends',
   topics: 'topics',
@@ -30,6 +30,7 @@ class CacheStorage {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        const transaction = request.transaction;
 
         if (!db.objectStoreNames.contains(STORE_NAMES.trends)) {
           db.createObjectStore(STORE_NAMES.trends);
@@ -39,6 +40,10 @@ class CacheStorage {
         }
         if (!db.objectStoreNames.contains(STORE_NAMES.summaries)) {
           db.createObjectStore(STORE_NAMES.summaries);
+        }
+
+        if (event.oldVersion < 2 && transaction?.objectStoreNames.contains(STORE_NAMES.summaries)) {
+          transaction.objectStore(STORE_NAMES.summaries).clear();
         }
       };
     });
@@ -50,7 +55,34 @@ class CacheStorage {
     return new Date().toISOString().slice(0, 10);
   }
 
-  private generateKey(type: 'trends' | 'topics' | 'summaries', params: Record<string, string>): string {
+  private buildSummaryKey(threadId: string | number, commentId: string | number, userId: string): string {
+    return this.generateKey('summaries', {
+      thread_id: String(threadId),
+      comment_id: String(commentId),
+      uid: userId,
+      d: this.getToday(),
+    });
+  }
+
+  private buildTopicKey(trendId: number, threadId?: string): string {
+    return this.generateKey('topics', {
+      trend_id: String(trendId),
+      thread_id: String(threadId ?? trendId),
+      d: this.getToday(),
+    });
+  }
+
+  private parseKey(key: string): Record<string, string> {
+    return key.split('&').reduce<Record<string, string>>((acc, pair) => {
+      const [rawKey, ...rawValue] = pair.split('=');
+      if (!rawKey) return acc;
+
+      acc[rawKey] = rawValue.join('=');
+      return acc;
+    }, {});
+  }
+
+  private generateKey(_type: 'trends' | 'topics' | 'summaries', params: Record<string, string>): string {
     const sortedParams = Object.keys(params)
       .sort()
       .map(key => `${key}=${params[key]}`)
@@ -73,13 +105,13 @@ class CacheStorage {
     return this.set(STORE_NAMES.trends, key, entry);
   }
 
-  async getTopics(trendId: number): Promise<CachedEntry<TopicData[]> | null> {
-    const key = this.generateKey('topics', { trend_id: String(trendId), d: this.getToday() });
+  async getTopics(trendId: number, threadId?: string): Promise<CachedEntry<TopicData[]> | null> {
+    const key = this.buildTopicKey(trendId, threadId);
     return this.get<TopicData[]>(STORE_NAMES.topics, key);
   }
 
-  async setTopics(trendId: number, data: TopicData[]): Promise<void> {
-    const key = this.generateKey('topics', { trend_id: String(trendId), d: this.getToday() });
+  async setTopics(trendId: number, data: TopicData[], threadId?: string): Promise<void> {
+    const key = this.buildTopicKey(trendId, threadId);
     const entry: CachedEntry<TopicData[]> = {
       data,
       timestamp: Date.now(),
@@ -88,27 +120,63 @@ class CacheStorage {
     return this.set(STORE_NAMES.topics, key, entry);
   }
 
-  async getSummary(topicId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
-    const key = this.generateKey('summaries', {
-      topic_id: String(topicId),
-      uid: userId,
-      d: this.getToday(),
-    });
+  async clearTopicsByThreadIds(threadIds: string[]): Promise<void> {
+    if (!threadIds.length) {
+      return;
+    }
+
+    try {
+      const db = await this.getDB();
+      const transaction = db.transaction(STORE_NAMES.topics, 'readwrite');
+      const store = transaction.objectStore(STORE_NAMES.topics);
+      const threadIdSet = new Set(threadIds.map(String));
+
+      return new Promise((resolve, reject) => {
+        const request = store.openCursor();
+
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) {
+            return;
+          }
+
+          const keyParams = this.parseKey(String(cursor.key));
+          const keyThreadId = keyParams.thread_id ?? keyParams.trend_id;
+
+          if (keyThreadId && threadIdSet.has(keyThreadId)) {
+            cursor.delete();
+          }
+
+          cursor.continue();
+        };
+
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      });
+    } catch (error) {
+      console.error('Cache clear topics by thread ids error:', error);
+    }
+  }
+
+  async getSummary(topicId: number, trendId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
+    const key = this.buildSummaryKey(trendId, topicId, userId);
     return this.get<SummaryData>(STORE_NAMES.summaries, key);
   }
 
-  async setSummary(topicId: number, userId: string, data: SummaryData): Promise<void> {
-    const key = this.generateKey('summaries', {
-      topic_id: String(topicId),
-      uid: userId,
-      d: this.getToday(),
-    });
+  async setSummary(topicId: number, trendId: number, userId: string, data: SummaryData): Promise<void> {
+    const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
     const entry: CachedEntry<SummaryData> = {
       data,
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.summaries,
     };
     return this.set(STORE_NAMES.summaries, key, entry);
+  }
+
+  async deleteSummary(topicId: number | string, trendId: number | string, userId: string): Promise<void> {
+    const key = this.buildSummaryKey(trendId, topicId, userId);
+    return this.delete(STORE_NAMES.summaries, key);
   }
 
   private async get<T>(storeName: string, key: string): Promise<CachedEntry<T> | null> {
