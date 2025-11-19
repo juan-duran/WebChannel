@@ -421,6 +421,10 @@ class TapNavigationService {
       const handleMessage = (response: WebSocketMessage) => {
         if (resolved) return;
 
+        if (response.correlationId && response.correlationId !== correlationId) {
+          return;
+        }
+
         if (response.type === 'message' && response.role === 'assistant') {
           const structuredData =
             resolveStructuredData(response.structuredData ?? (response as any).structured_data) ||
@@ -450,6 +454,11 @@ class TapNavigationService {
 
           resolve(normalized);
         }
+      };
+
+      const handleLegacyMessage = (response: WebSocketMessage) => {
+        if (response.correlationId) return;
+        handleMessage(response);
       };
 
       const handleError = (error: WebSocketMessage) => {
@@ -485,12 +494,14 @@ class TapNavigationService {
 
       const clearListeners = () => {
         websocketService.offCorrelation(correlationId, handleMessage);
+        websocketService.off('message', handleLegacyMessage);
         websocketService.off('error', handleError);
         websocketService.offRequestReplayExhausted(correlationId, handleReplayFailure);
         websocketService.cancelQueuedRequest(correlationId);
       };
 
       websocketService.onCorrelation(correlationId, handleMessage);
+      websocketService.on('message', handleLegacyMessage);
       websocketService.on('error', handleError);
       websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
 
