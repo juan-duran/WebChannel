@@ -129,8 +129,11 @@ export class WebSocketService {
 
           if (isCurrentSocket) {
             this.stopHeartbeat();
-            this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
             this.ws = null;
+
+            if (this.isIntentionallyClosed) {
+              this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
+            }
           }
 
           if (!isOpen) {
