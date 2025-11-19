@@ -389,6 +389,8 @@ class TapNavigationService {
   ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
+      const correlationId = websocketService.generateCorrelationId();
+      const maxReplayAttempts = 3;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
         if (!candidate) return null;
@@ -470,13 +472,27 @@ class TapNavigationService {
         reject(new Error(error.error || 'Request failed'));
       };
 
-      const clearListeners = () => {
-        websocketService.off('message', handleMessage);
-        websocketService.off('error', handleError);
+      const handleReplayFailure = () => {
+        if (resolved) return;
+
+        resolved = true;
+        clearTimeout(timeout);
+
+        clearListeners();
+
+        reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
       };
 
-      websocketService.on('message', handleMessage);
+      const clearListeners = () => {
+        websocketService.offCorrelation(correlationId, handleMessage);
+        websocketService.off('error', handleError);
+        websocketService.offRequestReplayExhausted(correlationId, handleReplayFailure);
+        websocketService.cancelQueuedRequest(correlationId);
+      };
+
+      websocketService.onCorrelation(correlationId, handleMessage);
       websocketService.on('error', handleError);
+      websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
 
       const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
 
@@ -489,17 +505,25 @@ class TapNavigationService {
         reject(new RequestTimeoutError());
       }, timeoutDuration);
 
-      websocketService.sendMessage(message).catch((sendError: unknown) => {
-        if (resolved) return;
+      websocketService
+        .sendMessage(message, undefined, {
+          correlationId,
+          track: true,
+          maxRetries: maxReplayAttempts,
+        })
+        .catch((sendError: unknown) => {
+          if (resolved) return;
 
-        resolved = true;
-        clearTimeout(timeout);
-        clearListeners();
+          resolved = true;
+          clearTimeout(timeout);
+          clearListeners();
 
-        reject(
-          sendError instanceof Error ? sendError : new Error('Falha ao enviar mensagem ao assistente.'),
-        );
-      });
+          reject(
+            sendError instanceof Error
+              ? sendError
+              : new Error('Falha ao enviar mensagem ao assistente.'),
+          );
+        });
     });
   }
 

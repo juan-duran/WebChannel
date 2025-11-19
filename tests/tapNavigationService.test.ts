@@ -5,6 +5,8 @@ import type { WebSocketEventHandler, WebSocketMessageType } from '../src/lib/web
 import type { TopicData } from '../src/types/tapNavigation';
 
 type ListenerMap = Map<WebSocketMessageType, Set<WebSocketEventHandler>>;
+type CorrelationListenerMap = Map<string, Set<WebSocketEventHandler>>;
+type ReplayListenerMap = Map<string, Set<(correlationId: string) => void>>;
 
 const env = process.env as Record<string, string | undefined>;
 if (!env.VITE_SUPABASE_URL) {
@@ -15,8 +17,22 @@ if (!env.VITE_SUPABASE_ANON_KEY) {
 }
 
 const listeners: ListenerMap = new Map();
+const correlationListeners: CorrelationListenerMap = new Map();
+const replayListeners: ReplayListenerMap = new Map();
+let correlationCounter = 0;
+let lastCorrelationId: string | undefined;
+
+const nextCorrelationId = () => {
+  correlationCounter += 1;
+  return `test-corr-${correlationCounter}`;
+};
 
 const emit = (type: WebSocketMessageType, message: Parameters<WebSocketEventHandler>[0]) => {
+  const correlationId = (message as any)?.correlationId;
+  if (correlationId && correlationListeners.has(correlationId)) {
+    correlationListeners.get(correlationId)!.forEach((handler) => handler(message));
+  }
+
   const handlers = listeners.get(type);
   if (!handlers) return;
   handlers.forEach((handler) => handler(message));
@@ -45,6 +61,13 @@ let websocketService: typeof import('../src/lib/websocket')['websocketService'];
 let originalOn: typeof import('../src/lib/websocket')['websocketService']['on'];
 let originalOff: typeof import('../src/lib/websocket')['websocketService']['off'];
 let originalSendMessage: typeof import('../src/lib/websocket')['websocketService']['sendMessage'];
+let originalOnCorrelation: typeof import('../src/lib/websocket')['websocketService']['onCorrelation'];
+let originalOffCorrelation: typeof import('../src/lib/websocket')['websocketService']['offCorrelation'];
+let originalOnReplayExhausted:
+  | typeof import('../src/lib/websocket')['websocketService']['onRequestReplayExhausted'];
+let originalOffReplayExhausted:
+  | typeof import('../src/lib/websocket')['websocketService']['offRequestReplayExhausted'];
+let originalGenerateCorrelationId: typeof import('../src/lib/websocket')['websocketService']['generateCorrelationId'];
 let cacheStorage: typeof import('../src/lib/cacheStorage')['cacheStorage'];
 let originalCacheMethods: Partial<typeof cacheStorage>;
 
@@ -57,10 +80,19 @@ beforeEach(async () => {
   cacheStorage = (await import('../src/lib/cacheStorage')).cacheStorage;
 
   listeners.clear();
+  correlationListeners.clear();
+  replayListeners.clear();
+  correlationCounter = 0;
+  lastCorrelationId = undefined;
 
   originalOn = websocketService.on;
   originalOff = websocketService.off;
   originalSendMessage = websocketService.sendMessage;
+  originalOnCorrelation = websocketService.onCorrelation;
+  originalOffCorrelation = websocketService.offCorrelation;
+  originalOnReplayExhausted = websocketService.onRequestReplayExhausted;
+  originalOffReplayExhausted = websocketService.offRequestReplayExhausted;
+  originalGenerateCorrelationId = websocketService.generateCorrelationId;
   originalCacheMethods = {
     getTopics: cacheStorage.getTopics,
     setTopics: cacheStorage.setTopics,
@@ -73,7 +105,53 @@ beforeEach(async () => {
   (websocketService as any).off = (type: WebSocketMessageType, handler: WebSocketEventHandler) => {
     removeListener(type, handler);
   };
-  (websocketService as any).sendMessage = async () => {};
+  (websocketService as any).onCorrelation = (correlationId: string, handler: WebSocketEventHandler) => {
+    if (!correlationListeners.has(correlationId)) {
+      correlationListeners.set(correlationId, new Set());
+    }
+    correlationListeners.get(correlationId)!.add(handler);
+  };
+  (websocketService as any).offCorrelation = (correlationId: string, handler: WebSocketEventHandler) => {
+    const handlers = correlationListeners.get(correlationId);
+    if (!handlers) return;
+
+    handlers.delete(handler);
+
+    if (handlers.size === 0) {
+      correlationListeners.delete(correlationId);
+    }
+  };
+  (websocketService as any).onRequestReplayExhausted = (
+    correlationId: string,
+    handler: (correlationId: string) => void,
+  ) => {
+    if (!replayListeners.has(correlationId)) {
+      replayListeners.set(correlationId, new Set());
+    }
+    replayListeners.get(correlationId)!.add(handler);
+  };
+  (websocketService as any).offRequestReplayExhausted = (
+    correlationId: string,
+    handler: (correlationId: string) => void,
+  ) => {
+    const handlers = replayListeners.get(correlationId);
+    if (!handlers) return;
+
+    handlers.delete(handler);
+
+    if (handlers.size === 0) {
+      replayListeners.delete(correlationId);
+    }
+  };
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
+    return options?.correlationId;
+  };
+  (websocketService as any).generateCorrelationId = () => nextCorrelationId();
 
   (cacheStorage as any).getTopics = async () => null;
   (cacheStorage as any).setTopics = async () => {};
@@ -84,8 +162,15 @@ afterEach(() => {
   (websocketService as any).on = originalOn;
   (websocketService as any).off = originalOff;
   (websocketService as any).sendMessage = originalSendMessage;
+  (websocketService as any).onCorrelation = originalOnCorrelation;
+  (websocketService as any).offCorrelation = originalOffCorrelation;
+  (websocketService as any).onRequestReplayExhausted = originalOnReplayExhausted;
+  (websocketService as any).offRequestReplayExhausted = originalOffReplayExhausted;
+  (websocketService as any).generateCorrelationId = originalGenerateCorrelationId;
   Object.assign(cacheStorage, originalCacheMethods);
   listeners.clear();
+  correlationListeners.clear();
+  replayListeners.clear();
 });
 
 const buildTrendsData = (): TapNavigationStructuredData => ({
@@ -159,6 +244,7 @@ test('requestFromAgent waits for matching layer structured data', async () => {
   emit('message', {
     type: 'message',
     role: 'assistant',
+    correlationId: lastCorrelationId,
     structuredData: buildSummaryData(),
   } as any);
 
@@ -169,6 +255,7 @@ test('requestFromAgent waits for matching layer structured data', async () => {
   emit('message', {
     type: 'message',
     role: 'assistant',
+    correlationId: lastCorrelationId,
     structuredData: buildTrendsData(),
   } as any);
 
@@ -195,6 +282,7 @@ test('requestFromAgent ignores assistant messages without valid structured data'
   emit('message', {
     type: 'message',
     role: 'assistant',
+    correlationId: lastCorrelationId,
   } as any);
 
   await new Promise((resolve) => setTimeout(resolve, 10));
@@ -208,6 +296,7 @@ test('requestFromAgent ignores assistant messages without valid structured data'
   emit('message', {
     type: 'message',
     role: 'assistant',
+    correlationId: lastCorrelationId,
     structuredData: { layer: 'trends' },
   } as any);
 
@@ -222,6 +311,7 @@ test('requestFromAgent ignores assistant messages without valid structured data'
   emit('message', {
     type: 'message',
     role: 'assistant',
+    correlationId: lastCorrelationId,
     structuredData: buildTrendsData(),
   } as any);
 
@@ -230,17 +320,24 @@ test('requestFromAgent ignores assistant messages without valid structured data'
 });
 
 test('requestFromAgent resolves when structured data is nested inside output', async () => {
-  (websocketService as any).sendMessage = async () => {
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
     setTimeout(() => {
       emit(
         'message',
         {
           type: 'message',
           role: 'assistant',
+          correlationId: lastCorrelationId,
           output: { structuredData: buildTrendsData() },
         } as any,
       );
     }, 0);
+    return options?.correlationId;
   };
 
   const result: TapNavigationStructuredData = await (tapNavigationService as any).requestFromAgent(
@@ -252,13 +349,19 @@ test('requestFromAgent resolves when structured data is nested inside output', a
 });
 
 test('requestFromAgent resolves when output array contains structured data in snake_case', async () => {
-  (websocketService as any).sendMessage = async () => {
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
     setTimeout(() => {
       emit(
         'message',
         {
           type: 'message',
           role: 'assistant',
+          correlationId: lastCorrelationId,
           output: [
             {
               structured_data: buildTopicsData(),
@@ -267,6 +370,7 @@ test('requestFromAgent resolves when output array contains structured data in sn
         } as any,
       );
     }, 0);
+    return options?.correlationId;
   };
 
   const result: TapNavigationStructuredData = await (tapNavigationService as any).requestFromAgent(
@@ -313,17 +417,24 @@ test('fetchTopics accepts topic-layer structured data and maps it by trend', asy
     },
   } satisfies TapNavigationStructuredData;
 
-  (websocketService as any).sendMessage = async () => {
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
     setTimeout(() => {
       emit(
         'message',
         {
           type: 'message',
           role: 'assistant',
+          correlationId: lastCorrelationId,
           structuredData: topicPayload,
         } as any,
       );
     }, 0);
+    return options?.correlationId;
   };
 
   const result = await tapNavigationService.fetchTopics(2);
