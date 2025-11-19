@@ -5,6 +5,7 @@ import {
   TopicData,
   SummaryData,
   TapNavigationStructuredData,
+  SourceData,
 } from '../types/tapNavigation';
 
 class StructuredDataValidationError extends Error {
@@ -58,6 +59,7 @@ class TapNavigationService {
   private async fetchTrendsInternal(options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
     try {
       const cached = await cacheStorage.getTrends();
+      const previousTrends = cached?.data ?? null;
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
@@ -75,7 +77,7 @@ class TapNavigationService {
       const payload = await this.requestFromAgent('assuntos', 'trends');
 
       if (Array.isArray(payload.trends)) {
-        await cacheStorage.setTrends(payload.trends as TrendData[]);
+        await this.updateTrendsCache(payload.trends as TrendData[], previousTrends, options?.forceRefresh);
         return {
           success: true,
           data: payload.trends as TrendData[],
@@ -125,17 +127,21 @@ class TapNavigationService {
 
   private async refreshTrendsInBackground(): Promise<void> {
     try {
+      const cached = await cacheStorage.getTrends();
       const payload = await this.requestFromAgent('assuntos', 'trends');
       if (Array.isArray(payload.trends)) {
-        await cacheStorage.setTrends(payload.trends as TrendData[]);
+        await this.updateTrendsCache(payload.trends as TrendData[], cached?.data ?? null);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
     }
   }
 
-  async fetchTopics(trendRank: number, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
-    const cacheKey = `topics_${trendRank}`;
+  async fetchTopics(
+    trendRank: number,
+    options?: { forceRefresh?: boolean; threadId?: string },
+  ): Promise<TapNavigationResponse> {
+    const cacheKey = this.buildTopicsRequestKey(trendRank, options?.threadId);
 
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey)!;
@@ -151,13 +157,18 @@ class TapNavigationService {
     }
   }
 
-  private async fetchTopicsInternal(trendRank: number, options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
+  private async fetchTopicsInternal(
+    trendRank: number,
+    options?: { forceRefresh?: boolean; threadId?: string },
+  ): Promise<TapNavigationResponse> {
+    const threadId = options?.threadId;
+
     try {
-      const cached = await cacheStorage.getTopics(trendRank);
+      const cached = await cacheStorage.getTopics(trendRank, threadId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
-          this.refreshTopicsInBackground(trendRank);
+          this.refreshTopicsInBackground(trendRank, threadId);
         }
 
         return {
@@ -180,8 +191,10 @@ class TapNavigationService {
 
       const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
 
+      const resolvedThreadId = this.resolveTrendThreadId(payload, trendRank, threadId);
+
       if (Array.isArray(topicsResult)) {
-        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[], resolvedThreadId);
         return {
           success: true,
           data: topicsResult as TopicData[],
@@ -210,7 +223,7 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching topics:', error);
 
-      const cached = await cacheStorage.getTopics(trendRank);
+      const cached = await cacheStorage.getTopics(trendRank, threadId);
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar os tópicos.');
         return {
@@ -228,7 +241,7 @@ class TapNavigationService {
     }
   }
 
-  private async refreshTopicsInBackground(trendRank: number): Promise<void> {
+  private async refreshTopicsInBackground(trendRank: number, threadId?: string): Promise<void> {
     try {
       const payload = await this.requestFromAgent(`Assunto #${trendRank}`, ['topics', 'trends']);
       const topicsFromTopicsLayer =
@@ -242,8 +255,10 @@ class TapNavigationService {
 
       const topicsResult = topicsFromTrends ?? topicsFromTopicsLayer;
 
+      const resolvedThreadId = this.resolveTrendThreadId(payload, trendRank, threadId);
+
       if (Array.isArray(topicsResult)) {
-        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[]);
+        await cacheStorage.setTopics(trendRank, topicsResult as TopicData[], resolvedThreadId);
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -491,9 +506,7 @@ class TapNavigationService {
     }
 
     if (structuredData.layer === 'trends') {
-      const hasValidTrends = Array.isArray(structuredData.trends);
-
-      if (!hasValidTrends) {
+      if (!Array.isArray(structuredData.trends)) {
         return false;
       }
 
@@ -506,7 +519,8 @@ class TapNavigationService {
           return true;
         }
 
-        return Array.isArray((trend as Record<string, unknown>).topics);
+        const trendRecord = trend as { topics?: unknown };
+        return Array.isArray(trendRecord.topics);
       });
 
       return trendsWithValidTopics;
@@ -662,6 +676,9 @@ class TapNavigationService {
               item.link,
               item.href,
             );
+            const threadId = this.normalizeId(
+              (item as any).thread_id ?? (item as any).threadId ?? (item as any).thread,
+            );
             const assetType = resolveOptionalString(item.asset_type, item.assetType);
             const assetThumbnail = resolveOptionalString(
               item.asset_thumbnail,
@@ -701,6 +718,7 @@ class TapNavigationService {
               description,
               value,
               url,
+              ...(threadId ? { thread_id: threadId } : {}),
               whyItMatters,
               ...(assetType || assetThumbnail || assetTitle || assetDescription || assetEmbedHtml || url
                 ? {
@@ -830,7 +848,7 @@ class TapNavigationService {
                       ...(publishedAtCandidate ? { publishedAt: publishedAtCandidate } : {}),
                     };
                   })
-                  .filter((item): item is SummaryData['sources'][number] => Boolean(item))
+                  .filter((item): item is SourceData => Boolean(item))
               : undefined;
 
             return {
@@ -933,6 +951,71 @@ class TapNavigationService {
       summary,
       metadata,
     };
+  }
+
+  private buildTopicsRequestKey(trendRank: number, threadId?: string): string {
+    return `topics_${trendRank}_${threadId ?? 'no-thread'}`;
+  }
+
+  private normalizeId(value: unknown): string | undefined {
+    if (typeof value === 'string' || typeof value === 'number') {
+      const normalized = String(value).trim();
+      return normalized || undefined;
+    }
+
+    return undefined;
+  }
+
+  private resolveTrendThreadId(
+    payload: TapNavigationStructuredData,
+    trendRank: number,
+    fallbackThreadId?: string,
+  ): string | undefined {
+    const metadata = payload.metadata as Record<string, unknown> | null | undefined;
+    const metadataThreadId = metadata
+      ? this.normalizeId(metadata.thread_id ?? metadata.threadId ?? (metadata as any).thread)
+      : undefined;
+
+    const trendThreadId = Array.isArray(payload.trends)
+      ? this.normalizeId(
+          payload.trends.find((trend) => trend?.number === trendRank)?.thread_id ?? payload.trends[0]?.thread_id,
+        )
+      : undefined;
+
+    return metadataThreadId ?? trendThreadId ?? this.normalizeId(fallbackThreadId);
+  }
+
+  private extractTrendIdentifiers(trends?: TrendData[] | null): string[] {
+    if (!Array.isArray(trends)) {
+      return [];
+    }
+
+    return trends
+      .map((trend) => this.normalizeId(trend.thread_id ?? trend.id ?? trend.number))
+      .filter((id): id is string => Boolean(id));
+  }
+
+  private hasTrendListMismatch(previous: string[], next: string[]): boolean {
+    if (previous.length !== next.length) {
+      return true;
+    }
+
+    return previous.some((id, index) => id !== next[index]);
+  }
+
+  private async updateTrendsCache(
+    newTrends: TrendData[],
+    previousTrends?: TrendData[] | null,
+    forceClear?: boolean,
+  ): Promise<void> {
+    const previousIdentifiers = this.extractTrendIdentifiers(previousTrends ?? null);
+    const newIdentifiers = this.extractTrendIdentifiers(newTrends);
+
+    if (previousIdentifiers.length && (forceClear || this.hasTrendListMismatch(previousIdentifiers, newIdentifiers))) {
+      await cacheStorage.clearTopicsByThreadIds(previousIdentifiers);
+    }
+
+    await cacheStorage.setTrends(newTrends);
   }
 
   private formatErrorMessage(error: unknown, fallback: string): string {
