@@ -34,8 +34,13 @@ export interface TapNavigationResponse {
 
 class TapNavigationService {
   private pendingRequests = new Map<string, Promise<TapNavigationResponse>>();
+  private currentTrendsAbort?: AbortController;
 
   cancelTrendsRequest() {
+    if (this.currentTrendsAbort) {
+      this.currentTrendsAbort.abort();
+      this.currentTrendsAbort = undefined;
+    }
     this.cancelPendingRequest('trends');
   }
 
@@ -46,18 +51,29 @@ class TapNavigationService {
       return this.pendingRequests.get(cacheKey)!;
     }
 
-    const promise = this.fetchTrendsInternal(options);
-    this.pendingRequests.set(cacheKey, promise);
+    const controller = new AbortController();
+    this.currentTrendsAbort = controller;
 
-    try {
-      return await promise;
-    } finally {
+    const promise = this.fetchTrendsInternal(options, controller.signal).finally(() => {
       this.pendingRequests.delete(cacheKey);
-    }
+      if (this.currentTrendsAbort === controller) {
+        this.currentTrendsAbort = undefined;
+      }
+    });
+
+    this.pendingRequests.set(cacheKey, promise);
+    return promise;
   }
 
-  private async fetchTrendsInternal(options?: { forceRefresh?: boolean }): Promise<TapNavigationResponse> {
+  private async fetchTrendsInternal(
+    options?: { forceRefresh?: boolean },
+    signal?: AbortSignal,
+  ): Promise<TapNavigationResponse> {
     try {
+      if (signal?.aborted) {
+        throw new Error('Request cancelled');
+      }
+
       const cached = await cacheStorage.getTrends();
       const previousTrends = cached?.data ?? null;
 
@@ -74,7 +90,7 @@ class TapNavigationService {
         };
       }
 
-      const payload = await this.requestFromAgent('assuntos', 'trends');
+      const payload = await this.requestFromAgent('assuntos', 'trends', { signal });
 
       if (Array.isArray(payload.trends)) {
         await this.updateTrendsCache(payload.trends as TrendData[], previousTrends, options?.forceRefresh);
@@ -386,11 +402,13 @@ class TapNavigationService {
   private async requestFromAgent(
     message: string,
     expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][],
+    options?: { signal?: AbortSignal },
   ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
       const correlationId = websocketService.generateCorrelationId();
       const maxReplayAttempts = 3;
+      const abortSignal = options?.signal;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
         if (!candidate) return null;
@@ -450,7 +468,7 @@ class TapNavigationService {
           resolved = true;
           clearTimeout(timeout);
 
-          clearListeners();
+          cleanup();
 
           resolve(normalized);
         }
@@ -476,7 +494,7 @@ class TapNavigationService {
         resolved = true;
         clearTimeout(timeout);
 
-        clearListeners();
+        cleanup();
 
         reject(new Error(error.error || 'Request failed'));
       };
@@ -487,17 +505,20 @@ class TapNavigationService {
         resolved = true;
         clearTimeout(timeout);
 
-        clearListeners();
+        cleanup();
 
         reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
       };
 
-      const clearListeners = () => {
+      const cleanup = () => {
         websocketService.offCorrelation(correlationId, handleMessage);
         websocketService.off('message', handleLegacyMessage);
         websocketService.off('error', handleError);
         websocketService.offRequestReplayExhausted(correlationId, handleReplayFailure);
         websocketService.cancelQueuedRequest(correlationId);
+        if (abortSignal) {
+          abortSignal.removeEventListener('abort', handleAbort);
+        }
       };
 
       websocketService.onCorrelation(correlationId, handleMessage);
@@ -505,13 +526,29 @@ class TapNavigationService {
       websocketService.on('error', handleError);
       websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
 
+      const handleAbort = () => {
+        if (resolved) return;
+        resolved = true;
+        clearTimeout(timeout);
+        cleanup();
+        reject(new Error('Request cancelled'));
+      };
+
+      if (abortSignal) {
+        if (abortSignal.aborted) {
+          handleAbort();
+          return;
+        }
+        abortSignal.addEventListener('abort', handleAbort, { once: true });
+      }
+
       const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
 
       const timeout = setTimeout(() => {
         if (resolved) return;
 
         resolved = true;
-        clearListeners();
+        cleanup();
 
         reject(new RequestTimeoutError());
       }, timeoutDuration);
@@ -527,7 +564,7 @@ class TapNavigationService {
 
           resolved = true;
           clearTimeout(timeout);
-          clearListeners();
+          cleanup();
 
           reject(
             sendError instanceof Error

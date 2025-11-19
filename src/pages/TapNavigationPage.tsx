@@ -56,7 +56,6 @@ export function TapNavigationPage() {
   const mobileSummaryContentRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryContentRef = useRef<HTMLDivElement | null>(null);
   const activeTrendsRequestIdRef = useRef<string | null>(null);
-  const cancelledTrendRequestsRef = useRef<Set<string>>(new Set());
 
   const resetSelectionState = () => {
     setExpandedTrendId(null);
@@ -328,15 +327,8 @@ export function TapNavigationPage() {
   const createRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
   const cancelActiveTrendsRequest = (options?: { silent?: boolean }) => {
-    const activeRequest = activeTrendsRequestIdRef.current;
-    if (!activeRequest) {
-      return;
-    }
-
-    cancelledTrendRequestsRef.current.add(activeRequest);
     tapNavigationService.cancelTrendsRequest();
     activeTrendsRequestIdRef.current = null;
-
     if (!options?.silent) {
       setIsLoadingTrends(false);
     }
@@ -400,10 +392,7 @@ export function TapNavigationPage() {
 
       const result = await tapNavigationService.fetchTrends({ forceRefresh });
 
-      const wasCancelled = cancelledTrendRequestsRef.current.has(requestId);
-      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
-
-      if (wasCancelled || !isLatestRequest) {
+      if (activeTrendsRequestIdRef.current !== requestId) {
         return;
       }
 
@@ -435,22 +424,18 @@ export function TapNavigationPage() {
         setError(result.error || 'Failed to load trends');
       }
     } catch (err) {
-      const wasCancelled = cancelledTrendRequestsRef.current.has(requestId);
-      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
+      if (activeTrendsRequestIdRef.current !== requestId) {
+        return;
+      }
 
-      if (wasCancelled || !isLatestRequest) {
+      if (err instanceof Error && err.message === 'Request cancelled') {
         return;
       }
 
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
-      const isLatestRequest = activeTrendsRequestIdRef.current === requestId;
-      const wasCancelled = cancelledTrendRequestsRef.current.delete(requestId);
-
-      if (isLatestRequest) {
+      if (activeTrendsRequestIdRef.current === requestId) {
         activeTrendsRequestIdRef.current = null;
-        setIsLoadingTrends(false);
-      } else if (wasCancelled && !activeTrendsRequestIdRef.current) {
         setIsLoadingTrends(false);
       }
     }
@@ -517,7 +502,7 @@ export function TapNavigationPage() {
 
   const handleCancelTrends = () => {
     cancelActiveTrendsRequest();
-    setError(null);
+    setError('Solicitação cancelada pelo usuário.');
   };
 
   const handleTrendExpand = async (trend: TrendData) => {
@@ -937,8 +922,8 @@ export function TapNavigationPage() {
     );
   };
 
-  const startDisabled = isLoadingTrends || !isAssistantConnected;
-  const startDisabledReason = !isAssistantConnected
+  const startDisabled = isLoadingTrends;
+  const connectionWarning = !isAssistantConnected
     ? connectionError || (isAssistantConnecting
         ? 'Aguardando reconexão com o assistente.'
         : 'Conecte-se ao assistente para iniciar.')
@@ -952,34 +937,39 @@ export function TapNavigationPage() {
             <h1 className="text-xl font-bold text-gray-900">Quenty</h1>
             <p className="text-xs text-gray-500">Tap to explore trends & topics</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleStartTrends}
-              disabled={startDisabled}
-              title={startDisabledReason}
-              className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
-              Start
-            </button>
-            <button
-              onClick={() => loadTrends(true)}
-              disabled={!hasRequestedTrends || isLoadingTrends}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Refresh"
-            >
-              <RefreshCw className={`h-4 w-4 ${isLoadingTrends ? 'animate-spin' : ''}`} />
-              Refresh
-            </button>
-            <button
-              onClick={handleCancelTrends}
-              disabled={!isLoadingTrends}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Cancel current request"
-            >
-              <StopCircle className="h-4 w-4" />
-              Cancel
-            </button>
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={handleStartTrends}
+                disabled={startDisabled}
+                title={connectionWarning}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
+                Start
+              </button>
+              <button
+                onClick={() => loadTrends(true)}
+                disabled={!hasRequestedTrends || isLoadingTrends}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoadingTrends ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+              <button
+                onClick={handleCancelTrends}
+                disabled={!isLoadingTrends}
+                className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Cancel current request"
+              >
+                <StopCircle className="h-4 w-4" />
+                Cancel
+              </button>
+            </div>
+            {connectionWarning && (
+              <p className="text-xs text-amber-700">{connectionWarning}</p>
+            )}
           </div>
         </div>
       </div>
@@ -1067,12 +1057,15 @@ export function TapNavigationPage() {
                 type="button"
                 onClick={handleStartTrends}
                 disabled={startDisabled}
-                title={startDisabledReason}
+                title={connectionWarning}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <PlayCircle className={`h-4 w-4 ${isLoadingTrends ? 'animate-pulse' : ''}`} />
                 Start exploring
               </button>
+              {connectionWarning && (
+                <p className="mt-3 text-xs text-amber-700">{connectionWarning}</p>
+              )}
             </div>
           </div>
         ) : (
