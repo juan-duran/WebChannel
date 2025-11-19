@@ -13,6 +13,8 @@ import { safeJsonParse } from '../lib/safeJsonParse';
 
 export function TapNavigationPage() {
   const { user } = useAuth();
+  const LIST_CHANGED_MESSAGE =
+    'A lista mudou desde sua última navegação. Use o botão Atualizar (ou o atalho do CTA) para recarregar as tendências, tópicos e resumos.';
   const [trends, setTrends] = useState<TrendData[]>([]);
   const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
   const [topicsMap, setTopicsMap] = useState<Record<string, TopicData[]>>({});
@@ -23,6 +25,7 @@ export function TapNavigationPage() {
   const [trendsSummary, setTrendsSummary] = useState<string | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [listChangeWarning, setListChangeWarning] = useState<string | null>(null);
 
   const [isLoadingTrends, setIsLoadingTrends] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
@@ -84,6 +87,34 @@ export function TapNavigationPage() {
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+  };
+
+  const isSummaryAlignedWithSelection = (
+    summary: SummaryData | null,
+    trend: TrendData | undefined,
+    topic: TopicData | null,
+  ): boolean => {
+    if (!summary || !topic) return true;
+
+    const expectedThreadId = trend ? String(trend.number) : undefined;
+    const expectedCommentId = String(topic.number);
+
+    const threadMatches = !summary.thread_id || !expectedThreadId || summary.thread_id === expectedThreadId;
+    const commentMatches = !summary.comment_id || summary.comment_id === expectedCommentId;
+
+    return threadMatches && commentMatches;
+  };
+
+  const handleListMismatch = async (trendRank: number, topicRank: number) => {
+    if (!user?.id) return;
+
+    setSummaryError(LIST_CHANGED_MESSAGE);
+    setSummaryFromCache(false);
+    setSelectedSummary(null);
+    setListChangeWarning(LIST_CHANGED_MESSAGE);
+
+    await tapNavigationService.invalidateSummaryCache(topicRank, trendRank, user.id);
+    await loadTrends(true);
   };
 
   useEffect(() => {
@@ -427,7 +458,10 @@ export function TapNavigationPage() {
     try {
       setIsLoadingTopics(true);
       setLoadingTopicsTrendId(trend.id);
-      const result = await tapNavigationService.fetchTopics(trend.number, options);
+      const result = await tapNavigationService.fetchTopics(trend.number, {
+        ...options,
+        threadId: trend.thread_id ?? trend.id,
+      });
 
       if (result.success && Array.isArray(result.data)) {
         setTopicsMap((prev) => ({
@@ -437,7 +471,7 @@ export function TapNavigationPage() {
         if (result.topicsSummary !== undefined) {
           setTopicsSummaryMap((prev) => ({
             ...prev,
-            [trend.id]: result.topicsSummary,
+            [trend.id]: result.topicsSummary ?? null,
           }));
         }
         setTopicsErrorMap((prev) => ({
@@ -516,10 +550,18 @@ export function TapNavigationPage() {
 
     try {
       setIsLoadingSummary(true);
-      const result = await tapNavigationService.fetchSummary(topic.number, user.id);
+      const trendRank = trend?.number ?? topic.number;
+      const result = await tapNavigationService.fetchSummary(topic.number, trendRank, user.id);
 
       if (result.success && result.data) {
         const summary = result.data as SummaryData;
+
+        if (!isSummaryAlignedWithSelection(summary, trend, topic)) {
+          await handleListMismatch(trendRank, topic.number);
+          return;
+        }
+
+        setListChangeWarning(null);
         setSelectedSummary(summary);
         setSummaryFromCache(result.fromCache || false);
         setSummaryError(result.error ?? null);
@@ -568,10 +610,19 @@ export function TapNavigationPage() {
     try {
       setIsRefreshing(true);
       setSummaryError(null);
-      const result = await tapNavigationService.fetchSummary(selectedTopic.number, user.id, { forceRefresh: true });
+      const trend = trends.find((t) => t.id === expandedTrendId);
+      const trendRank = trend?.number ?? selectedTopic.number;
+      const result = await tapNavigationService.fetchSummary(selectedTopic.number, trendRank, user.id, { forceRefresh: true });
 
       if (result.success && result.data) {
         const summary = result.data as SummaryData;
+
+        if (!isSummaryAlignedWithSelection(summary, trend, selectedTopic)) {
+          await handleListMismatch(trendRank, selectedTopic.number);
+          return;
+        }
+
+        setListChangeWarning(null);
         setSelectedSummary(summary);
         setSummaryFromCache(false);
         setSummaryError(result.error ?? null);
@@ -926,6 +977,28 @@ export function TapNavigationPage() {
       {renderConnectionBanner()}
 
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {listChangeWarning && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-900">A lista mudou</p>
+              <p className="text-sm text-amber-800 mt-1">{listChangeWarning}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  onClick={() => loadTrends(true)}
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm transition-colors hover:bg-amber-100"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Atualizar agora
+                </button>
+                <span className="text-[11px] text-amber-700">
+                  Dica: use o atalho do CTA para chamar esta atualização rapidamente.
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
