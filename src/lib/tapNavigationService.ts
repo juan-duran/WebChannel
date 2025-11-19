@@ -1,4 +1,5 @@
 import { websocketService, type WebSocketMessage } from './websocket';
+import { supabase } from './supabase';
 import { cacheStorage } from './cacheStorage';
 import {
   TrendData,
@@ -483,21 +484,34 @@ class TapNavigationService {
         if (resolved) return;
 
         const connectionState = websocketService.getConnectionState();
-        const fatalConnectionFailure =
-          !websocketService.isReconnectingInProgress() &&
-          (connectionState === 'disconnected' || connectionState === 'error');
+      const fatalConnectionFailure =
+        !websocketService.isReconnectingInProgress() &&
+        (connectionState === 'disconnected' || connectionState === 'error');
 
-        if (!fatalConnectionFailure) {
-          return;
-        }
+      if (!fatalConnectionFailure) {
+        return;
+      }
 
-        resolved = true;
-        clearTimeout(timeout);
+      resolved = true;
+      clearTimeout(timeout);
 
-        cleanup();
+      this.tryRecoverStructuredData(correlationId, expectedLayer)
+        .then((recovered) => {
+          if (recovered) {
+            resolved = true;
+            cleanup();
+            resolve(recovered);
+            return;
+          }
 
-        reject(new Error(error.error || 'Request failed'));
-      };
+          cleanup();
+          reject(new Error(error.error || 'Request failed'));
+        })
+        .catch(() => {
+          cleanup();
+          reject(new Error(error.error || 'Request failed'));
+        });
+    };
 
       const handleReplayFailure = () => {
         if (resolved) return;
@@ -505,9 +519,20 @@ class TapNavigationService {
         resolved = true;
         clearTimeout(timeout);
 
-        cleanup();
-
-        reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
+        this.tryRecoverStructuredData(correlationId, expectedLayer)
+          .then((recovered) => {
+            if (recovered) {
+              cleanup();
+              resolve(recovered);
+              return;
+            }
+            cleanup();
+            reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
+          })
+          .catch(() => {
+            cleanup();
+            reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
+          });
       };
 
       const cleanup = () => {
@@ -547,10 +572,24 @@ class TapNavigationService {
       const timeout = setTimeout(() => {
         if (resolved) return;
 
-        resolved = true;
-        cleanup();
+        this.tryRecoverStructuredData(correlationId, expectedLayer)
+          .then((recovered) => {
+            if (recovered) {
+              resolved = true;
+              cleanup();
+              resolve(recovered);
+              return;
+            }
 
-        reject(new RequestTimeoutError());
+            resolved = true;
+            cleanup();
+            reject(new RequestTimeoutError());
+          })
+          .catch(() => {
+            resolved = true;
+            cleanup();
+            reject(new RequestTimeoutError());
+          });
       }, timeoutDuration);
 
       websocketService
@@ -1097,6 +1136,40 @@ class TapNavigationService {
     }
 
     await cacheStorage.setTrends(newTrends);
+  }
+
+  private async tryRecoverStructuredData(
+    correlationId: string,
+    expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][] ,
+  ): Promise<TapNavigationStructuredData | null> {
+    const layers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('structured_data')
+        .eq('correlation_id', correlationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !data?.structured_data) {
+        return null;
+      }
+
+      if (!this.isValidStructuredData(data.structured_data)) {
+        return null;
+      }
+
+      if (!layers.includes(data.structured_data.layer)) {
+        return null;
+      }
+
+      return this.normalizeStructuredData(data.structured_data);
+    } catch (error) {
+      console.warn('Failed to recover structured data from history', error);
+      return null;
+    }
   }
 
   private formatErrorMessage(error: unknown, fallback: string): string {
