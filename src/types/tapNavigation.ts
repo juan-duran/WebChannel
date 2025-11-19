@@ -17,6 +17,7 @@ export interface TrendData extends TrendAssetMetadata {
   url: string;
   whyItMatters: string;
   topics?: TopicData[];
+  thread_id?: string;
 }
 
 export interface TopicData {
