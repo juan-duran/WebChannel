@@ -37,6 +37,17 @@ export interface WebSocketMessage {
 
 export type WebSocketEventHandler = (message: WebSocketMessage) => void;
 
+type RequestStatus = 'pending' | 'fulfilled' | 'canceled' | 'failed';
+
+type QueuedRequest = {
+  message: WebSocketMessage;
+  attempts: number;
+  maxRetries: number;
+  status: RequestStatus;
+};
+
+type ReplayFailureHandler = (correlationId: string) => void;
+
 export class WebSocketService {
   private ws: WebSocket | null = null;
   private sessionId: string | null = null;
@@ -44,10 +55,14 @@ export class WebSocketService {
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
   private handlers: Map<WebSocketMessageType, Set<WebSocketEventHandler>> = new Map();
+  private correlationHandlers: Map<string, Set<WebSocketEventHandler>> = new Map();
+  private replayFailureHandlers: Map<string, Set<ReplayFailureHandler>> = new Map();
+  private requestQueue: Map<string, QueuedRequest> = new Map();
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
   private isReconnecting = false;
+  private readonly defaultMaxRequestRetries = 3;
 
   constructor(private wsUrl: string) {}
 
@@ -91,10 +106,14 @@ export class WebSocketService {
         ws.onopen = () => {
           isOpen = true;
           console.log('WebSocket connected');
+          const wasReconnecting = this.isReconnecting || this.reconnectAttempts > 0;
           this.reconnectAttempts = 0;
           this.reconnectDelay = 1000;
           this.isReconnecting = false;
           this.startHeartbeat();
+          if (wasReconnecting) {
+            this.replayPendingRequests();
+          }
           resolve();
         };
 
@@ -169,6 +188,11 @@ export class WebSocketService {
       console.log('Session established:', this.sessionId);
     }
 
+    if (message.correlationId) {
+      this.markRequestFulfilled(message.correlationId);
+      this.notifyCorrelationHandlers(message.correlationId, message);
+    }
+
     if (message.type === 'pong') {
       return;
     }
@@ -199,6 +223,43 @@ export class WebSocketService {
     this.handlers.get(type)!.add(handler);
   }
 
+  onCorrelation(correlationId: string, handler: WebSocketEventHandler) {
+    if (!this.correlationHandlers.has(correlationId)) {
+      this.correlationHandlers.set(correlationId, new Set());
+    }
+    this.correlationHandlers.get(correlationId)!.add(handler);
+  }
+
+  offCorrelation(correlationId: string, handler: WebSocketEventHandler) {
+    const handlers = this.correlationHandlers.get(correlationId);
+    if (!handlers) return;
+
+    handlers.delete(handler);
+
+    if (handlers.size === 0) {
+      this.correlationHandlers.delete(correlationId);
+    }
+  }
+
+  onRequestReplayExhausted(correlationId: string, handler: ReplayFailureHandler) {
+    if (!this.replayFailureHandlers.has(correlationId)) {
+      this.replayFailureHandlers.set(correlationId, new Set());
+    }
+
+    this.replayFailureHandlers.get(correlationId)!.add(handler);
+  }
+
+  offRequestReplayExhausted(correlationId: string, handler: ReplayFailureHandler) {
+    const handlers = this.replayFailureHandlers.get(correlationId);
+    if (!handlers) return;
+
+    handlers.delete(handler);
+
+    if (handlers.size === 0) {
+      this.replayFailureHandlers.delete(correlationId);
+    }
+  }
+
   off(type: WebSocketMessageType, handler: WebSocketEventHandler) {
     const handlers = this.handlers.get(type);
     if (handlers) {
@@ -219,18 +280,42 @@ export class WebSocketService {
     await this.connect();
   }
 
-  async sendMessage(content: string, metadata?: any) {
-    await this.ensureConnected();
-
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Unable to establish WebSocket connection');
-    }
+  async sendMessage(
+    content: string,
+    metadata?: any,
+    options?: { correlationId?: string; track?: boolean; maxRetries?: number },
+  ): Promise<string | void> {
+    const shouldTrack = options?.track || Boolean(options?.correlationId);
+    const correlationId = options?.correlationId ?? (shouldTrack ? this.generateCorrelationId() : undefined);
 
     const message: WebSocketMessage = {
       type: 'message',
       content,
       metadata,
+      ...(correlationId ? { correlationId } : {}),
     };
+
+    if (shouldTrack && correlationId) {
+      const existing = this.requestQueue.get(correlationId);
+      const queueEntry: QueuedRequest = existing
+        ? { ...existing, message, maxRetries: options?.maxRetries ?? existing.maxRetries }
+        : {
+            message,
+            attempts: 0,
+            maxRetries: options?.maxRetries ?? this.defaultMaxRequestRetries,
+            status: 'pending',
+          };
+
+      this.requestQueue.set(correlationId, queueEntry);
+      await this.sendQueuedRequest(correlationId);
+      return correlationId;
+    }
+
+    await this.ensureConnected();
+
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      throw new Error('Unable to establish WebSocket connection');
+    }
 
     this.ws.send(JSON.stringify(message));
   }
@@ -337,6 +422,97 @@ export class WebSocketService {
 
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  generateCorrelationId(): string {
+    return `corr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  }
+
+  cancelQueuedRequest(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry) return;
+
+    this.requestQueue.set(correlationId, { ...entry, status: 'canceled' });
+    this.requestQueue.delete(correlationId);
+    this.replayFailureHandlers.delete(correlationId);
+    this.correlationHandlers.delete(correlationId);
+  }
+
+  private notifyCorrelationHandlers(correlationId: string, message: WebSocketMessage) {
+    const handlers = this.correlationHandlers.get(correlationId);
+    if (!handlers) return;
+
+    handlers.forEach((handler) => handler(message));
+  }
+
+  private markRequestFulfilled(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry) return;
+
+    this.requestQueue.set(correlationId, { ...entry, status: 'fulfilled' });
+    this.requestQueue.delete(correlationId);
+    this.replayFailureHandlers.delete(correlationId);
+    this.correlationHandlers.delete(correlationId);
+  }
+
+  private async sendQueuedRequest(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') {
+      return;
+    }
+
+    if (entry.attempts >= entry.maxRetries) {
+      this.failQueuedRequest(correlationId);
+      return;
+    }
+
+    entry.attempts += 1;
+    this.requestQueue.set(correlationId, entry);
+
+    try {
+      await this.ensureConnected();
+
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        throw new Error('Unable to establish WebSocket connection');
+      }
+
+      this.ws.send(JSON.stringify(entry.message));
+    } catch (error) {
+      if (entry.attempts >= entry.maxRetries) {
+        this.failQueuedRequest(correlationId);
+      }
+
+      throw error;
+    }
+  }
+
+  private async replayPendingRequests() {
+    if (this.requestQueue.size === 0) return;
+
+    for (const correlationId of this.requestQueue.keys()) {
+      const entry = this.requestQueue.get(correlationId);
+      if (!entry || entry.status !== 'pending') continue;
+
+      await this.sendQueuedRequest(correlationId);
+    }
+  }
+
+  private failQueuedRequest(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry) return;
+
+    this.requestQueue.set(correlationId, { ...entry, status: 'failed' });
+    this.notifyReplayExhausted(correlationId);
+    this.requestQueue.delete(correlationId);
+    this.correlationHandlers.delete(correlationId);
+  }
+
+  private notifyReplayExhausted(correlationId: string) {
+    const handlers = this.replayFailureHandlers.get(correlationId);
+    if (!handlers) return;
+
+    handlers.forEach((handler) => handler(correlationId));
+    this.replayFailureHandlers.delete(correlationId);
   }
 }
 
