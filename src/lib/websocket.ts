@@ -64,7 +64,6 @@ export class WebSocketService {
   private connectionPromise: Promise<void> | null = null;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
-  private shouldReconnect = true;
 
   constructor(private wsUrl: string) {}
 
@@ -81,10 +80,6 @@ export class WebSocketService {
       if (this.ws.readyState === WebSocket.CONNECTING && this.connectionPromise) {
         return this.connectionPromise;
       }
-
-      if (this.ws.readyState === WebSocket.CLOSED || this.ws.readyState === WebSocket.CLOSING) {
-        this.ws = null;
-      }
     }
 
     if (this.connectionPromise) {
@@ -92,7 +87,6 @@ export class WebSocketService {
     }
 
     this.isIntentionallyClosed = false;
-    this.shouldReconnect = true;
 
     const connectionPromise = (async () => {
       const {
@@ -173,7 +167,7 @@ export class WebSocketService {
             reject(error);
           }
 
-          if (isCurrentSocket && this.shouldReconnect && !this.isIntentionallyClosed) {
+          if (isCurrentSocket && !this.isIntentionallyClosed) {
             this.attemptReconnect();
           }
         };
@@ -394,11 +388,6 @@ export class WebSocketService {
     console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
     setTimeout(() => {
-      if (!this.shouldReconnect) {
-        this.isReconnecting = false;
-        return;
-      }
-
       this.connect().catch((error) => {
         console.error('Reconnection failed:', error);
       });
@@ -407,7 +396,6 @@ export class WebSocketService {
 
   disconnect() {
     this.isIntentionallyClosed = true;
-    this.shouldReconnect = false;
     this.isReconnecting = false;
     this.stopHeartbeat();
 
