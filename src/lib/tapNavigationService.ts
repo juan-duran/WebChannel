@@ -411,8 +411,6 @@ class TapNavigationService {
       const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
       let supabaseChannel: ReturnType<typeof supabase.channel> | null = null;
-      const storageController = new AbortController();
-      const storageSignal = storageController.signal;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
         if (!candidate) return null;
@@ -550,7 +548,6 @@ class TapNavigationService {
           supabaseChannel.unsubscribe();
           supabaseChannel = null;
         }
-        storageController.abort();
       };
 
       websocketService.onCorrelation(correlationId, handleMessage);
@@ -586,14 +583,6 @@ class TapNavigationService {
         )
         .subscribe();
 
-      this.waitForStoredStructuredData(correlationId, expectedLayer, storageSignal).then((stored) => {
-        if (!stored || resolved) return;
-        resolved = true;
-        clearTimeout(timeout);
-        cleanup();
-        resolve(stored);
-      });
-
       const handleAbort = () => {
         if (resolved) return;
         resolved = true;
@@ -608,13 +597,6 @@ class TapNavigationService {
           return;
         }
         abortSignal.addEventListener('abort', handleAbort, { once: true });
-        abortSignal.addEventListener(
-          'abort',
-          () => {
-            storageController.abort();
-          },
-          { once: true },
-        );
       }
 
       const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
@@ -1232,50 +1214,6 @@ class TapNavigationService {
     }
 
     return fallback;
-  }
-
-  private async waitForStoredStructuredData(
-    correlationId: string,
-    expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][] ,
-    signal?: AbortSignal,
-    timeoutMs: number = 120_000,
-    intervalMs: number = 3_000,
-  ): Promise<TapNavigationStructuredData | null> {
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() < deadline && !(signal?.aborted)) {
-      const stored = await this.tryRecoverStructuredData(correlationId, expectedLayer);
-      if (stored) {
-        return stored;
-      }
-
-      await this.delay(intervalMs, signal);
-    }
-
-    return null;
-  }
-
-  private async delay(ms: number, signal?: AbortSignal): Promise<void> {
-    if (signal?.aborted) {
-      return;
-    }
-
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        resolve();
-      }, ms);
-
-      if (signal) {
-        signal.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(timeout);
-            resolve();
-          },
-          { once: true },
-        );
-      }
-    });
   }
 
   async clearCache(): Promise<void> {
