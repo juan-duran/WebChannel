@@ -453,6 +453,15 @@ class TapNavigationService {
       const handleError = (error: WebSocketMessage) => {
         if (resolved) return;
 
+        const connectionState = websocketService.getConnectionState();
+        const fatalConnectionFailure =
+          !websocketService.isReconnectingInProgress() &&
+          (connectionState === 'disconnected' || connectionState === 'error');
+
+        if (!fatalConnectionFailure) {
+          return;
+        }
+
         resolved = true;
         clearTimeout(timeout);
 

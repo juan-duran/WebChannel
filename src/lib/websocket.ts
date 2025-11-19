@@ -47,6 +47,7 @@ export class WebSocketService {
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
+  private isReconnecting = false;
 
   constructor(private wsUrl: string) {}
 
@@ -92,6 +93,7 @@ export class WebSocketService {
           console.log('WebSocket connected');
           this.reconnectAttempts = 0;
           this.reconnectDelay = 1000;
+          this.isReconnecting = false;
           this.startHeartbeat();
           resolve();
         };
@@ -113,12 +115,14 @@ export class WebSocketService {
               ? event.error || new Error(event.message)
               : new Error('WebSocket connection error');
 
-          this.notifyHandlers('error', {
-            type: 'error',
-            error: event instanceof ErrorEvent ? event.message : 'Connection error',
-          });
-
           if (!isOpen) {
+            if (!this.isReconnecting) {
+              this.notifyHandlers('error', {
+                type: 'error',
+                error: event instanceof ErrorEvent ? event.message : 'Connection error',
+              });
+            }
+
             reject(error);
           }
         };
@@ -276,9 +280,11 @@ export class WebSocketService {
         type: 'error',
         error: 'Não foi possível reconectar automaticamente. Tente novamente.',
       });
+      this.isReconnecting = false;
       return;
     }
 
+    this.isReconnecting = true;
     this.reconnectAttempts++;
     const delay = Math.min(
       this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1),
@@ -296,6 +302,7 @@ export class WebSocketService {
 
   disconnect() {
     this.isIntentionallyClosed = true;
+    this.isReconnecting = false;
     this.stopHeartbeat();
 
     if (this.ws) {
@@ -322,6 +329,10 @@ export class WebSocketService {
       default:
         return 'error';
     }
+  }
+
+  isReconnectingInProgress(): boolean {
+    return this.isReconnecting;
   }
 
   getSessionId(): string | null {
