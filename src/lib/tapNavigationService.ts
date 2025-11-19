@@ -410,6 +410,7 @@ class TapNavigationService {
       const correlationId = websocketService.generateCorrelationId();
       const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
+      let supabaseChannel: ReturnType<typeof supabase.channel> | null = null;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
         if (!candidate) return null;
@@ -484,34 +485,33 @@ class TapNavigationService {
         if (resolved) return;
 
         const connectionState = websocketService.getConnectionState();
-      const fatalConnectionFailure =
-        !websocketService.isReconnectingInProgress() &&
-        (connectionState === 'disconnected' || connectionState === 'error');
+        const fatalConnectionFailure =
+          !websocketService.isReconnectingInProgress() &&
+          (connectionState === 'disconnected' || connectionState === 'error');
 
-      if (!fatalConnectionFailure) {
-        return;
-      }
+        if (!fatalConnectionFailure) {
+          return;
+        }
 
-      resolved = true;
-      clearTimeout(timeout);
+        resolved = true;
+        clearTimeout(timeout);
 
-      this.tryRecoverStructuredData(correlationId, expectedLayer)
-        .then((recovered) => {
-          if (recovered) {
-            resolved = true;
+        this.tryRecoverStructuredData(correlationId, expectedLayer)
+          .then((recovered) => {
+            if (recovered) {
+              cleanup();
+              resolve(recovered);
+              return;
+            }
+
             cleanup();
-            resolve(recovered);
-            return;
-          }
-
-          cleanup();
-          reject(new Error(error.error || 'Request failed'));
-        })
-        .catch(() => {
-          cleanup();
-          reject(new Error(error.error || 'Request failed'));
-        });
-    };
+            reject(new Error(error.error || 'Request failed'));
+          })
+          .catch(() => {
+            cleanup();
+            reject(new Error(error.error || 'Request failed'));
+          });
+      };
 
       const handleReplayFailure = () => {
         if (resolved) return;
@@ -544,12 +544,44 @@ class TapNavigationService {
         if (abortSignal) {
           abortSignal.removeEventListener('abort', handleAbort);
         }
+        if (supabaseChannel) {
+          supabaseChannel.unsubscribe();
+          supabaseChannel = null;
+        }
       };
 
       websocketService.onCorrelation(correlationId, handleMessage);
       websocketService.on('message', handleLegacyMessage);
       websocketService.on('error', handleError);
       websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
+      supabaseChannel = supabase
+        .channel(`tap_response_${correlationId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages',
+            filter: `correlation_id=eq.${correlationId}`,
+          },
+          (payload) => {
+            if (resolved) return;
+            const structured = payload.new?.structured_data;
+            if (!structured || !this.isValidStructuredData(structured)) {
+              return;
+            }
+            const normalized = this.normalizeStructuredData(structured);
+            const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
+            if (!expectedLayers.includes(normalized.layer)) {
+              return;
+            }
+            resolved = true;
+            clearTimeout(timeout);
+            cleanup();
+            resolve(normalized);
+          },
+        )
+        .subscribe();
 
       const handleAbort = () => {
         if (resolved) return;
