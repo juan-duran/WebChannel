@@ -191,6 +191,8 @@ export class WebSocketService {
     if (message.correlationId) {
       this.markRequestFulfilled(message.correlationId);
       this.notifyCorrelationHandlers(message.correlationId, message);
+    } else if (message.type === 'message' && message.role === 'assistant') {
+      this.markFirstPendingRequestFulfilled();
     }
 
     if (message.type === 'pong') {
@@ -453,6 +455,17 @@ export class WebSocketService {
     this.requestQueue.delete(correlationId);
     this.replayFailureHandlers.delete(correlationId);
     this.correlationHandlers.delete(correlationId);
+  }
+
+  private markFirstPendingRequestFulfilled() {
+    const pendingEntry = Array.from(this.requestQueue.entries()).find(([, entry]) => {
+      return entry.status === 'pending';
+    });
+
+    if (!pendingEntry) return;
+
+    const [correlationId] = pendingEntry;
+    this.markRequestFulfilled(correlationId);
   }
 
   private async sendQueuedRequest(correlationId: string) {
