@@ -44,6 +44,7 @@ type QueuedRequest = {
   attempts: number;
   maxRetries: number;
   status: RequestStatus;
+  expectsCorrelation: boolean;
 };
 
 type ReplayFailureHandler = (correlationId: string) => void;
@@ -300,12 +301,18 @@ export class WebSocketService {
     if (shouldTrack && correlationId) {
       const existing = this.requestQueue.get(correlationId);
       const queueEntry: QueuedRequest = existing
-        ? { ...existing, message, maxRetries: options?.maxRetries ?? existing.maxRetries }
+        ? {
+            ...existing,
+            message,
+            maxRetries: options?.maxRetries ?? existing.maxRetries,
+            expectsCorrelation: true,
+          }
         : {
             message,
             attempts: 0,
             maxRetries: options?.maxRetries ?? this.defaultMaxRequestRetries,
             status: 'pending',
+            expectsCorrelation: true,
           };
 
       this.requestQueue.set(correlationId, queueEntry);
@@ -459,7 +466,7 @@ export class WebSocketService {
 
   private markFirstPendingRequestFulfilled() {
     const pendingEntry = Array.from(this.requestQueue.entries()).find(([, entry]) => {
-      return entry.status === 'pending';
+      return entry.status === 'pending' && !entry.expectsCorrelation;
     });
 
     if (!pendingEntry) return;
