@@ -1,0 +1,7 @@
+tables:
+- chat_messages
+- channels
+- channel_members
+- cache_invalidations
+- active_connections
+- web_messages

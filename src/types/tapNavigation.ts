@@ -14,15 +14,28 @@ export interface TrendAssetMetadata {
  */
 export interface TrendData extends TrendAssetMetadata {
   id: string;
-  number: number;
-  category: string;
-  name: string;
-  description: string;
-  value: string;
-  url: string;
-  whyItMatters: string;
-  topics?: TopicData[];
+  number: number; // position mapped to number for UI
+  position?: number;
+  category?: string;
+  title?: string;
+  name?: string;
+  snippet?: string;
+  description?: string;
+  top_comment_preview?: string;
+  topCommentPreview?: string;
+  value?: string;
+  upvotes?: number;
+  comments_total?: number;
+  root_comments?: number;
+  comments_last_4h?: number;
+  posted_at?: string;
+  last_captured_at?: string;
+  url?: string;
+  asset_short_url?: string;
+  whyItMatters?: string;
+  trend_heat?: number;
   thread_id?: string;
+  topics?: TopicData[];
 }
 
 /**
@@ -35,6 +48,10 @@ export interface TopicData {
   description: string;
   'likes-data'?: string;
   likesData?: string;
+  replies_total?: number;
+  author?: string;
+  upvotes?: number;
+  posted_at?: string;
 }
 
 export interface SourceData {
@@ -80,6 +97,12 @@ export interface CachedEntry<T> {
   data: T;
   timestamp: number;
   expiresAt: number;
+}
+
+export interface TrendsCacheEntry {
+  trends: TrendData[];
+  trendsSummary: string | null;
+  version: string | null;
 }
 
 export interface TapNavigationState {
