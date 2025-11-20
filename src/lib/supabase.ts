@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { type DailyTrendsPayload } from '../types/dailyTrends';
 
 const envSource =
   (typeof import.meta !== 'undefined' && (import.meta as any)?.env) ||
@@ -46,3 +47,8 @@ export type UserPreference = {
   created_at: string;
   updated_at: string;
 };
+
+export interface DailyTrendsRow {
+  batch_ts: string;
+  payload: DailyTrendsPayload;
+}
