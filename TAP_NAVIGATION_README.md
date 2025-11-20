@@ -16,6 +16,8 @@ Tap Navigation is a mobile-first, card-based UI for Quenty WebChannel 2.0 that p
 2. **Layer 2**: Top 10 Topics per trend (mini-cards within expanded trend)
 3. **Layer 3**: Detailed summary (full-screen overlay)
 
+> **Architecture update**: Trends and topics now come directly from Supabase `daily_trends` (latest `batch_ts`, `payload.trends` + `trendsSummary`). The assistant/WebSocket is only used to generate summaries, using the trend/topic IDs from that payload.
+
 ## For n8n Backend Developers
 
 ### Three Request Patterns to Implement

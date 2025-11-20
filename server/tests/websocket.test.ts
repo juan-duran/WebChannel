@@ -154,7 +154,7 @@ async function testCachedFlow() {
     contentType: 'text',
     metadata: { cached: true },
     buttons: [{ label: 'Go', value: 'go' }],
-    cacheTag: 'trends:today',
+    cacheTag: 'text:today',
   }));
 
   const service = createService();
@@ -171,7 +171,7 @@ async function testCachedFlow() {
   assert.equal(assistantMessage.content, 'cached reply');
   assert.equal(assistantMessage.contentType, 'text');
   assert.deepEqual(assistantMessage.buttons, [{ label: 'Go', value: 'go' }]);
-  assert.equal(assistantMessage.cacheTag, 'trends:today');
+  assert.equal(assistantMessage.cacheTag, 'text:today');
   assert.equal(typeof assistantMessage.correlationId, 'string');
   const correlationId = assistantMessage.correlationId;
 
@@ -206,7 +206,7 @@ async function testNestedOutputFlow() {
             },
             buttons: [{ label: 'Nested CTA', value: 'nested-action' }],
             correlationId: 'nested-correlation-id',
-            contentType: 'trends',
+            contentType: 'summary',
           },
         },
       ],
@@ -225,7 +225,7 @@ async function testNestedOutputFlow() {
   assert.equal(assistantMessage.type, 'message');
   assert.equal(assistantMessage.role, 'assistant');
   assert.equal(assistantMessage.content, 'Nested structured summary');
-  assert.equal(assistantMessage.contentType, 'trends');
+  assert.equal(assistantMessage.contentType, 'summary');
   assert.deepEqual(assistantMessage.structuredData, { summary: 'Nested structured summary' });
   assert.deepEqual(assistantMessage.metadata, { nested: true });
   assert.equal(assistantMessage.cacheTag, 'nested-cache');
@@ -240,7 +240,7 @@ async function testNestedOutputFlow() {
   const assistantSave = supabaseServiceMock.saveMessage.calls[1];
   assert.equal(assistantSave[2], 'assistant');
   assert.equal(assistantSave[3], 'Nested structured summary');
-  assert.equal(assistantSave[4], 'trends');
+  assert.equal(assistantSave[4], 'summary');
   assert.deepEqual(assistantSave[5], { summary: 'Nested structured summary' });
   assert.deepEqual(assistantSave[6], { nested: true });
   assert.deepEqual(assistantSave[7], { status: 'ok' });
