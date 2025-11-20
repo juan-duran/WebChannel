@@ -3,21 +3,17 @@ import { RefreshCw, AlertCircle } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
-import { supabase } from '../lib/supabase';
+import { type DailyTrendsRow, supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
 
-const parseTrendsPayload = (payload: unknown): DailyTrendsPayload | null => {
+const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
 
   if (typeof payload === 'string') {
     return safeJsonParse<DailyTrendsPayload>(payload);
   }
 
-  if (typeof payload === 'object') {
-    return payload as DailyTrendsPayload;
-  }
-
-  return null;
+  return payload;
 };
 
 export function TapNavigationPage() {
@@ -64,7 +60,7 @@ export function TapNavigationPage() {
 
     try {
       const { data, error: supabaseError } = await supabase
-        .from('daily_trends')
+        .from<DailyTrendsRow>('daily_trends')
         .select('batch_ts, payload')
         .order('batch_ts', { ascending: false })
         .limit(1)
