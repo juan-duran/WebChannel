@@ -7,6 +7,11 @@ export interface TrendAssetMetadata {
   assetEmbedHtml?: string | null;
 }
 
+/**
+ * @deprecated Use the DailyTrend types in `src/types/dailyTrends.ts` for the
+ * latest `daily_trends.payload` shape. This legacy interface is retained for
+ * backward compatibility with older TAP navigation flows.
+ */
 export interface TrendData extends TrendAssetMetadata {
   id: string;
   number: number;
@@ -20,6 +25,10 @@ export interface TrendData extends TrendAssetMetadata {
   thread_id?: string;
 }
 
+/**
+ * @deprecated Use `DailyTrendTopic` from `src/types/dailyTrends.ts` when
+ * working with the current TAP daily trends data.
+ */
 export interface TopicData {
   id: string;
   number: number;
