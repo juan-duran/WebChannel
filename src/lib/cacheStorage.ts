@@ -1,4 +1,4 @@
-import { TrendData, TopicData, SummaryData, CachedEntry } from '../types/tapNavigation';
+import { TrendData, TopicData, SummaryData, CachedEntry, TrendsCacheEntry } from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
 const DB_VERSION = 2;
@@ -9,8 +9,8 @@ const STORE_NAMES = {
 };
 
 const TTL = {
-  trends: 30 * 60 * 1000,
-  topics: 30 * 60 * 1000,
+  trends: 15 * 60 * 1000,
+  topics: 15 * 60 * 1000,
   summaries: 15 * 60 * 1000,
 };
 
@@ -90,14 +90,14 @@ class CacheStorage {
     return sortedParams;
   }
 
-  async getTrends(): Promise<CachedEntry<TrendData[]> | null> {
+  async getTrends(): Promise<CachedEntry<TrendsCacheEntry> | null> {
     const key = this.generateKey('trends', { d: this.getToday() });
-    return this.get<TrendData[]>(STORE_NAMES.trends, key);
+    return this.get<TrendsCacheEntry>(STORE_NAMES.trends, key);
   }
 
-  async setTrends(data: TrendData[]): Promise<void> {
+  async setTrends(data: TrendsCacheEntry): Promise<void> {
     const key = this.generateKey('trends', { d: this.getToday() });
-    const entry: CachedEntry<TrendData[]> = {
+    const entry: CachedEntry<TrendsCacheEntry> = {
       data,
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.trends,
@@ -159,12 +159,21 @@ class CacheStorage {
     }
   }
 
-  async getSummary(topicId: number, trendId: number, userId: string): Promise<CachedEntry<SummaryData> | null> {
+  async getSummary(
+    topicId: number | string,
+    trendId: number | string,
+    userId: string,
+  ): Promise<CachedEntry<SummaryData> | null> {
     const key = this.buildSummaryKey(trendId, topicId, userId);
     return this.get<SummaryData>(STORE_NAMES.summaries, key);
   }
 
-  async setSummary(topicId: number, trendId: number, userId: string, data: SummaryData): Promise<void> {
+  async setSummary(
+    topicId: number | string,
+    trendId: number | string,
+    userId: string,
+    data: SummaryData,
+  ): Promise<void> {
     const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
     const entry: CachedEntry<SummaryData> = {
       data,
