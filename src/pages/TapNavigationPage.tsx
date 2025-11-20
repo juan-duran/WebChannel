@@ -2,34 +2,29 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
-import { TrendData, TopicData } from '../types/tapNavigation';
+import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
 import { supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
 
-interface TrendsPayload {
-  trendsSummary?: string | null;
-  trends?: TrendData[];
-}
-
-const parseTrendsPayload = (payload: unknown): TrendsPayload | null => {
+const parseTrendsPayload = (payload: unknown): DailyTrendsPayload | null => {
   if (!payload) return null;
 
   if (typeof payload === 'string') {
-    return safeJsonParse<TrendsPayload>(payload);
+    return safeJsonParse<DailyTrendsPayload>(payload);
   }
 
   if (typeof payload === 'object') {
-    return payload as TrendsPayload;
+    return payload as DailyTrendsPayload;
   }
 
   return null;
 };
 
 export function TapNavigationPage() {
-  const [trends, setTrends] = useState<TrendData[]>([]);
+  const [trends, setTrends] = useState<DailyTrend[]>([]);
   const [trendsSummary, setTrendsSummary] = useState<string | null>(null);
-  const [expandedTrendId, setExpandedTrendId] = useState<string | null>(null);
-  const [selectedTopic, setSelectedTopic] = useState<TopicData | null>(null);
+  const [expandedTrendId, setExpandedTrendId] = useState<number | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<DailyTrendTopic | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -44,6 +39,22 @@ export function TapNavigationPage() {
       timeStyle: 'short',
     }).format(date);
   }, [lastUpdated]);
+
+  const formatDate = useCallback((value?: string | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(date);
+  }, []);
+
+  const getTopicEngagement = useCallback(
+    (topic?: DailyTrendTopic | null) => topic?.['likes-data'] ?? topic?.likesData ?? 'Não informado',
+    [],
+  );
 
   const fetchLatestTrends = useCallback(async (options?: { isRefresh?: boolean }) => {
     const isRefresh = options?.isRefresh ?? false;
@@ -92,18 +103,18 @@ export function TapNavigationPage() {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
 
-  const handleTrendExpand = (trend: TrendData) => {
-    setExpandedTrendId((current) => (current === trend.id ? null : trend.id));
+  const handleTrendExpand = (trend: DailyTrend) => {
+    setExpandedTrendId((current) => (current === trend.position ? null : trend.position));
     setSelectedTopic(null);
   };
 
   const renderTrendList = () => (
     <div className="space-y-3">
       {trends.map((trend) => (
-        <div key={trend.id}>
+        <div key={`${trend.position}-${trend.title}`}>
           <TrendCard
             trend={trend}
-            isExpanded={expandedTrendId === trend.id}
+            isExpanded={expandedTrendId === trend.position}
             topics={trend.topics ?? null}
             isLoadingTopics={false}
             topicsError={null}
@@ -130,10 +141,25 @@ export function TapNavigationPage() {
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="font-semibold text-gray-700">Tópico #{selectedTopic.number}</span>
               </div>
-              <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
-              {selectedTopic.likesData && (
-                <p className="text-xs text-gray-500">{selectedTopic.likesData}</p>
-              )}
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
+                <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
+                <p>
+                  <span className="font-semibold text-gray-900">Engajamento do comentário:</span>{' '}
+                  {getTopicEngagement(selectedTopic)}
+                </p>
+                <p>
+                  <span className="font-semibold text-gray-900">Respostas (💬):</span>{' '}
+                  {typeof selectedTopic.replies_total === 'number' ? selectedTopic.replies_total : 'Sem dados'}
+                </p>
+                {selectedTopic.posted_at && (
+                  <p>
+                    <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500">
