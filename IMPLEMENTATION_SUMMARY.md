@@ -185,6 +185,15 @@ Successfully implemented a production-ready, real-time omnichannel messaging pla
 - Videos: MP4, WebM, OGG
 - Links: Any HTTPS URL
 
+### ✅ Daily Trends via Supabase (no WebSocket)
+
+**Location**: `src/lib/supabase.ts`, `src/lib/tapNavigationService.ts`, `src/pages/TapNavigationPage.tsx`
+
+- **Source of truth**: `daily_trends` table; client fetches latest row (`batch_ts, payload`) ordered desc, parses `payload.trends` and `trendsSummary`
+- **Local cache**: 15-minute IndexedDB cache storing trends, summary, and version
+- **UI mapping**: Renders “Panorama do dia” from `trendsSummary`, “Atualizado em” from `batch_ts`, trend cards show Assunto #position, category, title, snippet, top_comment_preview, engagement, timestamps, and source link; topics rendered from `topics[]`
+- **Summaries**: Still fetched from assistant using trend/topic IDs from the Supabase payload
+
 ### ✅ Monitoring & Observability
 
 **Prometheus Metrics** (`GET /metrics`):
