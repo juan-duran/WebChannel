@@ -63,6 +63,8 @@ export class WebSocketService {
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
+  private sessionReadyPromise: Promise<void> | null = null;
+  private resolveSessionReady: (() => void) | null = null;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
 
@@ -70,6 +72,26 @@ export class WebSocketService {
 
   private clearConnectionPromise() {
     this.connectionPromise = null;
+  }
+
+  private resetSessionReadyPromise() {
+    this.sessionReadyPromise = new Promise<void>((resolve) => {
+      this.resolveSessionReady = () => {
+        resolve();
+        this.resolveSessionReady = null;
+      };
+    });
+  }
+
+  private resolveSessionReadyPromise() {
+    if (this.resolveSessionReady) {
+      this.resolveSessionReady();
+      this.resolveSessionReady = null;
+    }
+
+    if (!this.sessionReadyPromise) {
+      this.resetSessionReadyPromise();
+    }
   }
 
   private logConnectionFailure(reason: string, error?: unknown) {
@@ -159,6 +181,9 @@ export class WebSocketService {
       const url = `${this.wsUrl}?token=${encodeURIComponent(token)}`;
 
       await new Promise<void>((resolve, reject) => {
+        this.sessionId = null;
+        this.resetSessionReadyPromise();
+
         const ws = new WebSocket(url);
         this.ws = ws;
         let isOpen = false;
@@ -216,6 +241,10 @@ export class WebSocketService {
             this.stopHeartbeat();
             this.ws = null;
 
+            this.sessionId = null;
+            this.sessionReadyPromise = null;
+            this.resolveSessionReady = null;
+
             if (this.isIntentionallyClosed) {
               this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
             }
@@ -254,11 +283,12 @@ export class WebSocketService {
     if (message.type === 'connected' && message.sessionId) {
       this.sessionId = message.sessionId;
       console.log('Session established:', this.sessionId);
+      this.resolveSessionReadyPromise();
     }
 
     if (message.correlationId) {
-      this.markRequestFulfilled(message.correlationId);
       this.notifyCorrelationHandlers(message.correlationId, message);
+      this.markRequestFulfilled(message.correlationId);
     } else if (message.type === 'message' && message.role === 'assistant') {
       this.markFirstPendingRequestFulfilled();
     }
@@ -350,6 +380,28 @@ export class WebSocketService {
     await this.connect();
   }
 
+  private async waitForSessionReady(timeoutMs = 5000) {
+    if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    if (!this.sessionReadyPromise) {
+      this.sessionReadyPromise = Promise.resolve();
+    }
+
+    if (timeoutMs <= 0) {
+      await this.sessionReadyPromise;
+      return;
+    }
+
+    await Promise.race([
+      this.sessionReadyPromise,
+      new Promise<void>((_, reject) => {
+        setTimeout(() => reject(new Error('Session handshake timeout')), timeoutMs);
+      }),
+    ]);
+  }
+
   async sendMessage(
     content: string,
     metadata?: any,
@@ -388,6 +440,7 @@ export class WebSocketService {
     }
 
     await this.ensureConnected();
+    await this.waitForSessionReady();
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Unable to establish WebSocket connection');
@@ -474,6 +527,8 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
+    this.sessionReadyPromise = null;
+    this.resolveSessionReady = null;
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
@@ -553,19 +608,21 @@ export class WebSocketService {
       return;
     }
 
-    entry.attempts += 1;
-    this.requestQueue.set(correlationId, entry);
-
     try {
       await this.ensureConnected();
+      await this.waitForSessionReady();
 
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         throw new Error('Unable to establish WebSocket connection');
       }
 
-      this.ws.send(JSON.stringify(entry.message));
+      const updatedEntry = { ...entry, attempts: entry.attempts + 1 };
+      this.requestQueue.set(correlationId, updatedEntry);
+
+      this.ws.send(JSON.stringify(updatedEntry.message));
     } catch (error) {
-      if (entry.attempts >= entry.maxRetries) {
+      const currentEntry = this.requestQueue.get(correlationId) ?? entry;
+      if (currentEntry.attempts >= currentEntry.maxRetries) {
         this.failQueuedRequest(correlationId);
       }
 
