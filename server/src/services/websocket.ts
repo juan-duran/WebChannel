@@ -165,7 +165,9 @@ export class WebSocketService {
       return;
     }
 
-    const correlationId = generateCorrelationId();
+    const correlationId = typeof message.correlationId === 'string' && message.correlationId.trim().length > 0
+      ? message.correlationId
+      : generateCorrelationId();
 
     logger.info(
       {
