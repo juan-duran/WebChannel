@@ -268,9 +268,14 @@ export class WebSocketService {
     }
 
     if (message.correlationId) {
+      const isTerminal = this.isTerminalCorrelationMessage(message);
+
       this.notifyCorrelationHandlers(message.correlationId, message);
-      if (this.isTerminalCorrelationMessage(message)) {
+
+      if (isTerminal) {
         this.markRequestFulfilled(message.correlationId);
+      } else {
+        this.refreshPendingCorrelation(message.correlationId);
       }
     } else if (message.type === 'message' && message.role === 'assistant') {
       this.markFirstPendingRequestFulfilled();
@@ -685,6 +690,19 @@ export class WebSocketService {
     if (!handlers) return;
 
     handlers.forEach((handler) => handler(message));
+  }
+
+  private refreshPendingCorrelation(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    const refreshedEntry = {
+      ...entry,
+      enqueueTimestamp: Date.now(),
+    } satisfies QueuedRequest;
+
+    this.requestQueue.set(correlationId, refreshedEntry);
+    this.scheduleRequestTimeout(correlationId);
   }
 
   private markRequestFulfilled(correlationId: string) {
