@@ -68,9 +68,8 @@ export class WebSocketService {
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
   private sessionReadyPromise: Promise<void> | null = null;
-  private sessionReadyResolver: (() => void) | null = null;
-  private sessionReadyRejecter: ((error: Error) => void) | null = null;
-  private sessionReadyTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private resolveSessionReady: (() => void) | null = null;
+  private sessionReadyPromiseVersion = 0;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
   private requestTimeoutMs = 20000;
@@ -80,6 +79,33 @@ export class WebSocketService {
 
   private clearConnectionPromise() {
     this.connectionPromise = null;
+  }
+
+  private resetSessionReadyPromise() {
+    this.resolveSessionReady = null;
+
+    const version = ++this.sessionReadyPromiseVersion;
+    const handshakePromise = new Promise<void>((resolve) => {
+      this.resolveSessionReady = () => {
+        if (this.sessionReadyPromiseVersion === version) {
+          resolve();
+          this.resolveSessionReady = null;
+        }
+      };
+    });
+
+    this.sessionReadyPromise = handshakePromise;
+  }
+
+  private resolveSessionReadyPromise() {
+    if (this.resolveSessionReady) {
+      this.resolveSessionReady();
+      this.resolveSessionReady = null;
+    }
+
+    if (!this.sessionReadyPromise) {
+      this.resetSessionReadyPromise();
+    }
   }
 
   private logConnectionFailure(reason: string, error?: unknown) {
@@ -155,7 +181,7 @@ export class WebSocketService {
 
     this.isIntentionallyClosed = false;
     this.sessionId = null;
-    this.initializeSessionReadyPromise();
+    this.resetSessionReadyPromise();
 
     const connectionPromise = (async () => {
       let session: Session;
@@ -171,6 +197,9 @@ export class WebSocketService {
       const url = `${this.wsUrl}?token=${encodeURIComponent(token)}`;
 
       await new Promise<void>((resolve, reject) => {
+        this.sessionId = null;
+        this.resetSessionReadyPromise();
+
         const ws = new WebSocket(url);
         this.ws = ws;
         let isOpen = false;
@@ -228,6 +257,9 @@ export class WebSocketService {
             this.stopHeartbeat();
             this.ws = null;
 
+            this.sessionId = null;
+            this.resetSessionReadyPromise();
+
             if (this.isIntentionallyClosed) {
               this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
             }
@@ -266,7 +298,7 @@ export class WebSocketService {
     if (message.type === 'connected' && message.sessionId) {
       this.sessionId = message.sessionId;
       console.log('Session established:', this.sessionId);
-      this.resolveSessionReady();
+      this.resolveSessionReadyPromise();
     }
 
     if (message.correlationId) {
@@ -413,18 +445,91 @@ export class WebSocketService {
 
   private async ensureConnected(context: string) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      await this.waitForSessionReady(context);
+      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
       return;
     }
 
     if (this.connectionPromise) {
       await this.connectionPromise;
-      await this.waitForSessionReady(context);
+      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
       return;
     }
 
     await this.connect();
-    await this.waitForSessionReady(context);
+    await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
+  }
+
+  private getOrCreateSessionReadyPromise() {
+    if (!this.sessionReadyPromise) {
+      this.resetSessionReadyPromise();
+    }
+
+    return {
+      promise: this.sessionReadyPromise!,
+      version: this.sessionReadyPromiseVersion,
+    };
+  }
+
+  private async waitForSessionReady(context: string, timeoutMs = 5000) {
+    if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    const deadline = Date.now() + timeoutMs;
+
+    while (true) {
+      const { promise: sessionReadyPromise, version } = this.getOrCreateSessionReadyPromise();
+      const remaining = deadline - Date.now();
+
+      try {
+        if (remaining > 0) {
+          await Promise.race([
+            sessionReadyPromise,
+            new Promise<void>((_, reject) => {
+              setTimeout(() => reject(new Error('Session handshake timeout')), remaining);
+            }),
+          ]);
+        } else {
+          await sessionReadyPromise;
+        }
+      } catch (error) {
+        const isStalePromise = this.sessionReadyPromiseVersion !== version;
+        const isReady = this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN;
+
+        if (isReady) {
+          return;
+        }
+
+        if (isStalePromise && deadline - Date.now() > 0) {
+          continue;
+        }
+
+        console.warn('[WebSocketService] Session not ready; aborting send', {
+          context,
+          sessionId: this.sessionId,
+          wsState: this.ws?.readyState,
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        throw error;
+      }
+
+      if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      if (this.sessionReadyPromiseVersion !== version && deadline - Date.now() > 0) {
+        continue;
+      }
+
+      console.warn('[WebSocketService] Session handshake timeout', {
+        context,
+        sessionId: this.sessionId,
+        wsState: this.ws?.readyState,
+        timestamp: new Date().toISOString(),
+      });
+      throw new Error('Session handshake timeout');
+    }
   }
 
   async sendMessage(
@@ -472,7 +577,6 @@ export class WebSocketService {
     }
 
     await this.ensureConnected('send_message');
-    await this.waitForSessionReady('send_message');
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
       throw new Error('Unable to establish WebSocket connection');
@@ -559,13 +663,7 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
-    if (this.sessionReadyTimeoutId) {
-      clearTimeout(this.sessionReadyTimeoutId);
-      this.sessionReadyTimeoutId = null;
-    }
-    this.sessionReadyPromise = null;
-    this.sessionReadyResolver = null;
-    this.sessionReadyRejecter = null;
+    this.resetSessionReadyPromise();
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
@@ -595,87 +693,6 @@ export class WebSocketService {
   setRequestTimeout(ms: number) {
     this.requestTimeoutMs = ms;
   }
-
-  private initializeSessionReadyPromise() {
-    if (this.sessionReadyPromise && this.sessionId) {
-      return;
-    }
-
-    if (this.sessionReadyTimeoutId) {
-      clearTimeout(this.sessionReadyTimeoutId);
-      this.sessionReadyTimeoutId = null;
-    }
-
-    this.sessionReadyPromise = new Promise<void>((resolve, reject) => {
-      this.sessionReadyResolver = resolve;
-      this.sessionReadyRejecter = reject;
-    });
-
-    if (this.sessionId && this.sessionReadyResolver) {
-      this.resolveSessionReady(true);
-      return;
-    }
-
-    this.sessionReadyTimeoutId = setTimeout(() => {
-      const error = new Error('Session handshake was not received in time');
-      console.warn('[WebSocketService] Session ready handshake timeout', {
-        timeoutMs: this.sessionReadyTimeoutMs,
-        sessionId: this.sessionId,
-        wsState: this.ws?.readyState,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (this.sessionReadyRejecter) {
-        this.sessionReadyRejecter(error);
-      }
-
-      this.sessionReadyPromise = null;
-      this.sessionReadyResolver = null;
-      this.sessionReadyRejecter = null;
-    }, this.sessionReadyTimeoutMs);
-  }
-
-  private async waitForSessionReady(context: string) {
-    if (this.sessionId) {
-      return Promise.resolve();
-    }
-
-    if (!this.sessionReadyPromise) {
-      this.initializeSessionReadyPromise();
-    }
-
-    try {
-      await this.sessionReadyPromise;
-    } catch (error) {
-      console.warn('[WebSocketService] Session not ready; aborting send', {
-        context,
-        sessionId: this.sessionId,
-        wsState: this.ws?.readyState,
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      throw error;
-    }
-  }
-
-  private resolveSessionReady(skipInit = false) {
-    if (this.sessionReadyTimeoutId) {
-      clearTimeout(this.sessionReadyTimeoutId);
-      this.sessionReadyTimeoutId = null;
-    }
-
-    if (!skipInit && !this.sessionReadyPromise) {
-      this.initializeSessionReadyPromise();
-    }
-
-    if (this.sessionReadyResolver) {
-      this.sessionReadyResolver();
-      this.sessionReadyResolver = null;
-    }
-
-    this.sessionReadyRejecter = null;
-  }
-
   generateCorrelationId(): string {
     return `corr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   }
@@ -733,7 +750,10 @@ export class WebSocketService {
     this.markRequestFulfilled(correlationId);
   }
 
-  private async sendQueuedRequest(correlationId: string, options: { isExplicitRetry?: boolean } = {}) {
+  private async sendQueuedRequest(
+    correlationId: string,
+    options: { isExplicitRetry?: boolean } = {},
+  ) {
     const entry = this.requestQueue.get(correlationId);
     if (!entry || entry.status !== 'pending') {
       return;
@@ -763,7 +783,7 @@ export class WebSocketService {
 
     try {
       await this.ensureConnected('send_queued_request');
-      await this.waitForSessionReady('send_queued_request');
+      await this.waitForSessionReady('send_queued_request', this.sessionReadyTimeoutMs);
 
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
         throw new Error('Unable to establish WebSocket connection');
@@ -779,6 +799,7 @@ export class WebSocketService {
           isSending: false,
           hasSentSuccessfully: true,
         });
+        this.scheduleRequestTimeout(correlationId);
       }
     } catch (error) {
       const failedEntry = this.requestQueue.get(correlationId);
@@ -809,7 +830,7 @@ export class WebSocketService {
   private async replayPendingRequests() {
     if (this.requestQueue.size === 0) return;
 
-    await this.waitForSessionReady('replay_pending_requests');
+    await this.waitForSessionReady('replay_pending_requests', this.sessionReadyTimeoutMs);
 
     for (const correlationId of this.requestQueue.keys()) {
       const entry = this.requestQueue.get(correlationId);
