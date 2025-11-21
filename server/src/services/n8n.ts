@@ -60,7 +60,8 @@ export class N8nService {
 
   private isCacheableRequest(message: string): boolean {
     const parsed = this.parseMessage(message);
-    return Boolean(parsed.kind);
+    // Only cache trends/topics; summaries should always hit n8n to get fresh data.
+    return parsed.kind === 'trends' || parsed.kind === 'topics';
   }
 
   private getCacheParams(message: string, userEmail: string, userId: string): {
@@ -92,6 +93,8 @@ export class N8nService {
     sessionId: string,
     correlationId: string
   ): Promise<any> {
+    logger.info({ correlationId, message, webhookUrl: config.n8n.webhookUrl }, 'Dispatching to n8n webhook');
+
     const payload: N8nWebhookPayload = {
       event: 'messages.upsert',
       data: {
