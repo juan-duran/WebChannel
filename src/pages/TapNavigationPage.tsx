@@ -8,6 +8,7 @@ import { safeJsonParse } from '../lib/safeJsonParse';
 import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService, type WebSocketMessage } from '../lib/websocket';
+import { fetchSummaryHttpFallback } from '../lib/httpAgent';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -78,43 +79,60 @@ export function TapNavigationPage() {
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
 
-      try {
-        await websocketService.connect();
-      } catch (wsError) {
-        setIsLoadingSummary(false);
-        setSummaryError('Não foi possível conectar ao assistente para gerar o resumo.');
-        return;
-      }
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const userId = session?.user?.id ?? 'anonymous';
 
       try {
-        const result = await tapNavigationService.fetchSummary(
-          Number(topic.number) || Number(topicId) || topic.number,
-          Number(trend.position) || Number(trendId) || trend.position,
-          userId,
-          {
-            trendId,
-            topicId,
-            forceRefresh: options?.forceRefresh,
-            signal: abortController.signal,
-            timeoutMs: 45_000,
-            correlationId,
-          },
-        );
+        // Try WS first
+        try {
+          await websocketService.connect();
+          const result = await tapNavigationService.fetchSummary(
+            Number(topic.number) || Number(topicId) || topic.number,
+            Number(trend.position) || Number(trendId) || trend.position,
+            userId,
+            {
+              trendId,
+              topicId,
+              forceRefresh: options?.forceRefresh,
+              signal: abortController.signal,
+              timeoutMs: 45_000,
+              correlationId,
+            },
+          );
 
-        if (result.success && result.data) {
-          setSelectedSummary(result.data as SummaryData);
-          setSummaryFromCache(Boolean(result.fromCache));
-          setSummaryError(result.error ?? null);
-          summaryCorrelationRef.current = null;
-        } else {
-          setSummaryError(result.error || 'Não foi possível obter o resumo.');
-          summaryCorrelationRef.current = null;
+          if (result.success && result.data) {
+            setSelectedSummary(result.data as SummaryData);
+            setSummaryFromCache(Boolean(result.fromCache));
+            setSummaryError(result.error ?? null);
+            summaryCorrelationRef.current = null;
+            return;
+          }
+        } catch (wsError) {
+          // Fall through to HTTP fallback
         }
+
+        // HTTP fallback
+        const httpResult = await fetchSummaryHttpFallback(trendId, topicId);
+        if (httpResult.success) {
+          const structured = httpResult.structuredData as any;
+          if (structured && structured.summary) {
+            setSelectedSummary(structured.summary as SummaryData);
+            setSummaryFromCache(false);
+            setSummaryError(null);
+          } else if (httpResult.content) {
+            setSelectedSummary({ thesis: httpResult.content });
+            setSummaryFromCache(false);
+            setSummaryError(null);
+          } else {
+            setSummaryError('Resumo indisponível (fallback).');
+          }
+        } else {
+          setSummaryError(httpResult.error || 'Resumo indisponível (fallback).');
+        }
+        summaryCorrelationRef.current = null;
+
       } catch (err) {
         if (abortController.signal.aborted) {
           setSummaryError('Solicitação cancelada.');

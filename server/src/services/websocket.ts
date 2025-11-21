@@ -154,6 +154,17 @@ export class WebSocketService {
       return;
     }
 
+    logger.info(
+      {
+        sessionId,
+        userId,
+        type: message.type,
+        correlationId: message.correlationId,
+        preview: message.content.slice(0, 80),
+      },
+      'Incoming user message over WebSocket',
+    );
+
     if (!this.userRateLimiterInstance.check(userId)) {
       logger.warn({ sessionId, userId }, 'User rate limit exceeded');
       const session = this.sessionManagerService.getSession(sessionId);
@@ -170,16 +181,13 @@ export class WebSocketService {
       ? message.correlationId
       : generateCorrelationId();
 
-    logger.info(
-      {
-        sessionId,
-        userId,
-        userEmail,
-        correlationId,
-        content: message.content,
-      },
-      'Forwarding message to n8n',
-    );
+    logger.info({
+      sessionId,
+      userId,
+      userEmail,
+      correlationId,
+      content: message.content,
+    }, 'Forwarding message to n8n');
 
     trackCorrelation(correlationId, sessionId, userId, userEmail);
 

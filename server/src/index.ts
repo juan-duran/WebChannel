@@ -13,6 +13,7 @@ import { apiRateLimit } from './middleware/rateLimit.js';
 import messagesRouter from './routes/messages.js';
 import adminRouter from './routes/admin.js';
 import healthRouter from './routes/health.js';
+import agentRouter from './routes/agent.js';
 
 async function startServer() {
   try {
@@ -40,6 +41,7 @@ async function startServer() {
     // rotas de API/health/admin
     app.use('/health', healthRouter);
     app.use('/api/messages', messagesRouter);
+    app.use('/api/agent', agentRouter);
     app.use('/admin', adminRouter);
 
     // --- servir FRONT (dist do Vite) ---
