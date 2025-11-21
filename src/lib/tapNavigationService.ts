@@ -585,15 +585,28 @@ class TapNavigationService {
         const fatalConnectionFailure =
           !websocketService.isReconnectingInProgress() &&
           (connectionState === 'disconnected' || connectionState === 'error');
+        const correlationMatches = Boolean(error.correlationId && error.correlationId === correlationId);
+        const connectionActive = connectionState === 'connected' || connectionState === 'connecting';
+        const shouldHandle = fatalConnectionFailure || correlationMatches || connectionActive;
 
-        if (!fatalConnectionFailure) {
+        if (!shouldHandle) {
           return;
         }
+
+        const message = error.error || error.message || 'Request failed';
+
+        console.error('[TapNavigationService][AgentErrorEvent]', {
+          event: 'agent_error',
+          correlationId,
+          errorCorrelationId: error.correlationId ?? null,
+          connectionState,
+          payload: error,
+        });
 
         resolved = true;
         clearTimeout(timeout);
         cleanup();
-        reject(new Error(error.error || 'Request failed'));
+        reject(new Error(message));
       };
 
       const handleReplayFailure = () => {
