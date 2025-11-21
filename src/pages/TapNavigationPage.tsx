@@ -7,7 +7,7 @@ import { type DailyTrendsRow, supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
 import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
-import { websocketService } from '../lib/websocket';
+import { websocketService, type WebSocketMessage } from '../lib/websocket';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -157,6 +157,36 @@ export function TapNavigationPage() {
   useEffect(() => {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
+
+  // Listen for assistant summary messages that may arrive asynchronously (e.g., via /api/messages/send)
+  useEffect(() => {
+    const handleIncoming = (message: WebSocketMessage) => {
+      if (message.type !== 'message' || message.role !== 'assistant') return;
+      if (message.contentType !== 'summary') return;
+
+      const structured = (message.structuredData ?? (message as any).structured_data) as SummaryData | null;
+
+      if (structured && structured.thesis) {
+        setSelectedSummary(structured);
+        setIsLoadingSummary(false);
+        setSummaryError(null);
+        return;
+      }
+
+      if (typeof message.content === 'string' && message.content.trim().length > 0) {
+        setSelectedSummary({
+          thesis: message.content.trim(),
+        });
+        setIsLoadingSummary(false);
+        setSummaryError(null);
+      }
+    };
+
+    websocketService.on('message', handleIncoming);
+    return () => {
+      websocketService.off('message', handleIncoming);
+    };
+  }, []);
 
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => (current === trend.position ? null : trend.position));
