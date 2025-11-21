@@ -62,10 +62,10 @@ class CacheStorage {
     return new Date().toISOString().slice(0, 10);
   }
 
-  private buildSummaryKey(trendId: string | number, topicId: string | number, userId: string): string {
+  private buildSummaryKey(threadId: string | number, commentId: string | number, userId: string): string {
     return this.generateKey('summaries', {
-      thread_id: String(trendId),
-      comment_id: String(topicId),
+      thread_id: String(threadId),
+      comment_id: String(commentId),
       uid: userId,
       d: this.getToday(),
     });
@@ -167,8 +167,8 @@ class CacheStorage {
   }
 
   async getSummary(
-    trendId: number | string,
     topicId: number | string,
+    trendId: number | string,
     userId: string,
   ): Promise<CachedEntry<SummaryCacheEntry> | null> {
     const key = this.buildSummaryKey(trendId, topicId, userId);
@@ -176,8 +176,8 @@ class CacheStorage {
   }
 
   async setSummary(
-    trendId: number | string,
     topicId: number | string,
+    trendId: number | string,
     userId: string,
     data: SummaryData,
     metadata?: SummaryCacheEntry['metadata'],
@@ -199,8 +199,8 @@ class CacheStorage {
   }
 
   async deleteSummary(
-    trendId: number | string,
     topicId: number | string,
+    trendId: number | string,
     userId: string,
     aliases: { trendId: number | string; topicId: number | string }[] = [],
   ): Promise<void> {
