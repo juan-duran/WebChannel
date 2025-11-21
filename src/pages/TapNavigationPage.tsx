@@ -5,6 +5,9 @@ import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
 import { type DailyTrendsRow, supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
+import { tapNavigationService } from '../lib/tapNavigationService';
+import { SummaryData } from '../types/tapNavigation';
+import { websocketService } from '../lib/websocket';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -21,6 +24,10 @@ export function TapNavigationPage() {
   const [trendsSummary, setTrendsSummary] = useState<string | null>(null);
   const [expandedTrendId, setExpandedTrendId] = useState<number | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DailyTrendTopic | null>(null);
+  const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryFromCache, setSummaryFromCache] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -49,6 +56,53 @@ export function TapNavigationPage() {
 
   const getTopicEngagement = useCallback(
     (topic?: DailyTrendTopic | null) => topic?.['likes-data'] ?? topic?.likesData ?? 'Não informado',
+    [],
+  );
+
+  const fetchSummaryForTopic = useCallback(
+    async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
+      setSummaryError(null);
+      setSelectedSummary(null);
+      setSummaryFromCache(false);
+      setIsLoadingSummary(true);
+
+      const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
+      const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
+
+      try {
+        await websocketService.connect();
+      } catch (wsError) {
+        setIsLoadingSummary(false);
+        setSummaryError('Não foi possível conectar ao assistente para gerar o resumo.');
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const userId = session?.user?.id ?? 'anonymous';
+
+      try {
+        const result = await tapNavigationService.fetchSummary(topic.number, trend.position, userId, {
+          trendId,
+          topicId,
+          forceRefresh: options?.forceRefresh,
+        });
+
+        if (result.success && result.data) {
+          setSelectedSummary(result.data as SummaryData);
+          setSummaryFromCache(Boolean(result.fromCache));
+          setSummaryError(result.error ?? null);
+        } else {
+          setSummaryError(result.error || 'Não foi possível obter o resumo.');
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
+        setSummaryError(message);
+      } finally {
+        setIsLoadingSummary(false);
+      }
+    },
     [],
   );
 
@@ -102,6 +156,8 @@ export function TapNavigationPage() {
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => (current === trend.position ? null : trend.position));
     setSelectedTopic(null);
+    setSelectedSummary(null);
+    setSummaryError(null);
   };
 
   const renderTrendList = () => (
@@ -116,7 +172,12 @@ export function TapNavigationPage() {
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
-            onTopicSelect={(topic) => setSelectedTopic(topic)}
+            onTopicSelect={(topic) => {
+              setSelectedTopic(topic);
+              setSelectedSummary(null);
+              setSummaryError(null);
+              setSummaryFromCache(false);
+            }}
             disabled={isLoading || isRefreshing}
           />
         </div>
@@ -128,6 +189,7 @@ export function TapNavigationPage() {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
+    const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
@@ -156,6 +218,48 @@ export function TapNavigationPage() {
                   </p>
                 )}
               </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic)}
+                  disabled={isLoadingSummary || !currentTrend}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
+                  {selectedSummary ? 'Atualizar resumo' : 'Gerar resumo'}
+                </button>
+                {summaryFromCache && !isLoadingSummary && (
+                  <span className="text-[11px] text-amber-700">Exibindo versão em cache</span>
+                )}
+              </div>
+
+              {isLoadingSummary && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  Gerando resumo... (pode levar ~45 segundos)
+                </div>
+              )}
+              {summaryError && !isLoadingSummary && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {summaryError}
+                </div>
+              )}
+              {selectedSummary && !isLoadingSummary && !summaryError && (
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-2">
+                  <p className="text-sm font-semibold text-gray-900">Resumo</p>
+                  {selectedSummary.thesis && (
+                    <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{selectedSummary.thesis}</p>
+                  )}
+                  {selectedSummary.personalization && (
+                    <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
+                      {selectedSummary.personalization}
+                    </p>
+                  )}
+                  {selectedSummary.likesData && (
+                    <p className="text-xs text-gray-500">{selectedSummary.likesData}</p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500">
