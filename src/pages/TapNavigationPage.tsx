@@ -25,6 +25,7 @@ export function TapNavigationPage() {
   const [expandedTrendId, setExpandedTrendId] = useState<number | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DailyTrendTopic | null>(null);
   const [selectedSummary, setSelectedSummary] = useState<SummaryData | null>(null);
+  const [summaryMetadata, setSummaryMetadata] = useState<Record<string, unknown> | null>(null);
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
@@ -59,10 +60,25 @@ export function TapNavigationPage() {
     [],
   );
 
+  const summaryTopicName =
+    selectedSummary?.['topic-name'] ??
+    selectedSummary?.topicName ??
+    ((summaryMetadata?.['topic-name'] as string) || (summaryMetadata?.topicName as string) || undefined);
+  const summaryTrendName = (summaryMetadata?.trendName as string) ?? (summaryMetadata?.['trend-name'] as string);
+  const summaryLikesData = selectedSummary?.['likes-data'] ?? selectedSummary?.likesData;
+  const summaryTopicsSummary = (summaryMetadata?.topicsSummary as string) ?? (summaryMetadata?.['topicsSummary'] as string);
+  const summaryContext = Array.isArray(selectedSummary?.context)
+    ? selectedSummary.context.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const summaryDebate = Array.isArray(selectedSummary?.debate)
+    ? selectedSummary.debate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+
   const fetchSummaryForTopic = useCallback(
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
       setSummaryError(null);
       setSelectedSummary(null);
+      setSummaryMetadata(null);
       setSummaryFromCache(false);
       setIsLoadingSummary(true);
 
@@ -96,6 +112,7 @@ export function TapNavigationPage() {
 
         if (result.success && result.data) {
           setSelectedSummary(result.data as SummaryData);
+          setSummaryMetadata((result.metadata as Record<string, unknown>) ?? null);
           setSummaryFromCache(Boolean(result.fromCache));
           setSummaryError(result.error ?? null);
         } else {
@@ -104,6 +121,7 @@ export function TapNavigationPage() {
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
         setSummaryError(message);
+        setSummaryMetadata(null);
       } finally {
         setIsLoadingSummary(false);
       }
@@ -249,8 +267,47 @@ export function TapNavigationPage() {
                   {summaryError}
                 </div>
               )}
-              {selectedSummary && !isLoadingSummary && !summaryError && (
-                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
+                {selectedSummary && !isLoadingSummary && !summaryError && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        {summaryTopicName && (
+                          <span className="font-semibold text-gray-900">{summaryTopicName}</span>
+                        )}
+                        {summaryTrendName && (
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                            {summaryTrendName}
+                          </span>
+                        )}
+                        {summaryLikesData && (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                            {summaryLikesData}
+                          </span>
+                        )}
+                      </div>
+
+                    {(selectedSummary.thread_id || selectedSummary.comment_id) && (
+                      <p className="text-[11px] text-gray-500">
+                        {selectedSummary.thread_id && <span>Thread: {selectedSummary.thread_id}</span>}
+                        {selectedSummary.thread_id && selectedSummary.comment_id && <span> · </span>}
+                        {selectedSummary.comment_id && <span>Comentário: {selectedSummary.comment_id}</span>}
+                      </p>
+                    )}
+                  </div>
+
+                  {summaryContext.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Contexto</p>
+                      <ul className="space-y-1">
+                        {summaryContext.map((item, index) => (
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-gray-800 leading-relaxed">
+                            • {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Resumo</p>
                     {selectedSummary.thesis && (
@@ -264,6 +321,7 @@ export function TapNavigationPage() {
                       </p>
                     )}
                   </div>
+
                   {selectedSummary.personalization && selectedSummary.thesis && (
                     <div>
                       <p className="text-xs font-semibold text-gray-900 mb-1">Personalização</p>
@@ -272,9 +330,29 @@ export function TapNavigationPage() {
                       </p>
                     </div>
                   )}
-                  {selectedSummary.likesData && (
-                    <p className="text-xs text-gray-500">{selectedSummary.likesData}</p>
+
+                  {summaryDebate.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Pontos de debate</p>
+                      <ul className="space-y-1">
+                        {summaryDebate.map((item, index) => (
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-gray-800 leading-relaxed">
+                            • {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
+
+                  {(selectedSummary['why-it-matters'] || selectedSummary.whyItMatters) && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Por que importa</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                        {selectedSummary['why-it-matters'] || selectedSummary.whyItMatters}
+                      </p>
+                    </div>
+                  )}
+
                   {Array.isArray(selectedSummary.sources) && selectedSummary.sources.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-gray-900 mb-1">Fontes</p>
@@ -287,6 +365,13 @@ export function TapNavigationPage() {
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  )}
+
+                  {summaryTopicsSummary && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Resumo dos tópicos</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{summaryTopicsSummary}</p>
                     </div>
                   )}
                 </div>
