@@ -250,18 +250,44 @@ export function TapNavigationPage() {
                 </div>
               )}
               {selectedSummary && !isLoadingSummary && !summaryError && (
-                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-2">
-                  <p className="text-sm font-semibold text-gray-900">Resumo</p>
-                  {selectedSummary.thesis && (
-                    <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{selectedSummary.thesis}</p>
-                  )}
-                  {selectedSummary.personalization && (
-                    <p className="text-xs text-gray-600 whitespace-pre-line leading-relaxed">
-                      {selectedSummary.personalization}
-                    </p>
+                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Resumo</p>
+                    {selectedSummary.thesis && (
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
+                        {selectedSummary.thesis}
+                      </p>
+                    )}
+                    {!selectedSummary.thesis && selectedSummary.personalization && (
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
+                        {selectedSummary.personalization}
+                      </p>
+                    )}
+                  </div>
+                  {selectedSummary.personalization && selectedSummary.thesis && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Personalização</p>
+                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                        {selectedSummary.personalization}
+                      </p>
+                    </div>
                   )}
                   {selectedSummary.likesData && (
                     <p className="text-xs text-gray-500">{selectedSummary.likesData}</p>
+                  )}
+                  {Array.isArray(selectedSummary.sources) && selectedSummary.sources.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-1">Fontes</p>
+                      <ul className="space-y-1">
+                        {selectedSummary.sources.map((source, index) => (
+                          <li key={`${source.url ?? index}`} className="text-xs text-blue-600 underline">
+                            <a href={source.url} target="_blank" rel="noopener noreferrer">
+                              {source.title || source.url}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               )}
