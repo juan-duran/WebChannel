@@ -83,11 +83,16 @@ export function TapNavigationPage() {
       const userId = session?.user?.id ?? 'anonymous';
 
       try {
-        const result = await tapNavigationService.fetchSummary(topic.number, trend.position, userId, {
-          trendId,
-          topicId,
-          forceRefresh: options?.forceRefresh,
-        });
+        const result = await tapNavigationService.fetchSummary(
+          Number(topic.number) || Number(topicId) || topic.number,
+          Number(trend.position) || Number(trendId) || trend.position,
+          userId,
+          {
+            trendId,
+            topicId,
+            forceRefresh: options?.forceRefresh,
+          },
+        );
 
         if (result.success && result.data) {
           setSelectedSummary(result.data as SummaryData);

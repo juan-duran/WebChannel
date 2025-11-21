@@ -293,7 +293,7 @@ class TapNavigationService {
         };
       }
 
-      const message = `Assunto ${options?.trendId ?? trendRank} Topico ${options?.topicId ?? topicRank}`;
+      const message = `Assunto #${options?.trendId ?? trendRank} Tópico #${options?.topicId ?? topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
@@ -334,7 +334,7 @@ class TapNavigationService {
         options?.trendId ?? trendRank,
         userId,
       );
-      const message = `Assunto ${options?.trendId ?? trendRank} Topico ${options?.topicId ?? topicRank}`;
+      const message = `Assunto #${options?.trendId ?? trendRank} Tópico #${options?.topicId ?? topicRank}`;
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
@@ -358,7 +358,7 @@ class TapNavigationService {
     userId: string,
   ): Promise<void> {
     try {
-      const message = `Assunto ${trendRank} Topico ${topicRank}`;
+      const message = `Assunto #${trendRank} Tópico #${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
