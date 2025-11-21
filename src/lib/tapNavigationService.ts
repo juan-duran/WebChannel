@@ -477,22 +477,8 @@ class TapNavigationService {
 
         resolved = true;
         clearTimeout(timeout);
-
-        this.tryRecoverStructuredData(correlationId, expectedLayer)
-          .then((recovered) => {
-            if (recovered) {
-              cleanup();
-              resolve(recovered);
-              return;
-            }
-
-            cleanup();
-            reject(new Error(error.error || 'Request failed'));
-          })
-          .catch(() => {
-            cleanup();
-            reject(new Error(error.error || 'Request failed'));
-          });
+        cleanup();
+        reject(new Error(error.error || 'Request failed'));
       };
 
       const handleReplayFailure = () => {
@@ -500,21 +486,8 @@ class TapNavigationService {
 
         resolved = true;
         clearTimeout(timeout);
-
-        this.tryRecoverStructuredData(correlationId, expectedLayer)
-          .then((recovered) => {
-            if (recovered) {
-              cleanup();
-              resolve(recovered);
-              return;
-            }
-            cleanup();
-            reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
-          })
-          .catch(() => {
-            cleanup();
-            reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
-          });
+        cleanup();
+        reject(new Error('Não foi possível reenviar sua solicitação ao assistente. Tente novamente.'));
       };
 
       const cleanup = () => {
@@ -536,34 +509,6 @@ class TapNavigationService {
       websocketService.on('message', handleLegacyMessage);
       websocketService.on('error', handleError);
       websocketService.onRequestReplayExhausted(correlationId, handleReplayFailure);
-      supabaseChannel = supabase
-        .channel(`tap_response_${correlationId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `correlation_id=eq.${correlationId}`,
-          },
-          (payload) => {
-            if (resolved) return;
-            const structured = payload.new?.structured_data;
-            if (!structured || !this.isValidStructuredData(structured)) {
-              return;
-            }
-            const normalized = this.normalizeStructuredData(structured);
-            const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
-            if (!expectedLayers.includes(normalized.layer)) {
-              return;
-            }
-            resolved = true;
-            clearTimeout(timeout);
-            cleanup();
-            resolve(normalized);
-          },
-        )
-        .subscribe();
 
       const handleAbort = () => {
         if (resolved) return;
@@ -586,24 +531,9 @@ class TapNavigationService {
       const timeout = setTimeout(() => {
         if (resolved) return;
 
-        this.tryRecoverStructuredData(correlationId, expectedLayer)
-          .then((recovered) => {
-            if (recovered) {
-              resolved = true;
-              cleanup();
-              resolve(recovered);
-              return;
-            }
-
-            resolved = true;
-            cleanup();
-            reject(new RequestTimeoutError());
-          })
-          .catch(() => {
-            resolved = true;
-            cleanup();
-            reject(new RequestTimeoutError());
-          });
+        resolved = true;
+        cleanup();
+        reject(new RequestTimeoutError());
       }, timeoutDuration);
 
       websocketService
@@ -1210,37 +1140,10 @@ class TapNavigationService {
   }
 
   private async tryRecoverStructuredData(
-    correlationId: string,
-    expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][] ,
+    _correlationId: string,
+    _expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][] ,
   ): Promise<TapNavigationStructuredData | null> {
-    const layers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
-
-    try {
-      const { data, error } = await supabase
-        .from('chat_messages')
-        .select('structured_data')
-        .eq('correlation_id', correlationId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error || !data?.structured_data) {
-        return null;
-      }
-
-      if (!this.isValidStructuredData(data.structured_data)) {
-        return null;
-      }
-
-      if (!layers.includes(data.structured_data.layer)) {
-        return null;
-      }
-
-      return this.normalizeStructuredData(data.structured_data);
-    } catch (error) {
-      console.warn('Failed to recover structured data from history', error);
-      return null;
-    }
+    return null;
   }
 
   private formatErrorMessage(error: unknown, fallback: string): string {
