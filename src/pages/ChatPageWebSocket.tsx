@@ -22,6 +22,44 @@ import type { SourceData, SummaryData } from '../types/tapNavigation';
 
 const allowedAssistantContentTypes: ChatMessage['contentType'][] = ['text', 'trends', 'topics', 'summary'];
 
+const unwrapStructuredData = (data: unknown): unknown => {
+  if (Array.isArray(data) && data.length === 1) {
+    return unwrapStructuredData(data[0]);
+  }
+
+  if (data && typeof data === 'object' && 'output' in (data as any)) {
+    const output = (data as any).output;
+    if (Array.isArray(output) && output.length === 1) {
+      return unwrapStructuredData(output[0]);
+    }
+
+    if (output && typeof output === 'object') {
+      return unwrapStructuredData(output);
+    }
+  }
+
+  return data;
+};
+
+const extractStructuredDataFromMessage = (message: WebSocketMessage): unknown => {
+  const candidates = [
+    (message as any)?.structuredData,
+    (message as any)?.output,
+    (message as any)?.structured_data,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate !== null) {
+      const unwrapped = unwrapStructuredData(candidate);
+      if (unwrapped !== undefined && unwrapped !== null) {
+        return unwrapped;
+      }
+    }
+  }
+
+  return null;
+};
+
 export function inferContentTypeFromStructuredData(
   structuredData: unknown
 ): ChatMessage['contentType'] | undefined {
@@ -29,26 +67,7 @@ export function inferContentTypeFromStructuredData(
     return undefined;
   }
 
-  const unwrapSingleItemArray = (data: unknown): unknown => {
-    if (Array.isArray(data) && data.length === 1) {
-      return unwrapSingleItemArray(data[0]);
-    }
-
-    if (data && typeof data === 'object' && 'output' in (data as any)) {
-      const output = (data as any).output;
-      if (Array.isArray(output) && output.length === 1) {
-        return unwrapSingleItemArray(output[0]);
-      }
-
-      if (output && typeof output === 'object') {
-        return unwrapSingleItemArray(output);
-      }
-    }
-
-    return data;
-  };
-
-  const normalizedData = unwrapSingleItemArray(structuredData);
+  const normalizedData = unwrapStructuredData(structuredData);
 
   if (Array.isArray(normalizedData)) {
     return undefined;
@@ -183,7 +202,8 @@ export function ChatPageWebSocket() {
 
       const parsedContent = safeJsonParse<any>(message.content);
       const parsedType = typeof parsedContent?.type === 'string' ? parsedContent.type : undefined;
-      const structuredDataType = inferContentTypeFromStructuredData(message.structuredData);
+      const structuredData = extractStructuredDataFromMessage(message);
+      const structuredDataType = inferContentTypeFromStructuredData(structuredData);
       const resolvedContentType =
         (message.contentType && (allowedAssistantContentTypes as string[]).includes(message.contentType)
           ? (message.contentType as ChatMessage['contentType'])
@@ -244,7 +264,7 @@ export function ChatPageWebSocket() {
         structuredData:
           parsedContent && Object.prototype.hasOwnProperty.call(parsedContent, 'items')
             ? parsedContent.items
-            : message.structuredData || null,
+            : structuredData || null,
         metadata:
           message.metadata ||
           (parsedContent?.metadata && typeof parsedContent.metadata === 'object'
