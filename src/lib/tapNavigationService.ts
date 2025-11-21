@@ -252,7 +252,7 @@ class TapNavigationService {
     topicRank: number,
     trendRank: number,
     userId: string,
-    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
+    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string; correlationId?: string },
   ): Promise<TapNavigationResponse> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
     const rawTrendId = String(options?.trendId ?? trendRank);
@@ -277,7 +277,7 @@ class TapNavigationService {
     topicRank: number,
     trendRank: number,
     userId: string,
-    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
+    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string; correlationId?: string },
   ): Promise<TapNavigationResponse> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
     const rawTrendId = String(options?.trendId ?? trendRank);
@@ -308,7 +308,9 @@ class TapNavigationService {
       }
 
       const message = `Assunto ${trendCacheId} topico ${topicCacheId}`;
-      const payload = await this.requestFromAgent(message, 'summary');
+      const payload = await this.requestFromAgent(message, 'summary', {
+        correlationId: options?.correlationId,
+      });
 
       if (payload.summary) {
         const canonicalIds = this.extractCanonicalSummaryIds(
@@ -467,11 +469,11 @@ class TapNavigationService {
   private async requestFromAgent(
     message: string,
     expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][],
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; correlationId?: string },
   ): Promise<TapNavigationStructuredData> {
     return new Promise((resolve, reject) => {
       let resolved = false;
-      const correlationId = websocketService.generateCorrelationId();
+      const correlationId = options?.correlationId ?? websocketService.generateCorrelationId();
       const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
 
