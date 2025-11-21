@@ -255,8 +255,6 @@ class TapNavigationService {
     options?: { forceRefresh?: boolean; trendId?: string; topicId?: string; correlationId?: string },
   ): Promise<TapNavigationResponse> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
-    const rawTrendId = String(options?.trendId ?? trendRank);
-    const rawTopicId = String(options?.topicId ?? topicRank);
     const cacheKey = `summary_${trendCacheId}_${topicCacheId}_${userId}`;
 
     if (this.pendingRequests.has(cacheKey)) {
@@ -1299,8 +1297,8 @@ class TapNavigationService {
       };
     };
 
-    return trends
-      .map((item, index) => {
+    const normalizedTrends = trends
+      .map((item, index): TrendData | null => {
         if (!item || typeof item !== 'object') return null;
 
         const trend = item as Record<string, unknown>;
@@ -1331,7 +1329,7 @@ class TapNavigationService {
           toStringValue(trend.url) ??
           undefined;
 
-        return {
+        const normalizedTrend: TrendData = {
           id,
           number,
           position,
@@ -1355,16 +1353,13 @@ class TapNavigationService {
           trend_heat: toNumberValue(trend.trend_heat),
           thread_id: toStringValue(trend.thread_id ?? trend.id),
           topics: normalizedTopics,
-        } satisfies TrendData;
+        };
+
+        return normalizedTrend;
       })
       .filter((trend): trend is TrendData => Boolean(trend));
-  }
 
-  private async tryRecoverStructuredData(
-    _correlationId: string,
-    _expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][] ,
-  ): Promise<TapNavigationStructuredData | null> {
-    return null;
+    return normalizedTrends;
   }
 
   private formatErrorMessage(error: unknown, fallback: string): string {

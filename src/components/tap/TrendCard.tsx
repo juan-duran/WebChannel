@@ -1,5 +1,6 @@
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
+import type { TrendAssetMetadata } from '../../types/tapNavigation';
 import { TopicSkeleton } from './LoadingProgress';
 import { TrendAssetPreview } from './TrendAssetPreview';
 
@@ -45,6 +46,14 @@ export function TrendCard({
   disabled = false,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
+  const trendAsset: TrendAssetMetadata = {
+    assetUrl: trend.asset_short_url ?? undefined,
+    assetTitle: trend.title,
+    assetDescription: trend.snippet ?? undefined,
+    assetThumbnail: undefined,
+    assetType: undefined,
+    assetEmbedHtml: undefined,
+  };
 
   const handleToggle = () => {
     if (disabled) return;
@@ -133,10 +142,7 @@ export function TrendCard({
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
           <TrendAssetPreview
-            asset={trend}
-            fallbackUrl={trend.asset_short_url}
-            fallbackTitle={trend.title}
-            fallbackDescription={trend.snippet}
+            asset={trendAsset}
             className="mb-4"
           />
 

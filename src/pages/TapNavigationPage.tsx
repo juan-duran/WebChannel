@@ -234,7 +234,7 @@ export function TapNavigationPage() {
 
     try {
       const { data, error: supabaseError } = await supabase
-        .from<DailyTrendsRow>('daily_trends')
+        .from<'daily_trends', DailyTrendsRow>('daily_trends')
         .select('batch_ts, payload')
         .order('batch_ts', { ascending: false })
         .limit(1)

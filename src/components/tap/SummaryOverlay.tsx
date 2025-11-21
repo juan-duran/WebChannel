@@ -1,9 +1,12 @@
-import { X, ArrowLeft, RefreshCw, Share2, Heart, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Share2, Heart, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
 import { SummaryData } from '../../types/tapNavigation';
 import { useState } from 'react';
 
 interface SummaryOverlayProps {
   summary: SummaryData;
+  trendName?: string | null;
+  lastUpdated?: string | null;
+  contentOverride?: string;
   isRefreshing?: boolean;
   fromCache?: boolean;
   onClose: () => void;
@@ -17,6 +20,9 @@ export function SummaryOverlay({
   summary,
   isRefreshing = false,
   fromCache = false,
+  trendName,
+  lastUpdated,
+  contentOverride,
   onClose,
   onRefresh,
   onShare,
@@ -24,12 +30,6 @@ export function SummaryOverlay({
   disabled = false,
 }: SummaryOverlayProps) {
   const [isSaved, setIsSaved] = useState(false);
-
-  const handleSave = () => {
-    setIsSaved(!isSaved);
-    onSave?.();
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -45,6 +45,20 @@ export function SummaryOverlay({
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
   };
+  const headerTrendName = trendName ?? summary.topicName ?? summary.thesis ?? 'Resumo';
+  const headerTopicName = summary.topicName ?? summary.thesis ?? 'Resumo';
+  const updatedLabel = lastUpdated ? formatDate(lastUpdated) : null;
+  const contentText =
+    contentOverride ??
+    summary.context?.join('\n\n') ??
+    summary.thesis ??
+    summary.debate?.join('\n\n') ??
+    '';
+
+  const handleSave = () => {
+    setIsSaved(!isSaved);
+    onSave?.();
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-white overflow-hidden flex flex-col animate-slideUp">
@@ -59,15 +73,19 @@ export function SummaryOverlay({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <div className="text-xs opacity-90 truncate">{summary.trendName}</div>
-              <h1 className="text-lg font-bold truncate">{summary.topicName}</h1>
+              <div className="text-xs opacity-90 truncate">{headerTrendName}</div>
+              <h1 className="text-lg font-bold truncate">{headerTopicName}</h1>
             </div>
           </div>
 
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 opacity-90">
-              <Calendar className="w-3 h-3" />
-              <span>Last updated {formatDate(summary.lastUpdated)}</span>
+              {updatedLabel && (
+                <>
+                  <Calendar className="w-3 h-3" />
+                  <span>Last updated {updatedLabel}</span>
+                </>
+              )}
               {fromCache && (
                 <span className="px-2 py-0.5 bg-white/20 rounded text-xs">Cached</span>
               )}
@@ -116,34 +134,37 @@ export function SummaryOverlay({
             </div>
           )}
 
-          <div className="prose prose-sm max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700">
-            {summary.content.split('\n').map((paragraph, index) => {
-              if (!paragraph.trim()) return null;
+          {contentText && (
+            <div className="prose prose-sm max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-p:text-gray-700 prose-p:leading-relaxed prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-strong:text-gray-900 prose-ul:text-gray-700 prose-ol:text-gray-700">
+              {contentText.split('\n').map((paragraph, index) => {
+                const trimmed = paragraph.trim();
+                if (!trimmed) return null;
 
-              if (paragraph.startsWith('**') && paragraph.endsWith('**')) {
-                const text = paragraph.slice(2, -2);
+                if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                  const text = trimmed.slice(2, -2);
+                  return (
+                    <h3 key={index} className="text-lg font-bold text-gray-900 mt-6 mb-3">
+                      {text}
+                    </h3>
+                  );
+                }
+
+                if (trimmed.startsWith('- ')) {
+                  return (
+                    <li key={index} className="ml-4">
+                      {trimmed.slice(2)}
+                    </li>
+                  );
+                }
+
                 return (
-                  <h3 key={index} className="text-lg font-bold text-gray-900 mt-6 mb-3">
-                    {text}
-                  </h3>
+                  <p key={index} className="mb-4 text-gray-700 leading-relaxed">
+                    {trimmed}
+                  </p>
                 );
-              }
-
-              if (paragraph.startsWith('- ')) {
-                return (
-                  <li key={index} className="ml-4">
-                    {paragraph.slice(2)}
-                  </li>
-                );
-              }
-
-              return (
-                <p key={index} className="mb-4 text-gray-700 leading-relaxed">
-                  {paragraph}
-                </p>
-              );
-            })}
-          </div>
+              })}
+            </div>
+          )}
 
           {summary.sources && summary.sources.length > 0 && (
             <div className="mt-8 p-4 bg-gray-50 rounded-xl border border-gray-200">

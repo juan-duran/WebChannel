@@ -77,7 +77,9 @@ export async function fetchLatestDailyTrends(): Promise<DailyTrendsResult> {
 
   const payloadValue = (data as DailyTrendsRow).payload;
   const rawPayload =
-    typeof payloadValue === 'string' ? safeJsonParse(payloadValue, null) : (payloadValue as DailyTrendsPayload | null);
+    typeof payloadValue === 'string'
+      ? safeJsonParse<DailyTrendsPayload | null>(payloadValue)
+      : (payloadValue as DailyTrendsPayload | null);
 
   if (!rawPayload || typeof rawPayload !== 'object') {
     throw new Error('Payload de daily_trends inválido.');

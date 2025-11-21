@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 interface LoadingProgressProps {
   message?: string;
-  duration?: number;
 }
 
 const LOADING_MESSAGES = [
@@ -14,19 +13,17 @@ const LOADING_MESSAGES = [
   'Sintetizando os tópicos principais...',
 ];
 
-export function LoadingProgress({ message, duration = 10000 }: LoadingProgressProps) {
+export function LoadingProgress({ message }: LoadingProgressProps) {
   const [currentMessage, setCurrentMessage] = useState(message || LOADING_MESSAGES[0]);
-  const [messageIndex, setMessageIndex] = useState(0);
+  const messageIndexRef = useRef(0);
 
   useEffect(() => {
     if (message) return;
 
     const interval = setInterval(() => {
-      setMessageIndex((prev) => {
-        const next = (prev + 1) % LOADING_MESSAGES.length;
-        setCurrentMessage(LOADING_MESSAGES[next]);
-        return next;
-      });
+      const next = (messageIndexRef.current + 1) % LOADING_MESSAGES.length;
+      messageIndexRef.current = next;
+      setCurrentMessage(LOADING_MESSAGES[next]);
     }, 3000);
 
     return () => clearInterval(interval);
