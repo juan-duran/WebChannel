@@ -280,23 +280,28 @@ class TapNavigationService {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
     const rawTrendId = String(options?.trendId ?? trendRank);
     const rawTopicId = String(options?.topicId ?? topicRank);
+    const useSummaryCache = false; // Temporarily disabled while summary caching issues are investigated.
 
     try {
-      let cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
-      if (!cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)) {
-        cached = await cacheStorage.getSummary(rawTopicId, rawTrendId, userId);
-      }
+      const cached = useSummaryCache
+        ? await cacheStorage.getSummary(topicCacheId, trendCacheId, userId)
+        : null;
+      const cachedFromAlias =
+        useSummaryCache && !cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)
+          ? await cacheStorage.getSummary(rawTopicId, rawTrendId, userId)
+          : null;
+      const resolvedCached = cached ?? cachedFromAlias;
 
-      if (cached && !options?.forceRefresh) {
-        if (cacheStorage.isStale(cached)) {
+      if (useSummaryCache && resolvedCached && !options?.forceRefresh) {
+        if (cacheStorage.isStale(resolvedCached)) {
           this.refreshSummaryInBackground(topicCacheId, trendCacheId, userId);
         }
 
         return {
           success: true,
-          data: cached.data.summary,
+          data: resolvedCached.data.summary,
           fromCache: true,
-          metadata: cached.data.metadata ?? undefined,
+          metadata: resolvedCached.data.metadata ?? undefined,
         };
       }
 
@@ -322,14 +327,16 @@ class TapNavigationService {
           aliasKeys.push({ trendId: rawTrendId, topicId: rawTopicId });
         }
 
-        await cacheStorage.setSummary(
-          topicCacheId,
-          trendCacheId,
-          userId,
-          payload.summary as SummaryData,
-          payload.metadata ?? undefined,
-          aliasKeys,
-        );
+        if (useSummaryCache) {
+          await cacheStorage.setSummary(
+            topicCacheId,
+            trendCacheId,
+            userId,
+            payload.summary as SummaryData,
+            payload.metadata ?? undefined,
+            aliasKeys,
+          );
+        }
         return {
           success: true,
           data: payload.summary as SummaryData,
@@ -340,12 +347,12 @@ class TapNavigationService {
 
       const invalidDataMessage = 'O assistente não retornou um resumo válido.';
 
-      if (cached) {
+      if (useSummaryCache && resolvedCached) {
         return {
           success: true,
-          data: cached.data.summary,
+          data: resolvedCached.data.summary,
           fromCache: true,
-          metadata: cached.data.metadata ?? undefined,
+          metadata: resolvedCached.data.metadata ?? undefined,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
@@ -356,22 +363,6 @@ class TapNavigationService {
       };
     } catch (error) {
       console.error('Error fetching summary:', error);
-
-      let cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
-      if (!cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)) {
-        cached = await cacheStorage.getSummary(rawTopicId, rawTrendId, userId);
-      }
-      if (cached) {
-        const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
-        return {
-          success: true,
-          data: cached.data.summary,
-          fromCache: true,
-          metadata: cached.data.metadata ?? undefined,
-          error: `${errorMessage} Exibindo dados em cache.`,
-        };
-      }
-
       return {
         success: false,
         error: this.formatErrorMessage(error, 'Não foi possível carregar o resumo.'),
