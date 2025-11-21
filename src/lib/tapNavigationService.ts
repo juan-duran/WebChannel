@@ -1,5 +1,5 @@
 import { websocketService, type WebSocketMessage } from './websocket';
-import { fetchLatestDailyTrends, supabase } from './supabase';
+import { fetchLatestDailyTrends } from './supabase';
 import { cacheStorage } from './cacheStorage';
 import {
   TrendData,
@@ -392,7 +392,6 @@ class TapNavigationService {
       const correlationId = websocketService.generateCorrelationId();
       const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
-      let supabaseChannel: ReturnType<typeof supabase.channel> | null = null;
 
       const resolveStructuredData = (candidate: unknown): unknown => {
         if (!candidate) return null;
@@ -498,10 +497,6 @@ class TapNavigationService {
         websocketService.cancelQueuedRequest(correlationId);
         if (abortSignal) {
           abortSignal.removeEventListener('abort', handleAbort);
-        }
-        if (supabaseChannel) {
-          supabaseChannel.unsubscribe();
-          supabaseChannel = null;
         }
       };
 
