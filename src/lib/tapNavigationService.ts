@@ -253,6 +253,8 @@ class TapNavigationService {
     options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
   ): Promise<TapNavigationResponse> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
+    const rawTrendId = String(options?.trendId ?? trendRank);
+    const rawTopicId = String(options?.topicId ?? topicRank);
     const cacheKey = `summary_${trendCacheId}_${topicCacheId}_${userId}`;
 
     if (this.pendingRequests.has(cacheKey)) {
@@ -276,9 +278,14 @@ class TapNavigationService {
     options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
   ): Promise<TapNavigationResponse> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
+    const rawTrendId = String(options?.trendId ?? trendRank);
+    const rawTopicId = String(options?.topicId ?? topicRank);
 
     try {
-      const cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+      let cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+      if (!cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)) {
+        cached = await cacheStorage.getSummary(rawTopicId, rawTrendId, userId);
+      }
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
@@ -297,12 +304,31 @@ class TapNavigationService {
       const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
+        const canonicalIds = this.extractCanonicalSummaryIds(
+          payload.summary as SummaryData,
+          (payload.metadata as Record<string, unknown> | null) ?? null,
+        );
+        const aliasKeys: { trendId: number | string; topicId: number | string }[] = [];
+
+        if (
+          canonicalIds.trendId &&
+          canonicalIds.topicId &&
+          (canonicalIds.trendId !== trendCacheId || canonicalIds.topicId !== topicCacheId)
+        ) {
+          aliasKeys.push({ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId });
+        }
+
+        if (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId) {
+          aliasKeys.push({ trendId: rawTrendId, topicId: rawTopicId });
+        }
+
         await cacheStorage.setSummary(
           topicCacheId,
           trendCacheId,
           userId,
           payload.summary as SummaryData,
           payload.metadata ?? undefined,
+          aliasKeys,
         );
         return {
           success: true,
@@ -331,7 +357,10 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching summary:', error);
 
-      const cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+      let cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+      if (!cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)) {
+        cached = await cacheStorage.getSummary(rawTopicId, rawTrendId, userId);
+      }
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
@@ -356,15 +385,37 @@ class TapNavigationService {
     userId: string,
   ): Promise<void> {
     try {
+      const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank);
+      const rawTrendId = String(trendRank);
+      const rawTopicId = String(topicRank);
       const message = `Assunto ${trendRank} topico ${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
+        const canonicalIds = this.extractCanonicalSummaryIds(
+          payload.summary as SummaryData,
+          (payload.metadata as Record<string, unknown> | null) ?? null,
+        );
+        const aliasKeys: { trendId: number | string; topicId: number | string }[] = [];
+
+        if (
+          canonicalIds.trendId &&
+          canonicalIds.topicId &&
+          (canonicalIds.trendId !== trendCacheId || canonicalIds.topicId !== topicCacheId)
+        ) {
+          aliasKeys.push({ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId });
+        }
+
+        if (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId) {
+          aliasKeys.push({ trendId: rawTrendId, topicId: rawTopicId });
+        }
+
         await cacheStorage.setSummary(
-          topicRank,
-          trendRank,
+          topicCacheId,
+          trendCacheId,
           userId,
           payload.summary as SummaryData,
           payload.metadata ?? undefined,
+          aliasKeys,
         );
       }
     } catch (error) {
@@ -378,8 +429,40 @@ class TapNavigationService {
     userId: string,
   ): Promise<void> {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank);
+    const rawTrendId = String(trendRank);
+    const rawTopicId = String(topicRank);
 
-    await cacheStorage.deleteSummary(topicCacheId, trendCacheId, userId);
+    const cachedNormalized = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+    const cachedRaw =
+      trendCacheId !== rawTrendId || topicCacheId !== rawTopicId
+        ? await cacheStorage.getSummary(rawTopicId, rawTrendId, userId)
+        : null;
+
+    const canonicalIds = this.extractCanonicalSummaryIds(
+      cachedNormalized?.data.summary ?? cachedRaw?.data.summary,
+      ((cachedNormalized?.data.metadata ?? cachedRaw?.data.metadata) as Record<string, unknown> | null) ?? null,
+    );
+
+    const aliasPairs: { trendId: number | string; topicId: number | string }[] = [];
+
+    if (
+      canonicalIds.trendId &&
+      canonicalIds.topicId &&
+      (canonicalIds.trendId !== trendCacheId || canonicalIds.topicId !== topicCacheId)
+    ) {
+      aliasPairs.push({ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId });
+    }
+
+    if (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId) {
+      aliasPairs.push({ trendId: rawTrendId, topicId: rawTopicId });
+    }
+
+    const uniqueAliases = aliasPairs.filter(
+      (alias, index, self) =>
+        self.findIndex((item) => item.trendId === alias.trendId && item.topicId === alias.topicId) === index,
+    );
+
+    await cacheStorage.deleteSummary(topicCacheId, trendCacheId, userId, uniqueAliases);
   }
 
   private cancelPendingRequest(cacheKey: string) {
@@ -1031,6 +1114,29 @@ class TapNavigationService {
 
   private buildTopicsRequestKey(trendRank: number, threadId?: string): string {
     return `topics_${trendRank}_${threadId ?? 'no-thread'}`;
+  }
+
+  private extractCanonicalSummaryIds(
+    summary?: SummaryData | null,
+    metadata?: Record<string, unknown> | null,
+  ): { trendId?: string; topicId?: string } {
+    const trendId = this.normalizeId(
+      summary?.thread_id ??
+        (summary as any)?.threadId ??
+        (metadata as any)?.thread_id ??
+        (metadata as any)?.threadId ??
+        (metadata as any)?.thread,
+    );
+
+    const topicId = this.normalizeId(
+      summary?.comment_id ??
+        (summary as any)?.commentId ??
+        (metadata as any)?.comment_id ??
+        (metadata as any)?.commentId ??
+        (metadata as any)?.comment,
+    );
+
+    return { trendId, topicId };
   }
 
   private buildSummaryCacheIds(
