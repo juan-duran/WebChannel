@@ -17,6 +17,12 @@ function authorisedContentTypeInference() {
   const summaryData = { summary: { title: 'Summary title' } };
   assert.equal(inferContentTypeFromStructuredData(summaryData), 'summary');
 
+  const arrayWrappedSummary = [{ summary: { title: 'Summary title' } }];
+  assert.equal(inferContentTypeFromStructuredData(arrayWrappedSummary), 'summary');
+
+  const nestedOutputSummary = [{ output: [{ summary: { title: 'Summary title' } }] }];
+  assert.equal(inferContentTypeFromStructuredData(nestedOutputSummary), 'summary');
+
   const unknownLayer = { layer: 'other', data: [] };
   assert.equal(inferContentTypeFromStructuredData(unknownLayer), undefined);
 

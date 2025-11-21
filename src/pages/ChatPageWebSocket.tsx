@@ -29,12 +29,33 @@ export function inferContentTypeFromStructuredData(
     return undefined;
   }
 
-  if (Array.isArray(structuredData)) {
+  const unwrapSingleItemArray = (data: unknown): unknown => {
+    if (Array.isArray(data) && data.length === 1) {
+      return unwrapSingleItemArray(data[0]);
+    }
+
+    if (data && typeof data === 'object' && 'output' in (data as any)) {
+      const output = (data as any).output;
+      if (Array.isArray(output) && output.length === 1) {
+        return unwrapSingleItemArray(output[0]);
+      }
+
+      if (output && typeof output === 'object') {
+        return unwrapSingleItemArray(output);
+      }
+    }
+
+    return data;
+  };
+
+  const normalizedData = unwrapSingleItemArray(structuredData);
+
+  if (Array.isArray(normalizedData)) {
     return undefined;
   }
 
-  if (typeof structuredData === 'object') {
-    const layer = (structuredData as any).layer;
+  if (typeof normalizedData === 'object') {
+    const layer = (normalizedData as any).layer;
     if (
       typeof layer === 'string' &&
       (allowedAssistantContentTypes as string[]).includes(layer) &&
@@ -43,15 +64,15 @@ export function inferContentTypeFromStructuredData(
       return layer as ChatMessage['contentType'];
     }
 
-    if (Array.isArray((structuredData as any).trends)) {
+    if (Array.isArray((normalizedData as any).trends)) {
       return 'trends';
     }
 
-    if (Array.isArray((structuredData as any).topics)) {
+    if (Array.isArray((normalizedData as any).topics)) {
       return 'topics';
     }
 
-    if ((structuredData as any).summary && typeof (structuredData as any).summary === 'object') {
+    if ((normalizedData as any).summary && typeof (normalizedData as any).summary === 'object') {
       return 'summary';
     }
   }
