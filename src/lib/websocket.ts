@@ -386,16 +386,18 @@ export class WebSocketService {
     }
 
     if (!this.sessionReadyPromise) {
-      this.sessionReadyPromise = Promise.resolve();
+      this.resetSessionReadyPromise();
     }
 
+    const sessionReadyPromise = this.sessionReadyPromise;
+
     if (timeoutMs <= 0) {
-      await this.sessionReadyPromise;
+      await sessionReadyPromise;
       return;
     }
 
     await Promise.race([
-      this.sessionReadyPromise,
+      sessionReadyPromise,
       new Promise<void>((_, reject) => {
         setTimeout(() => reject(new Error('Session handshake timeout')), timeoutMs);
       }),
