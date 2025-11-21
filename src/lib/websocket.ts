@@ -46,6 +46,10 @@ type QueuedRequest = {
   maxRetries: number;
   status: RequestStatus;
   expectsCorrelation: boolean;
+  enqueueTimestamp: number;
+  isSending: boolean;
+  hasSentSuccessfully: boolean;
+  timeoutId?: ReturnType<typeof setTimeout>;
 };
 
 type ReplayFailureHandler = (correlationId: string) => void;
@@ -68,6 +72,8 @@ export class WebSocketService {
   private sessionReadyPromiseVersion = 0;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
+  private requestTimeoutMs = 20000;
+  private sessionReadyTimeoutMs = 10000;
 
   constructor(private wsUrl: string) {}
 
@@ -174,6 +180,8 @@ export class WebSocketService {
     }
 
     this.isIntentionallyClosed = false;
+    this.sessionId = null;
+    this.resetSessionReadyPromise();
 
     const connectionPromise = (async () => {
       let session: Session;
@@ -294,8 +302,15 @@ export class WebSocketService {
     }
 
     if (message.correlationId) {
+      const isTerminal = this.isTerminalCorrelationMessage(message);
+
       this.notifyCorrelationHandlers(message.correlationId, message);
-      this.markRequestFulfilled(message.correlationId);
+
+      if (isTerminal) {
+        this.markRequestFulfilled(message.correlationId);
+      } else {
+        this.refreshPendingCorrelation(message.correlationId);
+      }
     } else if (message.type === 'message' && message.role === 'assistant') {
       this.markFirstPendingRequestFulfilled();
     }
@@ -305,6 +320,60 @@ export class WebSocketService {
     }
 
     this.notifyHandlers(message.type, message);
+  }
+
+  private isTerminalCorrelationMessage(message: WebSocketMessage): boolean {
+    const terminalTypes = new Set([
+      'message_end',
+      'response_end',
+      'response_final',
+      'stream_end',
+    ]);
+
+    if (typeof message.type === 'string' && terminalTypes.has(message.type)) {
+      return true;
+    }
+
+    const metadata = message.metadata;
+
+    if (!metadata || typeof metadata !== 'object') {
+      return false;
+    }
+
+    const booleanTerminalFlags = [
+      (metadata as Record<string, unknown>).isFinal,
+      (metadata as Record<string, unknown>).final,
+      (metadata as Record<string, unknown>).is_final,
+      (metadata as Record<string, unknown>).isTerminal,
+      (metadata as Record<string, unknown>).terminal,
+      (metadata as Record<string, unknown>).is_terminal,
+      (metadata as Record<string, unknown>).done,
+      (metadata as Record<string, unknown>).isDone,
+      (metadata as Record<string, unknown>).completed,
+    ];
+
+    if (booleanTerminalFlags.some((flag) => flag === true)) {
+      return true;
+    }
+
+    const normalizedMetadata = metadata as Record<string, unknown>;
+    const terminalTextFlags = [
+      normalizedMetadata.messageType,
+      normalizedMetadata.message_type,
+      normalizedMetadata.status,
+      normalizedMetadata.stage,
+      normalizedMetadata.phase,
+      normalizedMetadata.event,
+      normalizedMetadata.type,
+    ]
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.toLowerCase());
+
+    return terminalTextFlags.some((value) =>
+      ['final', 'end', 'done', 'complete', 'completed', 'terminal', 'finished', 'stop'].includes(
+        value,
+      ),
+    );
   }
 
   private notifyHandlers(type: WebSocketMessageType, message: WebSocketMessage) {
@@ -374,17 +443,20 @@ export class WebSocketService {
     }
   }
 
-  private async ensureConnected() {
+  private async ensureConnected(context: string) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
       return;
     }
 
     if (this.connectionPromise) {
       await this.connectionPromise;
+      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
       return;
     }
 
     await this.connect();
+    await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
   }
 
   private getOrCreateSessionReadyPromise() {
@@ -398,7 +470,7 @@ export class WebSocketService {
     };
   }
 
-  private async waitForSessionReady(timeoutMs = 5000) {
+  private async waitForSessionReady(context: string, timeoutMs = 5000) {
     if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
@@ -428,10 +500,17 @@ export class WebSocketService {
           return;
         }
 
-        if (isStalePromise && (deadline - Date.now() > 0)) {
+        if (isStalePromise && deadline - Date.now() > 0) {
           continue;
         }
 
+        console.warn('[WebSocketService] Session not ready; aborting send', {
+          context,
+          sessionId: this.sessionId,
+          wsState: this.ws?.readyState,
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
         throw error;
       }
 
@@ -443,6 +522,12 @@ export class WebSocketService {
         continue;
       }
 
+      console.warn('[WebSocketService] Session handshake timeout', {
+        context,
+        sessionId: this.sessionId,
+        wsState: this.ws?.readyState,
+        timestamp: new Date().toISOString(),
+      });
       throw new Error('Session handshake timeout');
     }
   }
@@ -470,6 +555,9 @@ export class WebSocketService {
             message,
             maxRetries: options?.maxRetries ?? existing.maxRetries,
             expectsCorrelation: true,
+            enqueueTimestamp: existing.enqueueTimestamp ?? Date.now(),
+            isSending: existing.isSending ?? false,
+            hasSentSuccessfully: existing.hasSentSuccessfully ?? false,
           }
         : {
             message,
@@ -477,17 +565,21 @@ export class WebSocketService {
             maxRetries: options?.maxRetries ?? this.defaultMaxRequestRetries,
             status: 'pending',
             expectsCorrelation: true,
+            enqueueTimestamp: Date.now(),
+            isSending: false,
+            hasSentSuccessfully: false,
           };
 
       this.requestQueue.set(correlationId, queueEntry);
+      this.scheduleRequestTimeout(correlationId);
       await this.sendQueuedRequest(correlationId);
       return correlationId;
     }
 
-    await this.ensureConnected();
-    await this.waitForSessionReady();
+    await this.ensureConnected('send_message');
+    await this.waitForSessionReady('send_message', this.sessionReadyTimeoutMs);
 
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
       throw new Error('Unable to establish WebSocket connection');
     }
 
@@ -599,6 +691,10 @@ export class WebSocketService {
     return this.sessionId;
   }
 
+  setRequestTimeout(ms: number) {
+    this.requestTimeoutMs = ms;
+  }
+
   generateCorrelationId(): string {
     return `corr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   }
@@ -607,6 +703,7 @@ export class WebSocketService {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'canceled' });
     this.requestQueue.delete(correlationId);
     this.replayFailureHandlers.delete(correlationId);
@@ -620,10 +717,24 @@ export class WebSocketService {
     handlers.forEach((handler) => handler(message));
   }
 
+  private refreshPendingCorrelation(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    const refreshedEntry = {
+      ...entry,
+      enqueueTimestamp: Date.now(),
+    } satisfies QueuedRequest;
+
+    this.requestQueue.set(correlationId, refreshedEntry);
+    this.scheduleRequestTimeout(correlationId);
+  }
+
   private markRequestFulfilled(correlationId: string) {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'fulfilled' });
     this.requestQueue.delete(correlationId);
     this.replayFailureHandlers.delete(correlationId);
@@ -641,33 +752,77 @@ export class WebSocketService {
     this.markRequestFulfilled(correlationId);
   }
 
-  private async sendQueuedRequest(correlationId: string) {
+  private async sendQueuedRequest(
+    correlationId: string,
+    options: { isExplicitRetry?: boolean } = {},
+  ) {
     const entry = this.requestQueue.get(correlationId);
     if (!entry || entry.status !== 'pending') {
       return;
     }
 
-    if (entry.attempts >= entry.maxRetries) {
+    if (entry.isSending) {
+      return;
+    }
+
+    const { isExplicitRetry = false } = options;
+    const shouldIncrementForRetry = isExplicitRetry && !entry.hasSentSuccessfully;
+
+    const updatedEntry: QueuedRequest = {
+      ...entry,
+      isSending: true,
+      attempts: shouldIncrementForRetry ? entry.attempts + 1 : entry.attempts,
+      hasSentSuccessfully: entry.hasSentSuccessfully ?? false,
+    };
+
+    if (updatedEntry.attempts >= updatedEntry.maxRetries) {
+      this.requestQueue.set(correlationId, { ...updatedEntry, isSending: false });
       this.failQueuedRequest(correlationId);
       return;
     }
 
-    try {
-      await this.ensureConnected();
-      await this.waitForSessionReady();
+    this.requestQueue.set(correlationId, updatedEntry);
 
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    try {
+      await this.ensureConnected('send_queued_request');
+      await this.waitForSessionReady('send_queued_request', this.sessionReadyTimeoutMs);
+
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
         throw new Error('Unable to establish WebSocket connection');
       }
 
-      const updatedEntry = { ...entry, attempts: entry.attempts + 1 };
-      this.requestQueue.set(correlationId, updatedEntry);
-
       this.ws.send(JSON.stringify(updatedEntry.message));
+
+      const refreshedEntry = this.requestQueue.get(correlationId);
+      if (refreshedEntry && refreshedEntry.status === 'pending') {
+        this.requestQueue.set(correlationId, {
+          ...refreshedEntry,
+          attempts: 0,
+          isSending: false,
+          hasSentSuccessfully: true,
+        });
+        this.scheduleRequestTimeout(correlationId);
+      }
     } catch (error) {
-      const currentEntry = this.requestQueue.get(correlationId) ?? entry;
-      if (currentEntry.attempts >= currentEntry.maxRetries) {
-        this.failQueuedRequest(correlationId);
+      const failedEntry = this.requestQueue.get(correlationId);
+      if (failedEntry && failedEntry.status === 'pending') {
+        const alreadyIncremented = shouldIncrementForRetry;
+        const nextAttempts = failedEntry.hasSentSuccessfully
+          ? failedEntry.attempts
+          : failedEntry.attempts + (alreadyIncremented ? 0 : 1);
+
+        const retryCandidate: QueuedRequest = {
+          ...failedEntry,
+          attempts: nextAttempts,
+          isSending: false,
+          hasSentSuccessfully: failedEntry.hasSentSuccessfully,
+        };
+
+        this.requestQueue.set(correlationId, retryCandidate);
+
+        if (retryCandidate.attempts >= retryCandidate.maxRetries) {
+          this.failQueuedRequest(correlationId);
+        }
       }
 
       throw error;
@@ -677,11 +832,13 @@ export class WebSocketService {
   private async replayPendingRequests() {
     if (this.requestQueue.size === 0) return;
 
+    await this.waitForSessionReady('replay_pending_requests', this.sessionReadyTimeoutMs);
+
     for (const correlationId of this.requestQueue.keys()) {
       const entry = this.requestQueue.get(correlationId);
-      if (!entry || entry.status !== 'pending') continue;
+      if (!entry || entry.status !== 'pending' || entry.isSending) continue;
 
-      await this.sendQueuedRequest(correlationId);
+      await this.sendQueuedRequest(correlationId, { isExplicitRetry: true });
     }
   }
 
@@ -689,6 +846,7 @@ export class WebSocketService {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'failed' });
     this.notifyReplayExhausted(correlationId);
     this.requestQueue.delete(correlationId);
@@ -701,6 +859,41 @@ export class WebSocketService {
 
     handlers.forEach((handler) => handler(correlationId));
     this.replayFailureHandlers.delete(correlationId);
+  }
+
+  private scheduleRequestTimeout(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    this.clearRequestTimeout(entry);
+
+    const elapsed = Date.now() - entry.enqueueTimestamp;
+    const remainingWindow = this.requestTimeoutMs - elapsed;
+
+    if (remainingWindow <= 0) {
+      this.handleRequestTimeout(correlationId);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      this.handleRequestTimeout(correlationId);
+    }, remainingWindow);
+
+    this.requestQueue.set(correlationId, { ...entry, timeoutId });
+  }
+
+  private clearRequestTimeout(entry?: QueuedRequest) {
+    if (entry?.timeoutId) {
+      clearTimeout(entry.timeoutId);
+      entry.timeoutId = undefined;
+    }
+  }
+
+  private handleRequestTimeout(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    this.failQueuedRequest(correlationId);
   }
 }
 
