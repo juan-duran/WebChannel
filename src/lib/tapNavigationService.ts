@@ -665,13 +665,47 @@ class TapNavigationService {
         reject(new RequestTimeoutError());
       }, timeoutDuration);
 
+      const beforeSendContext = {
+        event: 'agent_request_dispatching',
+        correlationId,
+        message,
+        connectionState: websocketService.getConnectionState(),
+      };
+
+      console.log('[TapNavigationService][AgentRequestBreadcrumb][before_send]', beforeSendContext);
+      console.info('[TapNavigationService][AgentRequestMonitoring][before_send]', beforeSendContext);
+
       websocketService
         .sendMessage(message, undefined, {
           correlationId,
           track: true,
           maxRetries: maxReplayAttempts,
         })
+        .then(() => {
+          const dispatchContext = {
+            event: 'agent_request_dispatched',
+            correlationId,
+            message,
+            connectionState: websocketService.getConnectionState(),
+          };
+
+          console.log('[TapNavigationService][AgentRequestBreadcrumb][after_send]', dispatchContext);
+          console.info('[TapNavigationService][AgentRequestMonitoring][after_send]', dispatchContext);
+        })
         .catch((sendError: unknown) => {
+          const failureContext = {
+            event: 'agent_request_dispatch_failed',
+            correlationId,
+            message,
+            connectionState: websocketService.getConnectionState(),
+          };
+
+          console.warn('[TapNavigationService][AgentRequestBreadcrumb][send_failed]', failureContext);
+          console.error('[TapNavigationService][AgentRequestMonitoring][send_failed]', {
+            ...failureContext,
+            error: sendError instanceof Error ? sendError.message : 'Unknown error',
+          });
+
           if (resolved) return;
 
           resolved = true;
