@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Image, Video, Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react';
+import { Link as LinkIcon, Loader2, AlertCircle } from 'lucide-react';
 
 interface MediaMessageProps {
   mediaUrl: string;

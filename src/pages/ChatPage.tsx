@@ -3,7 +3,6 @@ import { MessageCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { MessageBubble } from '../components/MessageBubble';
 import { MessageInput } from '../components/MessageInput';
-import { TypingIndicator } from '../components/TypingIndicator';
 import { QuickActions } from '../components/QuickActions';
 import { TrendsList, Trend } from '../components/TrendsList';
 import { TopicsList, Topic } from '../components/TopicsList';
@@ -24,7 +23,6 @@ export function ChatPage() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingStartTime, setProcessingStartTime] = useState<Date | undefined>();
   const [error, setError] = useState<string | null>(null);
   const [currentContext, setCurrentContext] = useState<{ trendName?: string; topicName?: string }>({});
   const [currentChannelId, setCurrentChannelId] = useState<string | null>(null);
@@ -42,17 +40,6 @@ export function ChatPage() {
       scrollToBottom();
     }
   }, [messages.length, isProcessing]);
-
-  const handleScroll = () => {
-    const container = messagesContainerRef.current;
-
-    if (!container) return;
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
-
-    isUserNearBottomRef.current = distanceFromBottom < 100;
-  };
 
   useEffect(() => {
     const initializeChannel = async () => {
@@ -143,7 +130,6 @@ export function ChatPage() {
     );
 
     setIsProcessing(true);
-    setProcessingStartTime(new Date());
 
     try {
       const response = await sendMessageToAgent({
@@ -153,7 +139,6 @@ export function ChatPage() {
       });
 
       setIsProcessing(false);
-      setProcessingStartTime(undefined);
 
       if (response.success && response.data) {
         const parsed = parseAgentResponse(response.data, currentContext);
@@ -201,7 +186,6 @@ export function ChatPage() {
       }
     } catch (err) {
       setIsProcessing(false);
-      setProcessingStartTime(undefined);
       setError('An unexpected error occurred. Please try again.');
       setMessages(prev =>
         prev.map(msg =>
@@ -223,7 +207,6 @@ export function ChatPage() {
     setMessages([]);
     setError(null);
     setIsProcessing(false);
-    setProcessingStartTime(undefined);
     setCurrentContext({});
   };
 
