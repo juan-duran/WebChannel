@@ -431,20 +431,31 @@ class TapNavigationService {
             resolveStructuredData(response.structuredData ?? (response as any).structured_data) ||
             resolveStructuredData((response as any).output);
 
-          if (!structuredData) {
-            console.warn('Received assistant message without structured data. Ignoring message.');
+          let normalized: TapNavigationStructuredData | null = null;
+
+          if (structuredData && this.isValidStructuredData(structuredData)) {
+            normalized = this.normalizeStructuredData(structuredData);
+          } else if (
+            !structuredData &&
+            response.contentType === 'summary' &&
+            typeof response.content === 'string' &&
+            expectedLayer === 'summary'
+          ) {
+            // Fallback: accept a summary delivered as plain text when structured data is missing.
+            normalized = {
+              layer: 'summary',
+              trends: null,
+              topics: null,
+              summary: { thesis: response.content },
+            };
+          } else {
+            console.warn('Received assistant message without usable structured data. Ignoring message.');
             return;
           }
 
-          if (!this.isValidStructuredData(structuredData)) {
-            console.warn('Received assistant message with invalid structured data. Ignoring message.');
-            return;
-          }
-
-          const normalized = this.normalizeStructuredData(structuredData);
           const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
 
-          if (!expectedLayers.includes(normalized.layer)) {
+          if (!normalized || !expectedLayers.includes(normalized.layer)) {
             return;
           }
 
