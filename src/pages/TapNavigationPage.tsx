@@ -158,19 +158,50 @@ export function TapNavigationPage() {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
 
+  // Ensure WebSocket connects on page load so first summary request isn't lost
+  useEffect(() => {
+    websocketService.connect().catch(() => {
+      // silent failure; fetchSummaryForTopic will surface an error
+    });
+  }, []);
+
   // Listen for assistant summary messages that may arrive asynchronously (e.g., via /api/messages/send)
   useEffect(() => {
     const handleIncoming = (message: WebSocketMessage) => {
       if (message.type !== 'message' || message.role !== 'assistant') return;
-      if (message.contentType !== 'summary') return;
+      if (message.contentType !== 'summary' && (message as any).content_type !== 'summary') return;
 
-      const structured = (message.structuredData ?? (message as any).structured_data) as SummaryData | null;
+      const structured = (message.structuredData ?? (message as any).structured_data) as any;
+      const summaryPayload =
+        structured && typeof structured === 'object'
+          ? (structured.summary && typeof structured.summary === 'object' ? structured.summary : structured)
+          : null;
 
-      if (structured && structured.thesis) {
-        setSelectedSummary(structured);
-        setIsLoadingSummary(false);
-        setSummaryError(null);
-        return;
+      if (summaryPayload && typeof summaryPayload === 'object') {
+        const thesis =
+          typeof summaryPayload.thesis === 'string'
+            ? summaryPayload.thesis
+            : typeof summaryPayload.content === 'string'
+            ? summaryPayload.content
+            : undefined;
+
+        if (thesis || summaryPayload.personalization || summaryPayload['likes-data'] || summaryPayload.likesData) {
+          setSelectedSummary({
+            thesis: thesis ?? '',
+            personalization: summaryPayload.personalization ?? '',
+            likesData: summaryPayload['likes-data'] || summaryPayload.likesData || '',
+            context: Array.isArray(summaryPayload.context) ? summaryPayload.context : [],
+            debate: Array.isArray(summaryPayload.debate) ? summaryPayload.debate : [],
+            ...(summaryPayload.whyItMatters || summaryPayload['why_it_matters']
+              ? { whyItMatters: summaryPayload.whyItMatters ?? summaryPayload['why_it_matters'] }
+              : {}),
+            ...(Array.isArray(summaryPayload.sources) ? { sources: summaryPayload.sources } : {}),
+            ...(typeof summaryPayload.topicName === 'string' ? { topicName: summaryPayload.topicName } : {}),
+          });
+          setIsLoadingSummary(false);
+          setSummaryError(null);
+          return;
+        }
       }
 
       if (typeof message.content === 'string' && message.content.trim().length > 0) {
