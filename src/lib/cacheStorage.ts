@@ -1,4 +1,11 @@
-import { TrendData, TopicData, SummaryData, CachedEntry, TrendsCacheEntry } from '../types/tapNavigation';
+import {
+  TrendData,
+  TopicData,
+  SummaryData,
+  CachedEntry,
+  TrendsCacheEntry,
+  SummaryCacheEntry,
+} from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
 const DB_VERSION = 2;
@@ -55,10 +62,10 @@ class CacheStorage {
     return new Date().toISOString().slice(0, 10);
   }
 
-  private buildSummaryKey(threadId: string | number, commentId: string | number, userId: string): string {
+  private buildSummaryKey(trendId: string | number, topicId: string | number, userId: string): string {
     return this.generateKey('summaries', {
-      thread_id: String(threadId),
-      comment_id: String(commentId),
+      thread_id: String(trendId),
+      comment_id: String(topicId),
       uid: userId,
       d: this.getToday(),
     });
@@ -160,30 +167,31 @@ class CacheStorage {
   }
 
   async getSummary(
-    topicId: number | string,
     trendId: number | string,
+    topicId: number | string,
     userId: string,
-  ): Promise<CachedEntry<SummaryData> | null> {
+  ): Promise<CachedEntry<SummaryCacheEntry> | null> {
     const key = this.buildSummaryKey(trendId, topicId, userId);
-    return this.get<SummaryData>(STORE_NAMES.summaries, key);
+    return this.get<SummaryCacheEntry>(STORE_NAMES.summaries, key);
   }
 
   async setSummary(
-    topicId: number | string,
     trendId: number | string,
+    topicId: number | string,
     userId: string,
     data: SummaryData,
+    metadata?: SummaryCacheEntry['metadata'],
   ): Promise<void> {
-    const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
-    const entry: CachedEntry<SummaryData> = {
-      data,
+    const key = this.buildSummaryKey(trendId, topicId, userId);
+    const entry: CachedEntry<SummaryCacheEntry> = {
+      data: { summary: data, metadata: metadata ?? null },
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.summaries,
     };
     return this.set(STORE_NAMES.summaries, key, entry);
   }
 
-  async deleteSummary(topicId: number | string, trendId: number | string, userId: string): Promise<void> {
+  async deleteSummary(trendId: number | string, topicId: number | string, userId: string): Promise<void> {
     const key = this.buildSummaryKey(trendId, topicId, userId);
     return this.delete(STORE_NAMES.summaries, key);
   }
