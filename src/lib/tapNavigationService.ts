@@ -508,7 +508,11 @@ class TapNavigationService {
         return candidate;
       };
 
-      const logDiscardedResponse = (reason: string, response: WebSocketMessage) => {
+      const logDiscardedResponse = (
+        reason: string,
+        response: WebSocketMessage,
+        details: Record<string, unknown> = {},
+      ) => {
         console.error('[TapNavigationService][AgentReplyDiscarded]', {
           event: 'agent_reply_discarded',
           reason,
@@ -517,7 +521,21 @@ class TapNavigationService {
           hasStructuredData: Boolean(response.structuredData ?? (response as any).structured_data),
           hasOutput: Boolean((response as any).output),
           role: response.role ?? 'assistant',
+          ...details,
         });
+      };
+
+      const rejectWithValidationError = (
+        reason: string,
+        response: WebSocketMessage,
+        message = 'O assistente não retornou dados estruturados válidos. Tente novamente.',
+        details: Record<string, unknown> = {},
+      ) => {
+        resolved = true;
+        clearTimeout(timeout);
+        cleanup();
+        logDiscardedResponse(reason, response, details);
+        reject(new StructuredDataValidationError(message));
       };
 
       const handleMessage = (response: WebSocketMessage) => {
@@ -548,24 +566,25 @@ class TapNavigationService {
             };
           } else {
             const discardReason = structuredData ? 'invalid_structured_data' : 'missing_structured_data';
-            logDiscardedResponse(discardReason, response);
-
-            if (isSummaryRequest) {
-              resolved = true;
-              clearTimeout(timeout);
-              cleanup();
-
-              reject(
-                new StructuredDataValidationError(
-                  'O assistente não retornou dados estruturados para o resumo. Tente novamente.',
-                ),
-              );
-            }
-
+            const validationMessage = isSummaryRequest
+              ? 'O assistente não retornou dados estruturados para o resumo. Tente novamente.'
+              : 'O assistente não retornou dados estruturados válidos. Tente novamente.';
+            rejectWithValidationError(discardReason, response, validationMessage, {
+              expectedLayers,
+            });
             return;
           }
 
           if (!normalized || !expectedLayers.includes(normalized.layer)) {
+            rejectWithValidationError(
+              'unexpected_layer',
+              response,
+              'O assistente respondeu uma camada inesperada. Tente novamente.',
+              {
+                expectedLayers,
+                responseLayer: normalized?.layer ?? null,
+              },
+            );
             return;
           }
 

@@ -227,20 +227,10 @@ const buildSummaryData = (): TapNavigationStructuredData => ({
   },
 });
 
-test('requestFromAgent waits for matching layer structured data', async () => {
+test('requestFromAgent rejects when receiving mismatched layer for the same correlation', async () => {
   const requestPromise: Promise<TapNavigationStructuredData> = (tapNavigationService as any).requestFromAgent(
     'Load trends',
     'trends',
-  );
-
-  let settled = false;
-  requestPromise.then(
-    () => {
-      settled = true;
-    },
-    () => {
-      settled = true;
-    },
   );
 
   emit('message', {
@@ -250,49 +240,36 @@ test('requestFromAgent waits for matching layer structured data', async () => {
     structuredData: buildSummaryData(),
   } as any);
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
-
-  assert.equal(settled, false, 'request should not settle when receiving mismatched layer');
-
-  emit('message', {
-    type: 'message',
-    role: 'assistant',
-    correlationId: lastCorrelationId,
-    structuredData: buildTrendsData(),
-  } as any);
-
-  const result = await requestPromise;
-  assert.equal(result.layer, 'trends');
+  await assert.rejects(requestPromise, (error: any) => {
+    assert.equal(error.name, 'StructuredDataValidationError');
+    assert.match(error.message, /camada inesperada/);
+    return true;
+  });
 });
 
-test('requestFromAgent ignores assistant messages without valid structured data', async () => {
+test('requestFromAgent rejects assistant messages without valid structured data', async () => {
   const requestPromise: Promise<TapNavigationStructuredData> = (tapNavigationService as any).requestFromAgent(
     'Load trends',
     'trends',
   );
 
-  let settled = false;
-  requestPromise.then(
-    () => {
-      settled = true;
-    },
-    () => {
-      settled = true;
-    },
-  );
-
   emit('message', {
     type: 'message',
     role: 'assistant',
     correlationId: lastCorrelationId,
   } as any);
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await assert.rejects(requestPromise, (error: any) => {
+    assert.equal(error.name, 'StructuredDataValidationError');
+    assert.match(error.message, /dados estruturados/);
+    return true;
+  });
+});
 
-  assert.equal(
-    settled,
-    false,
-    'request should not settle when receiving assistant messages without structured data',
+test('requestFromAgent rejects assistant messages with invalid structured data shape', async () => {
+  const requestPromise: Promise<TapNavigationStructuredData> = (tapNavigationService as any).requestFromAgent(
+    'Load trends',
+    'trends',
   );
 
   emit('message', {
@@ -302,23 +279,11 @@ test('requestFromAgent ignores assistant messages without valid structured data'
     structuredData: { layer: 'trends' },
   } as any);
 
-  await new Promise((resolve) => setTimeout(resolve, 10));
-
-  assert.equal(
-    settled,
-    false,
-    'request should not settle when receiving assistant messages with invalid structured data',
-  );
-
-  emit('message', {
-    type: 'message',
-    role: 'assistant',
-    correlationId: lastCorrelationId,
-    structuredData: buildTrendsData(),
-  } as any);
-
-  const result = await requestPromise;
-  assert.equal(result.layer, 'trends');
+  await assert.rejects(requestPromise, (error: any) => {
+    assert.equal(error.name, 'StructuredDataValidationError');
+    assert.match(error.message, /dados estruturados/);
+    return true;
+  });
 });
 
 test('requestFromAgent accepts plain text summary without content type', async () => {
