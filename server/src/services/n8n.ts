@@ -30,11 +30,37 @@ export class N8nService {
     return await this.callWebhook(userEmail, message, sessionId, correlationId);
   }
 
+  private parseMessage(message: string): {
+    kind: 'trends' | 'topics' | 'summary';
+    trendId?: string;
+    topicId?: string;
+  } {
+    const normalized = message.trim();
+    if (normalized.toLowerCase() === 'assuntos') {
+      return { kind: 'trends' };
+    }
+
+    const trendMatch = normalized.match(/assunto\s+#?([\w-]+)/i);
+    const topicMatch = normalized.match(/t[óo]pico\s+#?([\w-]+)/i);
+
+    if (trendMatch && topicMatch) {
+      return { kind: 'summary', trendId: trendMatch[1], topicId: topicMatch[1] };
+    }
+
+    if (trendMatch) {
+      return { kind: 'topics', trendId: trendMatch[1] };
+    }
+
+    if (topicMatch) {
+      return { kind: 'summary', topicId: topicMatch[1] };
+    }
+
+    return { kind: 'trends' };
+  }
+
   private isCacheableRequest(message: string): boolean {
-    if (message === 'assuntos') return true;
-    if (message.match(/^Assunto #\d+$/)) return true;
-    if (message.match(/^Tópico #\d+$/)) return true;
-    return false;
+    const parsed = this.parseMessage(message);
+    return Boolean(parsed.kind);
   }
 
   private getCacheParams(message: string, userEmail: string, userId: string): {
@@ -42,35 +68,22 @@ export class N8nService {
     params: Record<string, string>
   } {
     const today = new Date().toISOString().slice(0, 10);
+    const parsed = this.parseMessage(message);
 
-    if (message === 'assuntos') {
-      return {
-        kind: 'trends',
-        params: { d: today },
-      };
+    if (parsed.kind === 'trends') {
+      return { kind: 'trends', params: { d: today } };
     }
 
-    const trendMatch = message.match(/^Assunto #(\d+)$/);
-    if (trendMatch) {
-      return {
-        kind: 'topics',
-        params: { trend_id: trendMatch[1], d: today },
-      };
+    if (parsed.kind === 'topics' && parsed.trendId) {
+      return { kind: 'topics', params: { trend_id: parsed.trendId, d: today } };
     }
 
-    const topicMatch = message.match(/^Tópico #(\d+)$/);
-    if (topicMatch) {
+    if (parsed.kind === 'summary' && parsed.topicId) {
       const emailHash = hashEmail(userEmail);
-      return {
-        kind: 'summary',
-        params: { topic_id: topicMatch[1], uid: emailHash, d: today },
-      };
+      return { kind: 'summary', params: { topic_id: parsed.topicId, uid: emailHash, d: today } };
     }
 
-    return {
-      kind: 'trends',
-      params: { d: today },
-    };
+    return { kind: 'trends', params: { d: today } };
   }
 
   private async callWebhook(
