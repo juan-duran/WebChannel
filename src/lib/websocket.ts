@@ -577,7 +577,6 @@ export class WebSocketService {
     }
 
     await this.ensureConnected('send_message');
-    await this.waitForSessionReady('send_message', this.sessionReadyTimeoutMs);
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
       throw new Error('Unable to establish WebSocket connection');
