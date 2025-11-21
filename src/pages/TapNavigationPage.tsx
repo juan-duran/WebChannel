@@ -85,11 +85,30 @@ export function TapNavigationPage() {
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
 
+      console.log('[TapNavigationPage] Fetching summary for topic', {
+        trendId,
+        topicId,
+        forceRefresh: options?.forceRefresh ?? false,
+      });
+
       try {
         await websocketService.connect();
       } catch (wsError) {
         setIsLoadingSummary(false);
-        setSummaryError('Não foi possível conectar ao assistente para gerar o resumo.');
+        const isSessionMissing =
+          (wsError as any)?.code === 'SESSION_MISSING' ||
+          (wsError instanceof Error && wsError.message === 'SESSION_MISSING');
+
+        console.error('[TapNavigationPage] WebSocket connection failed', {
+          isSessionMissing,
+          error: wsError,
+        });
+
+        setSummaryError(
+          isSessionMissing
+            ? 'Sessão ausente ou expirada. Atualize a página ou faça login novamente.'
+            : 'Não foi possível conectar ao assistente para gerar o resumo.',
+        );
         return;
       }
 
