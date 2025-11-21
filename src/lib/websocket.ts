@@ -257,8 +257,8 @@ export class WebSocketService {
     }
 
     if (message.correlationId) {
-      this.markRequestFulfilled(message.correlationId);
       this.notifyCorrelationHandlers(message.correlationId, message);
+      this.markRequestFulfilled(message.correlationId);
     } else if (message.type === 'message' && message.role === 'assistant') {
       this.markFirstPendingRequestFulfilled();
     }
