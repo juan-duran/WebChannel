@@ -181,14 +181,21 @@ class CacheStorage {
     userId: string,
     data: SummaryData,
     metadata?: SummaryCacheEntry['metadata'],
+    aliases: { trendId: number | string; topicId: number | string }[] = [],
   ): Promise<void> {
-    const key = this.buildSummaryKey(trendId, topicId, userId);
+    const keys = [
+      { trendId, topicId },
+      ...aliases,
+    ].map(({ trendId: trend, topicId: topic }) => this.buildSummaryKey(trend, topic, userId));
+
+    const uniqueKeys = Array.from(new Set(keys));
     const entry: CachedEntry<SummaryCacheEntry> = {
       data: { summary: data, metadata: metadata ?? null },
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.summaries,
     };
-    return this.set(STORE_NAMES.summaries, key, entry);
+
+    await Promise.all(uniqueKeys.map((key) => this.set(STORE_NAMES.summaries, key, entry)));
   }
 
   async deleteSummary(trendId: number | string, topicId: number | string, userId: string): Promise<void> {

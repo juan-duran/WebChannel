@@ -299,12 +299,24 @@ class TapNavigationService {
       const payload = await this.requestFromAgent(message, 'summary');
 
       if (payload.summary) {
+        const canonicalIds = this.extractCanonicalSummaryIds(
+          payload.summary as SummaryData,
+          (payload.metadata as Record<string, unknown> | null) ?? null,
+        );
+        const aliasKeys =
+          canonicalIds.trendId &&
+          canonicalIds.topicId &&
+          (canonicalIds.trendId !== trendIdentifier || canonicalIds.topicId !== topicIdentifier)
+            ? [{ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId }]
+            : [];
+
         await cacheStorage.setSummary(
           trendIdentifier,
           topicIdentifier,
           userId,
           payload.summary as SummaryData,
           payload.metadata ?? undefined,
+          aliasKeys,
         );
         return {
           success: true,
@@ -359,15 +371,29 @@ class TapNavigationService {
     userId: string,
   ): Promise<void> {
     try {
+      const normalizedTrendId = this.normalizeId(trendRank) ?? String(trendRank);
+      const normalizedTopicId = this.normalizeId(topicRank) ?? String(topicRank);
       const message = `Assunto ${trendRank} topico ${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
+        const canonicalIds = this.extractCanonicalSummaryIds(
+          payload.summary as SummaryData,
+          (payload.metadata as Record<string, unknown> | null) ?? null,
+        );
+        const aliasKeys =
+          canonicalIds.trendId &&
+          canonicalIds.topicId &&
+          (canonicalIds.trendId !== normalizedTrendId || canonicalIds.topicId !== normalizedTopicId)
+            ? [{ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId }]
+            : [];
+
         await cacheStorage.setSummary(
-          this.normalizeId(trendRank) ?? String(trendRank),
-          this.normalizeId(topicRank) ?? String(topicRank),
+          normalizedTrendId,
+          normalizedTopicId,
           userId,
           payload.summary as SummaryData,
           payload.metadata ?? undefined,
+          aliasKeys,
         );
       }
     } catch (error) {
@@ -382,7 +408,23 @@ class TapNavigationService {
   ): Promise<void> {
     const trendIdentifier = this.normalizeId(trendRank) ?? String(trendRank);
     const topicIdentifier = this.normalizeId(topicRank) ?? String(topicRank);
+    const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
     await cacheStorage.deleteSummary(trendIdentifier, topicIdentifier, userId);
+
+    if (cached?.data) {
+      const canonicalIds = this.extractCanonicalSummaryIds(
+        cached.data.summary,
+        (cached.data.metadata as Record<string, unknown> | null) ?? null,
+      );
+
+      if (
+        canonicalIds.trendId &&
+        canonicalIds.topicId &&
+        (canonicalIds.trendId !== trendIdentifier || canonicalIds.topicId !== topicIdentifier)
+      ) {
+        await cacheStorage.deleteSummary(canonicalIds.trendId, canonicalIds.topicId, userId);
+      }
+    }
   }
 
   private cancelPendingRequest(cacheKey: string) {
@@ -1034,6 +1076,29 @@ class TapNavigationService {
 
   private buildTopicsRequestKey(trendRank: number, threadId?: string): string {
     return `topics_${trendRank}_${threadId ?? 'no-thread'}`;
+  }
+
+  private extractCanonicalSummaryIds(
+    summary?: SummaryData | null,
+    metadata?: Record<string, unknown> | null,
+  ): { trendId?: string; topicId?: string } {
+    const trendId = this.normalizeId(
+      summary?.thread_id ??
+        (summary as any)?.threadId ??
+        (metadata as any)?.thread_id ??
+        (metadata as any)?.threadId ??
+        (metadata as any)?.thread,
+    );
+
+    const topicId = this.normalizeId(
+      summary?.comment_id ??
+        (summary as any)?.commentId ??
+        (metadata as any)?.comment_id ??
+        (metadata as any)?.commentId ??
+        (metadata as any)?.comment,
+    );
+
+    return { trendId, topicId };
   }
 
   private normalizeId(value: unknown): string | undefined {
