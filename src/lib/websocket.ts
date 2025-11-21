@@ -76,8 +76,10 @@ export class WebSocketService {
   }
 
   private resetSessionReadyPromise() {
+    this.resolveSessionReady = null;
+
     const version = ++this.sessionReadyPromiseVersion;
-    this.sessionReadyPromise = new Promise<void>((resolve) => {
+    const handshakePromise = new Promise<void>((resolve) => {
       this.resolveSessionReady = () => {
         if (this.sessionReadyPromiseVersion === version) {
           resolve();
@@ -85,6 +87,8 @@ export class WebSocketService {
         }
       };
     });
+
+    this.sessionReadyPromise = handshakePromise;
   }
 
   private resolveSessionReadyPromise() {
@@ -399,25 +403,47 @@ export class WebSocketService {
       return;
     }
 
-    const { promise: sessionReadyPromise, version } = this.getOrCreateSessionReadyPromise();
+    const deadline = Date.now() + timeoutMs;
 
-    if (timeoutMs <= 0) {
-      await sessionReadyPromise;
-      return;
-    }
+    while (true) {
+      const { promise: sessionReadyPromise, version } = this.getOrCreateSessionReadyPromise();
+      const remaining = deadline - Date.now();
 
-    await Promise.race([
-      sessionReadyPromise,
-      new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error('Session handshake timeout')), timeoutMs);
-      }),
-    ]);
+      try {
+        if (remaining > 0) {
+          await Promise.race([
+            sessionReadyPromise,
+            new Promise<void>((_, reject) => {
+              setTimeout(() => reject(new Error('Session handshake timeout')), remaining);
+            }),
+          ]);
+        } else {
+          await sessionReadyPromise;
+        }
+      } catch (error) {
+        const isStalePromise = this.sessionReadyPromiseVersion !== version;
+        const isReady = this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN;
 
-    if (
-      this.sessionReadyPromiseVersion !== version &&
-      !(this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN)
-    ) {
-      await this.waitForSessionReady(timeoutMs);
+        if (isReady) {
+          return;
+        }
+
+        if (isStalePromise && (deadline - Date.now() > 0)) {
+          continue;
+        }
+
+        throw error;
+      }
+
+      if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      if (this.sessionReadyPromiseVersion !== version && deadline - Date.now() > 0) {
+        continue;
+      }
+
+      throw new Error('Session handshake timeout');
     }
   }
 
