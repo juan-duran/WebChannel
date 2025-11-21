@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { safeJsonParse } from './safeJsonParse';
 import { type DailyTrendsPayload } from '../types/dailyTrends';
 
 const envSource =
@@ -50,5 +51,40 @@ export type UserPreference = {
 
 export interface DailyTrendsRow {
   batch_ts: string;
+  payload: DailyTrendsPayload | string | null;
+}
+
+export interface DailyTrendsResult {
   payload: DailyTrendsPayload;
+  version: string;
+}
+
+export async function fetchLatestDailyTrends(): Promise<DailyTrendsResult> {
+  const { data, error, status } = await supabase
+    .from('daily_trends')
+    .select('batch_ts, payload')
+    .order('batch_ts', { ascending: false })
+    .limit(1)
+    .single();
+
+  if (error) {
+    throw Object.assign(new Error(error.message), { status });
+  }
+
+  if (!data) {
+    throw new Error('Nenhum registro encontrado em daily_trends.');
+  }
+
+  const payloadValue = (data as DailyTrendsRow).payload;
+  const rawPayload =
+    typeof payloadValue === 'string' ? safeJsonParse(payloadValue, null) : (payloadValue as DailyTrendsPayload | null);
+
+  if (!rawPayload || typeof rawPayload !== 'object') {
+    throw new Error('Payload de daily_trends inválido.');
+  }
+
+  return {
+    payload: rawPayload,
+    version: (data as DailyTrendsRow).batch_ts,
+  };
 }
