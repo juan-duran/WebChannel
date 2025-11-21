@@ -246,8 +246,7 @@ export class WebSocketService {
             this.ws = null;
 
             this.sessionId = null;
-            this.sessionReadyPromise = null;
-            this.resolveSessionReady = null;
+            this.resetSessionReadyPromise();
 
             if (this.isIntentionallyClosed) {
               this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
@@ -547,8 +546,7 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
-    this.sessionReadyPromise = null;
-    this.resolveSessionReady = null;
+    this.resetSessionReadyPromise();
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
