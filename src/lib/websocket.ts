@@ -65,6 +65,7 @@ export class WebSocketService {
   private connectionPromise: Promise<void> | null = null;
   private sessionReadyPromise: Promise<void> | null = null;
   private resolveSessionReady: (() => void) | null = null;
+  private sessionReadyPromiseVersion = 0;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
 
@@ -75,10 +76,13 @@ export class WebSocketService {
   }
 
   private resetSessionReadyPromise() {
+    const version = ++this.sessionReadyPromiseVersion;
     this.sessionReadyPromise = new Promise<void>((resolve) => {
       this.resolveSessionReady = () => {
-        resolve();
-        this.resolveSessionReady = null;
+        if (this.sessionReadyPromiseVersion === version) {
+          resolve();
+          this.resolveSessionReady = null;
+        }
       };
     });
   }
@@ -380,16 +384,23 @@ export class WebSocketService {
     await this.connect();
   }
 
+  private getOrCreateSessionReadyPromise() {
+    if (!this.sessionReadyPromise) {
+      this.resetSessionReadyPromise();
+    }
+
+    return {
+      promise: this.sessionReadyPromise!,
+      version: this.sessionReadyPromiseVersion,
+    };
+  }
+
   private async waitForSessionReady(timeoutMs = 5000) {
     if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
       return;
     }
 
-    if (!this.sessionReadyPromise) {
-      this.resetSessionReadyPromise();
-    }
-
-    const sessionReadyPromise = this.sessionReadyPromise;
+    const { promise: sessionReadyPromise, version } = this.getOrCreateSessionReadyPromise();
 
     if (timeoutMs <= 0) {
       await sessionReadyPromise;
@@ -402,6 +413,13 @@ export class WebSocketService {
         setTimeout(() => reject(new Error('Session handshake timeout')), timeoutMs);
       }),
     ]);
+
+    if (
+      this.sessionReadyPromiseVersion !== version &&
+      !(this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN)
+    ) {
+      await this.waitForSessionReady(timeoutMs);
+    }
   }
 
   async sendMessage(
