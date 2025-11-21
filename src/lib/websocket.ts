@@ -46,6 +46,8 @@ type QueuedRequest = {
   maxRetries: number;
   status: RequestStatus;
   expectsCorrelation: boolean;
+  enqueueTimestamp: number;
+  timeoutId?: ReturnType<typeof setTimeout>;
 };
 
 type ReplayFailureHandler = (correlationId: string) => void;
@@ -67,6 +69,7 @@ export class WebSocketService {
   private sessionReadyResolver: (() => void) | null = null;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
+  private requestTimeoutMs = 20000;
 
   constructor(private wsUrl: string) {}
 
@@ -387,6 +390,7 @@ export class WebSocketService {
             message,
             maxRetries: options?.maxRetries ?? existing.maxRetries,
             expectsCorrelation: true,
+            enqueueTimestamp: existing.enqueueTimestamp ?? Date.now(),
           }
         : {
             message,
@@ -394,9 +398,11 @@ export class WebSocketService {
             maxRetries: options?.maxRetries ?? this.defaultMaxRequestRetries,
             status: 'pending',
             expectsCorrelation: true,
+            enqueueTimestamp: Date.now(),
           };
 
       this.requestQueue.set(correlationId, queueEntry);
+      this.scheduleRequestTimeout(correlationId);
       await this.sendQueuedRequest(correlationId);
       return correlationId;
     }
@@ -517,6 +523,10 @@ export class WebSocketService {
     return this.sessionId;
   }
 
+  setRequestTimeout(ms: number) {
+    this.requestTimeoutMs = ms;
+  }
+
   private initializeSessionReadyPromise() {
     if (this.sessionReadyPromise && this.sessionId) {
       return;
@@ -552,6 +562,7 @@ export class WebSocketService {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'canceled' });
     this.requestQueue.delete(correlationId);
     this.replayFailureHandlers.delete(correlationId);
@@ -569,6 +580,7 @@ export class WebSocketService {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'fulfilled' });
     this.requestQueue.delete(correlationId);
     this.replayFailureHandlers.delete(correlationId);
@@ -635,6 +647,7 @@ export class WebSocketService {
     const entry = this.requestQueue.get(correlationId);
     if (!entry) return;
 
+    this.clearRequestTimeout(entry);
     this.requestQueue.set(correlationId, { ...entry, status: 'failed' });
     this.notifyReplayExhausted(correlationId);
     this.requestQueue.delete(correlationId);
@@ -647,6 +660,41 @@ export class WebSocketService {
 
     handlers.forEach((handler) => handler(correlationId));
     this.replayFailureHandlers.delete(correlationId);
+  }
+
+  private scheduleRequestTimeout(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    this.clearRequestTimeout(entry);
+
+    const elapsed = Date.now() - entry.enqueueTimestamp;
+    const remainingWindow = this.requestTimeoutMs - elapsed;
+
+    if (remainingWindow <= 0) {
+      this.handleRequestTimeout(correlationId);
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      this.handleRequestTimeout(correlationId);
+    }, remainingWindow);
+
+    this.requestQueue.set(correlationId, { ...entry, timeoutId });
+  }
+
+  private clearRequestTimeout(entry?: QueuedRequest) {
+    if (entry?.timeoutId) {
+      clearTimeout(entry.timeoutId);
+      entry.timeoutId = undefined;
+    }
+  }
+
+  private handleRequestTimeout(correlationId: string) {
+    const entry = this.requestQueue.get(correlationId);
+    if (!entry || entry.status !== 'pending') return;
+
+    this.failQueuedRequest(correlationId);
   }
 }
 
