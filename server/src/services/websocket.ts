@@ -167,6 +167,17 @@ export class WebSocketService {
 
     const correlationId = generateCorrelationId();
 
+    logger.info(
+      {
+        sessionId,
+        userId,
+        userEmail,
+        correlationId,
+        content: message.content,
+      },
+      'Forwarding message to n8n',
+    );
+
     await this.supabaseServiceInstance.logAuditMessage(userId, 'in', {
       message: message.content,
       correlationId,
