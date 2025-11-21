@@ -67,6 +67,8 @@ export class WebSocketService {
   private connectionPromise: Promise<void> | null = null;
   private sessionReadyPromise: Promise<void> | null = null;
   private sessionReadyResolver: (() => void) | null = null;
+  private sessionReadyRejecter: ((error: Error) => void) | null = null;
+  private sessionReadyTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
   private requestTimeoutMs = 20000;
@@ -262,13 +264,7 @@ export class WebSocketService {
     if (message.type === 'connected' && message.sessionId) {
       this.sessionId = message.sessionId;
       console.log('Session established:', this.sessionId);
-      if (!this.sessionReadyPromise) {
-        this.initializeSessionReadyPromise();
-      }
-      if (this.sessionReadyResolver) {
-        this.sessionReadyResolver();
-        this.sessionReadyResolver = null;
-      }
+      this.resolveSessionReady();
     }
 
     if (message.correlationId) {
@@ -467,7 +463,7 @@ export class WebSocketService {
     await this.ensureConnected('send_message');
     await this.waitForSessionReady('send_message');
 
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
       throw new Error('Unable to establish WebSocket connection');
     }
 
@@ -552,8 +548,13 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
+    if (this.sessionReadyTimeoutId) {
+      clearTimeout(this.sessionReadyTimeoutId);
+      this.sessionReadyTimeoutId = null;
+    }
     this.sessionReadyPromise = null;
     this.sessionReadyResolver = null;
+    this.sessionReadyRejecter = null;
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
@@ -589,14 +590,38 @@ export class WebSocketService {
       return;
     }
 
-    this.sessionReadyPromise = new Promise<void>((resolve) => {
+    if (this.sessionReadyTimeoutId) {
+      clearTimeout(this.sessionReadyTimeoutId);
+      this.sessionReadyTimeoutId = null;
+    }
+
+    this.sessionReadyPromise = new Promise<void>((resolve, reject) => {
       this.sessionReadyResolver = resolve;
+      this.sessionReadyRejecter = reject;
     });
 
     if (this.sessionId && this.sessionReadyResolver) {
-      this.sessionReadyResolver();
-      this.sessionReadyResolver = null;
+      this.resolveSessionReady(true);
+      return;
     }
+
+    this.sessionReadyTimeoutId = setTimeout(() => {
+      const error = new Error('Session handshake was not received in time');
+      console.warn('[WebSocketService] Session ready handshake timeout', {
+        timeoutMs: this.sessionReadyTimeoutMs,
+        sessionId: this.sessionId,
+        wsState: this.ws?.readyState,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (this.sessionReadyRejecter) {
+        this.sessionReadyRejecter(error);
+      }
+
+      this.sessionReadyPromise = null;
+      this.sessionReadyResolver = null;
+      this.sessionReadyRejecter = null;
+    }, this.sessionReadyTimeoutMs);
   }
 
   private async waitForSessionReady(context: string) {
@@ -608,30 +633,36 @@ export class WebSocketService {
       this.initializeSessionReadyPromise();
     }
 
-    const waitPromise = this.sessionReadyPromise as Promise<void>;
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    const timeoutPromise = new Promise<void>((resolve) => {
-      timeoutId = setTimeout(() => {
-        console.warn('[WebSocketService] Waiting for session acknowledgement timed out', {
-          context,
-          timeoutMs: this.sessionReadyTimeoutMs,
-          sessionId: this.sessionId,
-          wsState: this.ws?.readyState,
-          timestamp: new Date().toISOString(),
-        });
-        resolve();
-      }, this.sessionReadyTimeoutMs);
-    });
-
     try {
-      await Promise.race([waitPromise, timeoutPromise]);
-      await waitPromise;
-    } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
+      await this.sessionReadyPromise;
+    } catch (error) {
+      console.warn('[WebSocketService] Session not ready; aborting send', {
+        context,
+        sessionId: this.sessionId,
+        wsState: this.ws?.readyState,
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      throw error;
     }
+  }
+
+  private resolveSessionReady(skipInit = false) {
+    if (this.sessionReadyTimeoutId) {
+      clearTimeout(this.sessionReadyTimeoutId);
+      this.sessionReadyTimeoutId = null;
+    }
+
+    if (!skipInit && !this.sessionReadyPromise) {
+      this.initializeSessionReadyPromise();
+    }
+
+    if (this.sessionReadyResolver) {
+      this.sessionReadyResolver();
+      this.sessionReadyResolver = null;
+    }
+
+    this.sessionReadyRejecter = null;
   }
 
   generateCorrelationId(): string {
@@ -696,7 +727,7 @@ export class WebSocketService {
       await this.ensureConnected('send_queued_request');
       await this.waitForSessionReady('send_queued_request');
 
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
         throw new Error('Unable to establish WebSocket connection');
       }
 
