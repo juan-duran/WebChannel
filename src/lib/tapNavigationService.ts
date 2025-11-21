@@ -481,8 +481,9 @@ class TapNavigationService {
         if (!candidate) return null;
 
         if (Array.isArray(candidate)) {
-          if (candidate.length === 1) {
-            return resolveStructuredData(candidate[0]);
+          for (const item of candidate) {
+            const resolved = resolveStructuredData(item);
+            if (resolved) return resolved;
           }
 
           return null;
@@ -492,11 +493,15 @@ class TapNavigationService {
           const candidateObject = candidate as Record<string, unknown>;
 
           if ('structuredData' in candidateObject && candidateObject.structuredData) {
-            return candidateObject.structuredData;
+            return resolveStructuredData(candidateObject.structuredData);
           }
 
           if ('structured_data' in candidateObject && candidateObject.structured_data) {
-            return candidateObject.structured_data;
+            return resolveStructuredData(candidateObject.structured_data);
+          }
+
+          if ('output' in candidateObject && candidateObject.output) {
+            return resolveStructuredData(candidateObject.output);
           }
         }
 
