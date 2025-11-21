@@ -284,12 +284,29 @@ export function TapNavigationPage() {
           <TrendCard
             trend={trend}
             isExpanded={expandedTrendId === trend.position}
-            topics={trend.topics ?? null}
+            topics={
+              Array.isArray(trend.topics)
+                ? Array.from(
+                    new Map(
+                      trend.topics.map((t) => [
+                        `${t.number}-${t.description ?? ''}`,
+                        t,
+                      ]),
+                    ).values(),
+                  )
+                : null
+            }
             isLoadingTopics={false}
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
+              if (summaryAbortRef.current) {
+                summaryAbortRef.current.abort();
+                summaryAbortRef.current = null;
+              }
+              summaryCorrelationRef.current = null;
+              setIsLoadingSummary(false);
               setSelectedTopic(topic);
               setSelectedSummary(null);
               setSummaryError(null);
