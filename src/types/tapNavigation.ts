@@ -105,6 +105,11 @@ export interface TrendsCacheEntry {
   version: string | null;
 }
 
+export interface SummaryCacheEntry {
+  summary: SummaryData;
+  metadata?: Record<string, unknown> | null;
+}
+
 export interface TapNavigationState {
   currentLayer: 'trends' | 'topics' | 'summary';
   expandedTrendId: string | null;
