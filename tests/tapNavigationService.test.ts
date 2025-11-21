@@ -97,6 +97,7 @@ beforeEach(async () => {
     getTopics: cacheStorage.getTopics,
     setTopics: cacheStorage.setTopics,
     isStale: cacheStorage.isStale,
+    getTrends: cacheStorage.getTrends,
   };
 
   (websocketService as any).on = (type: WebSocketMessageType, handler: WebSocketEventHandler) => {
@@ -155,6 +156,7 @@ beforeEach(async () => {
 
   (cacheStorage as any).getTopics = async () => null;
   (cacheStorage as any).setTopics = async () => {};
+  (cacheStorage as any).getTrends = async () => null;
   (cacheStorage as any).isStale = () => false;
 });
 
@@ -319,6 +321,84 @@ test('requestFromAgent ignores assistant messages without valid structured data'
   assert.equal(result.layer, 'trends');
 });
 
+test('requestFromAgent accepts plain text summary without content type', async () => {
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
+    setTimeout(() => {
+      emit(
+        'message',
+        {
+          type: 'message',
+          role: 'assistant',
+          correlationId: lastCorrelationId,
+          content: 'Resumo simples',
+        } as any,
+      );
+    }, 0);
+    return options?.correlationId;
+  };
+
+  const result: TapNavigationStructuredData = await (tapNavigationService as any).requestFromAgent(
+    'Load summary',
+    'summary',
+  );
+
+  assert.equal(result.layer, 'summary');
+  assert.equal(result.summary?.thesis, 'Resumo simples');
+});
+
+test('requestFromAgent rejects summary when assistant reply is discarded and logs telemetry', async () => {
+  const originalConsoleError = console.error;
+  const errorLogs: unknown[] = [];
+
+  console.error = (...args: unknown[]) => {
+    errorLogs.push(args);
+  };
+
+  (websocketService as any).sendMessage = async (
+    _content: string,
+    _metadata?: any,
+    options?: { correlationId?: string },
+  ) => {
+    lastCorrelationId = options?.correlationId;
+    setTimeout(() => {
+      emit(
+        'message',
+        {
+          type: 'message',
+          role: 'assistant',
+          correlationId: lastCorrelationId,
+        } as any,
+      );
+    }, 0);
+    return options?.correlationId;
+  };
+
+  try {
+    await assert.rejects(
+      (tapNavigationService as any).requestFromAgent('Load summary', 'summary'),
+      (error: any) => {
+        assert.equal(
+          error.message,
+          'O assistente não retornou dados estruturados para o resumo. Tente novamente.',
+        );
+        return true;
+      },
+    );
+  } finally {
+    console.error = originalConsoleError;
+  }
+
+  assert.ok(
+    errorLogs.some((args) => JSON.stringify(args).includes('agent_reply_discarded')),
+    'discarded replies should be logged for telemetry',
+  );
+});
+
 test('requestFromAgent resolves when structured data is nested inside output', async () => {
   (websocketService as any).sendMessage = async (
     _content: string,
@@ -435,6 +515,18 @@ test('fetchTopics accepts topic-layer structured data and maps it by trend', asy
       );
     }, 0);
     return options?.correlationId;
+  };
+
+  (tapNavigationService as any).lastTrends = {
+    trends: [
+      {
+        id: 'trend-2',
+        number: 2,
+        topics: topicPayload.topics,
+      },
+    ],
+    trendsSummary: 'Topic summary',
+    version: 1,
   };
 
   const result = await tapNavigationService.fetchTopics(2);
