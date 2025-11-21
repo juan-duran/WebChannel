@@ -3,6 +3,7 @@ import { authenticateApiKey } from '../middleware/auth.js';
 import { OutgoingMessageRequest } from '../types/index.js';
 import { sessionManager } from '../services/session.js';
 import { supabaseService } from '../services/supabase.js';
+import { resolveCorrelation, clearCorrelation } from '../services/correlationTracker.js';
 import { logger } from '../utils/logger.js';
 
 type NormalizedButton = { label: string; value: string };
@@ -258,6 +259,15 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
   try {
     const message = normalizeOutgoingMessageRequest(req.body);
 
+    if (!message.sessionId && !message.userId && !message.userEmail && message.correlationId) {
+      const resolved = resolveCorrelation(message.correlationId);
+      if (resolved) {
+        message.sessionId = resolved.sessionId;
+        message.userId = resolved.userId;
+        message.userEmail = resolved.userEmail;
+      }
+    }
+
     logger.debug(
       {
         sessionId: message.sessionId,
@@ -405,6 +415,10 @@ router.post('/send', authenticateApiKey, async (req: Request, res: Response) => 
         },
         'Unable to deliver outgoing message or queue for offline delivery',
       );
+    }
+
+    if (message.correlationId) {
+      clearCorrelation(message.correlationId);
     }
 
     res.json({

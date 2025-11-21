@@ -2,6 +2,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import { IncomingMessage } from 'http';
 import { parse } from 'url';
 import { sessionManager } from './session.js';
+import { trackCorrelation, clearCorrelation } from './correlationTracker.js';
 import { supabaseService } from './supabase.js';
 import { n8nService } from './n8n.js';
 import { logger } from '../utils/logger.js';
@@ -180,6 +181,8 @@ export class WebSocketService {
       'Forwarding message to n8n',
     );
 
+    trackCorrelation(correlationId, sessionId, userId, userEmail);
+
     await this.supabaseServiceInstance.logAuditMessage(userId, 'in', {
       message: message.content,
       correlationId,
@@ -265,6 +268,8 @@ export class WebSocketService {
           timestamp: new Date().toISOString(),
           delivery: 'immediate',
         });
+
+        clearCorrelation(normalizedImmediateResponse.correlationId ?? correlationId);
       } else {
         // Mantém um log de saída simples para auditoria
         await this.supabaseServiceInstance.logAuditMessage(userId, 'out', {
