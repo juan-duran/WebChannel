@@ -84,23 +84,41 @@ export function TapNavigationPage() {
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
+      const correlationId = websocketService.generateCorrelationId();
+      const startedAt = performance.now();
+      const startedAtIso = new Date().toISOString();
 
-      console.log('[TapNavigationPage] Fetching summary for topic', {
+      const startLogContext = {
+        event: 'summary_fetch',
+        status: 'started' as const,
+        correlationId,
         trendId,
         topicId,
         forceRefresh: options?.forceRefresh ?? false,
-      });
+        connectionState: websocketService.getConnectionState(),
+        timestamp: startedAtIso,
+      };
+
+      console.log('[TapNavigationPage] Fetching summary for topic', startLogContext);
 
       try {
         await websocketService.connect();
       } catch (wsError) {
         setIsLoadingSummary(false);
+        const sessionErrorCode =
+          typeof wsError === 'object' && wsError !== null && 'code' in wsError
+            ? (wsError as { code?: unknown }).code
+            : undefined;
         const isSessionMissing =
-          (wsError as any)?.code === 'SESSION_MISSING' ||
+          sessionErrorCode === 'SESSION_MISSING' ||
           (wsError instanceof Error && wsError.message === 'SESSION_MISSING');
 
         console.error('[TapNavigationPage] WebSocket connection failed', {
+          ...startLogContext,
+          status: 'connection_failed',
           isSessionMissing,
+          connectionState: websocketService.getConnectionState(),
+          durationMs: Math.round(performance.now() - startedAt),
           error: wsError,
         });
 
@@ -126,6 +144,7 @@ export function TapNavigationPage() {
             trendId,
             topicId,
             forceRefresh: options?.forceRefresh,
+            correlationId,
           },
         );
 
@@ -134,13 +153,72 @@ export function TapNavigationPage() {
           setSummaryMetadata((result.metadata as Record<string, unknown>) ?? null);
           setSummaryFromCache(Boolean(result.fromCache));
           setSummaryError(result.error ?? null);
+
+          const resolveMetadataId = (
+            metadata: Record<string, unknown> | null | undefined,
+            keys: string[],
+            fallback: string,
+          ) => {
+            if (!metadata) return fallback;
+
+            for (const key of keys) {
+              const value = metadata[key];
+
+              if ((typeof value === 'string' || typeof value === 'number') && String(value).trim()) {
+                return String(value).trim();
+              }
+            }
+
+            return fallback;
+          };
+
+          const resolvedTrendId = resolveMetadataId(result.metadata, ['trendId', 'trend-id'], trendId);
+          const resolvedTopicId = resolveMetadataId(result.metadata, ['topicId', 'topic-id'], topicId);
+
+          console.log('[TapNavigationPage] Summary fetched successfully', {
+            event: 'summary_fetch',
+            status: 'succeeded' as const,
+            correlationId,
+            trendId,
+            topicId,
+            resolvedTrendId,
+            resolvedTopicId,
+            connectionState: websocketService.getConnectionState(),
+            fromCache: Boolean(result.fromCache),
+            durationMs: Math.round(performance.now() - startedAt),
+            timestamp: startedAtIso,
+          });
         } else {
           setSummaryError(result.error || 'Não foi possível obter o resumo.');
+
+          console.error('[TapNavigationPage] Summary fetch failed', {
+            event: 'summary_fetch',
+            status: 'failed' as const,
+            correlationId,
+            trendId,
+            topicId,
+            connectionState: websocketService.getConnectionState(),
+            durationMs: Math.round(performance.now() - startedAt),
+            error: result.error || 'unknown_error',
+            timestamp: startedAtIso,
+          });
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
         setSummaryError(message);
         setSummaryMetadata(null);
+
+        console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
+          event: 'summary_fetch',
+          status: 'exception' as const,
+          correlationId,
+          trendId,
+          topicId,
+          connectionState: websocketService.getConnectionState(),
+          durationMs: Math.round(performance.now() - startedAt),
+          error: err,
+          timestamp: startedAtIso,
+        });
       } finally {
         setIsLoadingSummary(false);
       }
