@@ -26,7 +26,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  service.setRequestTimeout(20000);
+  service.setRequestTimeout(120000);
   service.requestQueue.clear();
   service.correlationHandlers.clear();
 });
