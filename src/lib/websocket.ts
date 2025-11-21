@@ -258,6 +258,9 @@ export class WebSocketService {
     if (message.type === 'connected' && message.sessionId) {
       this.sessionId = message.sessionId;
       console.log('Session established:', this.sessionId);
+      if (!this.sessionReadyPromise) {
+        this.initializeSessionReadyPromise();
+      }
       if (this.sessionReadyResolver) {
         this.sessionReadyResolver();
         this.sessionReadyResolver = null;
@@ -399,6 +402,7 @@ export class WebSocketService {
     }
 
     await this.ensureConnected();
+    await this.waitForSessionReady();
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Unable to establish WebSocket connection');
@@ -598,6 +602,7 @@ export class WebSocketService {
 
     try {
       await this.ensureConnected();
+      await this.waitForSessionReady();
 
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         throw new Error('Unable to establish WebSocket connection');
@@ -615,6 +620,8 @@ export class WebSocketService {
 
   private async replayPendingRequests() {
     if (this.requestQueue.size === 0) return;
+
+    await this.waitForSessionReady();
 
     for (const correlationId of this.requestQueue.keys()) {
       const entry = this.requestQueue.get(correlationId);
