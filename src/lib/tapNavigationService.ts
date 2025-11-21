@@ -252,7 +252,9 @@ class TapNavigationService {
     userId: string,
     options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
   ): Promise<TapNavigationResponse> {
-    const cacheKey = `summary_${options?.trendId ?? trendRank}_${options?.topicId ?? topicRank}_${userId}`;
+    const trendIdentifier = this.normalizeId(options?.trendId ?? trendRank) ?? String(trendRank);
+    const topicIdentifier = this.normalizeId(options?.topicId ?? topicRank) ?? String(topicRank);
+    const cacheKey = `summary_${trendIdentifier}_${topicIdentifier}_${userId}`;
 
     if (this.pendingRequests.has(cacheKey)) {
       return this.pendingRequests.get(cacheKey)!;
@@ -274,12 +276,11 @@ class TapNavigationService {
     userId: string,
     options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
   ): Promise<TapNavigationResponse> {
+    const trendIdentifier = this.normalizeId(options?.trendId ?? trendRank) ?? String(trendRank);
+    const topicIdentifier = this.normalizeId(options?.topicId ?? topicRank) ?? String(topicRank);
+
     try {
-      const cached = await cacheStorage.getSummary(
-        options?.topicId ?? topicRank,
-        options?.trendId ?? trendRank,
-        userId,
-      );
+      const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
 
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
@@ -288,8 +289,9 @@ class TapNavigationService {
 
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
         };
       }
 
@@ -298,10 +300,11 @@ class TapNavigationService {
 
       if (payload.summary) {
         await cacheStorage.setSummary(
-          options?.topicId ?? topicRank,
-          options?.trendId ?? trendRank,
+          trendIdentifier,
+          topicIdentifier,
           userId,
           payload.summary as SummaryData,
+          payload.metadata ?? undefined,
         );
         return {
           success: true,
@@ -316,8 +319,9 @@ class TapNavigationService {
       if (cached) {
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
@@ -329,18 +333,15 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching summary:', error);
 
-      const cached = await cacheStorage.getSummary(
-        options?.topicId ?? topicRank,
-        options?.trendId ?? trendRank,
-        userId,
-      );
+      const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
       const message = `Assunto ${options?.trendId ?? trendRank} topico ${options?.topicId ?? topicRank}`;
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
           error: `${errorMessage} Exibindo dados em cache.`,
         };
       }
@@ -361,7 +362,13 @@ class TapNavigationService {
       const message = `Assunto ${trendRank} topico ${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(
+          this.normalizeId(trendRank) ?? String(trendRank),
+          this.normalizeId(topicRank) ?? String(topicRank),
+          userId,
+          payload.summary as SummaryData,
+          payload.metadata ?? undefined,
+        );
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
@@ -373,7 +380,9 @@ class TapNavigationService {
     trendRank: number | string,
     userId: string,
   ): Promise<void> {
-    await cacheStorage.deleteSummary(topicRank, trendRank, userId);
+    const trendIdentifier = this.normalizeId(trendRank) ?? String(trendRank);
+    const topicIdentifier = this.normalizeId(topicRank) ?? String(topicRank);
+    await cacheStorage.deleteSummary(trendIdentifier, topicIdentifier, userId);
   }
 
   private cancelPendingRequest(cacheKey: string) {
