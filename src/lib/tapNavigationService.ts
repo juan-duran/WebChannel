@@ -311,12 +311,19 @@ class TapNavigationService {
           payload.summary as SummaryData,
           (payload.metadata as Record<string, unknown> | null) ?? null,
         );
-        const aliasKeys =
+        const aliasKeys: { trendId: number | string; topicId: number | string }[] = [];
+
+        if (
           canonicalIds.trendId &&
           canonicalIds.topicId &&
           (canonicalIds.trendId !== trendIdentifier || canonicalIds.topicId !== topicIdentifier)
-            ? [{ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId }]
-            : [];
+        ) {
+          aliasKeys.push({ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId });
+        }
+
+        if (trendIdentifier !== rawTrendId || topicIdentifier !== rawTopicId) {
+          aliasKeys.push({ trendId: rawTrendId, topicId: rawTopicId });
+        }
 
         await cacheStorage.setSummary(
           trendIdentifier,
@@ -379,6 +386,8 @@ class TapNavigationService {
     try {
       const normalizedTrendId = this.normalizeId(trendRank) ?? String(trendRank);
       const normalizedTopicId = this.normalizeId(topicRank) ?? String(topicRank);
+      const rawTrendId = String(trendRank);
+      const rawTopicId = String(topicRank);
       const message = `Assunto ${trendRank} topico ${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
@@ -386,12 +395,19 @@ class TapNavigationService {
           payload.summary as SummaryData,
           (payload.metadata as Record<string, unknown> | null) ?? null,
         );
-        const aliasKeys =
+        const aliasKeys: { trendId: number | string; topicId: number | string }[] = [];
+
+        if (
           canonicalIds.trendId &&
           canonicalIds.topicId &&
           (canonicalIds.trendId !== normalizedTrendId || canonicalIds.topicId !== normalizedTopicId)
-            ? [{ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId }]
-            : [];
+        ) {
+          aliasKeys.push({ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId });
+        }
+
+        if (normalizedTrendId !== rawTrendId || normalizedTopicId !== rawTopicId) {
+          aliasKeys.push({ trendId: rawTrendId, topicId: rawTopicId });
+        }
 
         await cacheStorage.setSummary(
           normalizedTrendId,
