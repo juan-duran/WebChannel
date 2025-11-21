@@ -1,3 +1,4 @@
+import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { TapNavigationStructuredData } from '../types/tapNavigation';
 
@@ -71,6 +72,62 @@ export class WebSocketService {
     this.connectionPromise = null;
   }
 
+  private logConnectionFailure(reason: string, error?: unknown) {
+    const baseError = error instanceof Error ? { message: error.message, stack: error.stack } : { error };
+    console.error('[WebSocketService][ConnectionFailure]', {
+      event: 'websocket_connection_failure',
+      reason,
+      reconnectAttempts: this.reconnectAttempts,
+      sessionId: this.sessionId,
+      timestamp: new Date().toISOString(),
+      ...baseError,
+    });
+  }
+
+  private logConnectionBreadcrumb(event: string, payload?: Record<string, unknown>) {
+    console.log('[WebSocketService]', {
+      event,
+      timestamp: new Date().toISOString(),
+      sessionId: this.sessionId,
+      ...(payload ?? {}),
+    });
+  }
+
+  private async ensureActiveSession(): Promise<Session> {
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      this.logConnectionFailure('session_lookup_failed', sessionError);
+    }
+
+    if (sessionData?.session) {
+      return sessionData.session;
+    }
+
+    const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) {
+      this.logConnectionFailure('session_refresh_failed', refreshError);
+    }
+
+    if (refreshedData?.session) {
+      this.logConnectionBreadcrumb('session_refreshed');
+      return refreshedData.session;
+    }
+
+    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
+    if (anonError) {
+      this.logConnectionFailure('anonymous_sign_in_failed', anonError);
+    }
+
+    if (anonData?.session) {
+      this.logConnectionBreadcrumb('anonymous_session_created');
+      return anonData.session;
+    }
+
+    const sessionMissingError = Object.assign(new Error('SESSION_MISSING'), { code: 'SESSION_MISSING' });
+    this.logConnectionFailure('session_missing', sessionMissingError);
+    throw sessionMissingError;
+  }
+
   async connect(): Promise<void> {
     if (this.ws) {
       if (this.ws.readyState === WebSocket.OPEN) {
@@ -89,11 +146,13 @@ export class WebSocketService {
     this.isIntentionallyClosed = false;
 
     const connectionPromise = (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('No active session');
+      let session: Session;
+
+      try {
+        session = await this.ensureActiveSession();
+      } catch (error) {
+        this.logConnectionFailure('session_bootstrap_failed', error);
+        throw error;
       }
 
       const token = session.access_token;
@@ -135,6 +194,8 @@ export class WebSocketService {
               ? event.error || new Error(event.message)
               : new Error('WebSocket connection error');
 
+          this.logConnectionFailure('websocket_error', error);
+
           if (!isOpen) {
             if (!this.isReconnecting) {
               this.notifyHandlers('error', {
@@ -164,6 +225,7 @@ export class WebSocketService {
             const error = this.isIntentionallyClosed
               ? new Error('WebSocket connection intentionally closed')
               : new Error('WebSocket connection closed before opening');
+            this.logConnectionFailure('websocket_closed_before_open', error);
             reject(error);
           }
 
@@ -174,9 +236,14 @@ export class WebSocketService {
       });
     })();
 
-    const guardedPromise = connectionPromise.finally(() => {
-      this.clearConnectionPromise();
-    });
+    const guardedPromise = connectionPromise
+      .catch((error) => {
+        this.logConnectionFailure('connect_attempt_failed', error);
+        throw error;
+      })
+      .finally(() => {
+        this.clearConnectionPromise();
+      });
 
     this.connectionPromise = guardedPromise;
 
