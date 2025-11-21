@@ -191,6 +191,7 @@ class TapNavigationService {
           success: true,
           data: cachedTopics.data,
           fromCache: true,
+          topicsSummary: trendsCache?.trendsSummary ?? null,
         };
       }
 
@@ -204,6 +205,7 @@ class TapNavigationService {
           success: true,
           data: topicsFromTrends as TopicData[],
           fromCache: !cachedTopics,
+          topicsSummary: trendsCache?.trendsSummary ?? null,
         };
       }
 
@@ -499,6 +501,18 @@ class TapNavigationService {
         return candidate;
       };
 
+      const logDiscardedResponse = (reason: string, response: WebSocketMessage) => {
+        console.error('[TapNavigationService][AgentReplyDiscarded]', {
+          event: 'agent_reply_discarded',
+          reason,
+          correlationId,
+          contentType: response.contentType ?? 'unknown',
+          hasStructuredData: Boolean(response.structuredData ?? (response as any).structured_data),
+          hasOutput: Boolean((response as any).output),
+          role: response.role ?? 'assistant',
+        });
+      };
+
       const handleMessage = (response: WebSocketMessage) => {
         if (resolved) return;
 
@@ -511,16 +525,13 @@ class TapNavigationService {
             resolveStructuredData(response.structuredData ?? (response as any).structured_data) ||
             resolveStructuredData((response as any).output);
 
+          const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
+          const isSummaryRequest = expectedLayers.includes('summary');
           let normalized: TapNavigationStructuredData | null = null;
 
           if (structuredData && this.isValidStructuredData(structuredData)) {
             normalized = this.normalizeStructuredData(structuredData);
-          } else if (
-            !structuredData &&
-            response.contentType === 'summary' &&
-            typeof response.content === 'string' &&
-            expectedLayer === 'summary'
-          ) {
+          } else if (!structuredData && isSummaryRequest && typeof response.content === 'string') {
             // Fallback: accept a summary delivered as plain text when structured data is missing.
             normalized = {
               layer: 'summary',
@@ -529,11 +540,23 @@ class TapNavigationService {
               summary: { thesis: response.content },
             };
           } else {
-            console.warn('Received assistant message without usable structured data. Ignoring message.');
+            const discardReason = structuredData ? 'invalid_structured_data' : 'missing_structured_data';
+            logDiscardedResponse(discardReason, response);
+
+            if (isSummaryRequest) {
+              resolved = true;
+              clearTimeout(timeout);
+              cleanup();
+
+              reject(
+                new StructuredDataValidationError(
+                  'O assistente não retornou dados estruturados para o resumo. Tente novamente.',
+                ),
+              );
+            }
+
             return;
           }
-
-          const expectedLayers = Array.isArray(expectedLayer) ? expectedLayer : [expectedLayer];
 
           if (!normalized || !expectedLayers.includes(normalized.layer)) {
             return;
