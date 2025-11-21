@@ -302,7 +302,7 @@ export class WebSocketService {
     const metadata = message.metadata;
 
     if (!metadata || typeof metadata !== 'object') {
-      return true;
+      return false;
     }
 
     const booleanTerminalFlags = [
