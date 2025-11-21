@@ -342,17 +342,43 @@ export class WebSocketService {
       'data.metadata',
       'data.meta',
     ]);
-    const contentType = this.coalesceString(
-      ...candidateObjects.flatMap((candidate) => [
-        this.readPath(candidate, 'contentType'),
-        this.readPath(candidate, 'content_type'),
-        this.readPath(candidate, 'type'),
-        this.readPath(candidate, 'data.contentType'),
-        this.readPath(candidate, 'data.content_type'),
-        this.readPath(candidate, 'data.type'),
-      ]),
-      structuredData ? 'trends' : undefined
-    );
+    const normalizeContentType = (value?: string) => {
+      if (!value) return undefined;
+      const normalized = value.trim().toLowerCase();
+      return ['text', 'image', 'video', 'link', 'trends', 'topics', 'summary'].includes(normalized)
+        ? normalized
+        : undefined;
+    };
+
+    const contentType =
+      normalizeContentType(
+        this.coalesceString(
+          ...candidateObjects.flatMap((candidate) => [
+            this.readPath(candidate, 'contentType'),
+            this.readPath(candidate, 'content_type'),
+            this.readPath(candidate, 'type'),
+            this.readPath(candidate, 'data.contentType'),
+            this.readPath(candidate, 'data.content_type'),
+            this.readPath(candidate, 'data.type'),
+          ]),
+        ),
+      ) ??
+      (() => {
+        // Derive from structured data when explicit contentType is missing.
+        if (!structuredData || typeof structuredData !== 'object') return structuredData ? 'trends' : undefined;
+        const layer = this.coalesceString(
+          (structuredData as any).layer,
+          (structuredData as any).type,
+          (structuredData as any).data?.layer,
+        );
+        const normalizedLayer = normalizeContentType(layer);
+        if (normalizedLayer && normalizedLayer !== 'text') return normalizedLayer;
+
+        if (Array.isArray((structuredData as any).topics)) return 'topics';
+        if ((structuredData as any).summary && typeof (structuredData as any).summary === 'object') return 'summary';
+        if (Array.isArray((structuredData as any).trends)) return 'trends';
+        return 'text';
+      })();
     const cacheTag = this.coalesceString(
       ...candidateObjects.flatMap((candidate) => [
         this.readPath(candidate, 'cacheTag'),

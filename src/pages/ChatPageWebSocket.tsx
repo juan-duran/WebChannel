@@ -162,10 +162,17 @@ export function ChatPageWebSocket() {
 
       const parsedContent = safeJsonParse<any>(message.content);
       const parsedType = typeof parsedContent?.type === 'string' ? parsedContent.type : undefined;
-      const structuredDataType = inferContentTypeFromStructuredData(message.structuredData);
+      const structuredDataCandidate =
+        message.structuredData ??
+        (message as any).structured_data ??
+        (parsedContent && typeof parsedContent === 'object'
+          ? (parsedContent as any).structuredData ?? (parsedContent as any).structured_data
+          : undefined);
+      const structuredDataType = inferContentTypeFromStructuredData(structuredDataCandidate);
+      const rawContentType = (message as any).content_type ?? message.contentType;
       const resolvedContentType =
-        (message.contentType && (allowedAssistantContentTypes as string[]).includes(message.contentType)
-          ? (message.contentType as ChatMessage['contentType'])
+        (rawContentType && (allowedAssistantContentTypes as string[]).includes(rawContentType)
+          ? (rawContentType as ChatMessage['contentType'])
           : undefined) ||
         (parsedType && (allowedAssistantContentTypes as string[]).includes(parsedType)
           ? (parsedType as ChatMessage['contentType'])
@@ -223,11 +230,13 @@ export function ChatPageWebSocket() {
         structuredData:
           parsedContent && Object.prototype.hasOwnProperty.call(parsedContent, 'items')
             ? parsedContent.items
-            : message.structuredData || null,
+            : structuredDataCandidate || null,
         metadata:
           message.metadata ||
           (parsedContent?.metadata && typeof parsedContent.metadata === 'object'
             ? parsedContent.metadata
+            : parsedContent?.meta && typeof parsedContent.meta === 'object'
+            ? parsedContent.meta
             : undefined),
         buttons: mergedButtons,
       };
