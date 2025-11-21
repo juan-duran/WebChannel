@@ -1,6 +1,7 @@
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { TopicSkeleton } from './LoadingProgress';
+import { TrendAssetPreview } from './TrendAssetPreview';
 
 interface TrendCardProps {
   trend: DailyTrend;
@@ -43,7 +44,7 @@ export function TrendCard({
   onRetryTopics,
   disabled = false,
 }: TrendCardProps) {
-  const contentId = `trend-${trend.position}-content`;
+  const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
 
   const handleToggle = () => {
     if (disabled) return;
@@ -131,6 +132,14 @@ export function TrendCard({
           id={contentId}
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
+          <TrendAssetPreview
+            asset={trend}
+            fallbackUrl={trend.asset_short_url}
+            fallbackTitle={trend.title}
+            fallbackDescription={trend.snippet}
+            className="mb-4"
+          />
+
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-3">
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
