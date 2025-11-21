@@ -279,9 +279,17 @@ class TapNavigationService {
     const trendIdentifier = this.normalizeId(options?.trendId ?? trendRank) ?? String(trendRank);
     const topicIdentifier = this.normalizeId(options?.topicId ?? topicRank) ?? String(topicRank);
 
-    try {
-      const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
+    const rawTrendId = String(options?.trendId ?? trendRank);
+    const rawTopicId = String(options?.topicId ?? topicRank);
+    const cachedNormalized = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
+    const cachedRaw =
+      !cachedNormalized && (trendIdentifier !== rawTrendId || topicIdentifier !== rawTopicId)
+        ? await cacheStorage.getSummary(rawTrendId, rawTopicId, userId)
+        : null;
 
+    const cached = cachedNormalized ?? cachedRaw;
+
+    try {
       if (cached && !options?.forceRefresh) {
         if (cacheStorage.isStale(cached)) {
           this.refreshSummaryInBackground(options?.topicId ?? topicRank, options?.trendId ?? trendRank, userId);
@@ -345,8 +353,6 @@ class TapNavigationService {
     } catch (error) {
       console.error('Error fetching summary:', error);
 
-      const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
-      const message = `Assunto ${options?.trendId ?? trendRank} topico ${options?.topicId ?? topicRank}`;
       if (cached) {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
@@ -410,7 +416,7 @@ class TapNavigationService {
     const topicIdentifier = this.normalizeId(topicRank) ?? String(topicRank);
     const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
     const cachedRaw =
-      !cached && (trendIdentifier !== trendRank || topicIdentifier !== topicRank)
+      trendIdentifier !== trendRank || topicIdentifier !== topicRank
         ? await cacheStorage.getSummary(trendRank, topicRank, userId)
         : null;
 
