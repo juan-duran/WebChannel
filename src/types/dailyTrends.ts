@@ -1,4 +1,5 @@
 export interface DailyTrendTopic {
+  id?: string | null;
   number: number;
   description: string;
   "likes-data"?: string | null;
@@ -10,6 +11,7 @@ export interface DailyTrendTopic {
 }
 
 export interface DailyTrend {
+  id?: string | null;
   position: number;
   category?: string | null;
   title: string;
