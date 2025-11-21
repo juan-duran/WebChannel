@@ -288,8 +288,9 @@ class TapNavigationService {
 
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
         };
       }
 
@@ -302,6 +303,7 @@ class TapNavigationService {
           options?.trendId ?? trendRank,
           userId,
           payload.summary as SummaryData,
+          payload.metadata ?? undefined,
         );
         return {
           success: true,
@@ -316,8 +318,9 @@ class TapNavigationService {
       if (cached) {
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
           error: `${invalidDataMessage} Exibindo dados em cache.`,
         };
       }
@@ -339,8 +342,9 @@ class TapNavigationService {
         const errorMessage = this.formatErrorMessage(error, 'Não foi possível carregar o resumo.');
         return {
           success: true,
-          data: cached.data,
+          data: cached.data.summary,
           fromCache: true,
+          metadata: cached.data.metadata ?? undefined,
           error: `${errorMessage} Exibindo dados em cache.`,
         };
       }
@@ -361,7 +365,13 @@ class TapNavigationService {
       const message = `Assunto ${trendRank} topico ${topicRank}`;
       const payload = await this.requestFromAgent(message, 'summary');
       if (payload.summary) {
-        await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
+        await cacheStorage.setSummary(
+          topicRank,
+          trendRank,
+          userId,
+          payload.summary as SummaryData,
+          payload.metadata ?? undefined,
+        );
       }
     } catch (error) {
       console.error('Background refresh failed:', error);
