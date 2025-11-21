@@ -63,6 +63,8 @@ export class WebSocketService {
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
+  private sessionReadyPromise: Promise<void> | null = null;
+  private sessionReadyResolver: (() => void) | null = null;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
 
@@ -144,6 +146,8 @@ export class WebSocketService {
     }
 
     this.isIntentionallyClosed = false;
+    this.sessionId = null;
+    this.initializeSessionReadyPromise();
 
     const connectionPromise = (async () => {
       let session: Session;
@@ -254,6 +258,10 @@ export class WebSocketService {
     if (message.type === 'connected' && message.sessionId) {
       this.sessionId = message.sessionId;
       console.log('Session established:', this.sessionId);
+      if (this.sessionReadyResolver) {
+        this.sessionReadyResolver();
+        this.sessionReadyResolver = null;
+      }
     }
 
     if (message.correlationId) {
@@ -339,15 +347,18 @@ export class WebSocketService {
 
   private async ensureConnected() {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      await this.waitForSessionReady();
       return;
     }
 
     if (this.connectionPromise) {
       await this.connectionPromise;
+      await this.waitForSessionReady();
       return;
     }
 
     await this.connect();
+    await this.waitForSessionReady();
   }
 
   async sendMessage(
@@ -474,6 +485,8 @@ export class WebSocketService {
     this.clearConnectionPromise();
 
     this.sessionId = null;
+    this.sessionReadyPromise = null;
+    this.sessionReadyResolver = null;
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
@@ -498,6 +511,33 @@ export class WebSocketService {
 
   getSessionId(): string | null {
     return this.sessionId;
+  }
+
+  private initializeSessionReadyPromise() {
+    if (this.sessionReadyPromise && this.sessionId) {
+      return;
+    }
+
+    this.sessionReadyPromise = new Promise<void>((resolve) => {
+      this.sessionReadyResolver = resolve;
+    });
+
+    if (this.sessionId && this.sessionReadyResolver) {
+      this.sessionReadyResolver();
+      this.sessionReadyResolver = null;
+    }
+  }
+
+  private waitForSessionReady() {
+    if (this.sessionId) {
+      return Promise.resolve();
+    }
+
+    if (!this.sessionReadyPromise) {
+      this.initializeSessionReadyPromise();
+    }
+
+    return this.sessionReadyPromise as Promise<void>;
   }
 
   generateCorrelationId(): string {
