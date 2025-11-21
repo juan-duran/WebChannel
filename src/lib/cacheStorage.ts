@@ -1,11 +1,4 @@
-import {
-  TrendData,
-  TopicData,
-  SummaryData,
-  CachedEntry,
-  TrendsCacheEntry,
-  SummaryCacheEntry,
-} from '../types/tapNavigation';
+import { TopicData, SummaryData, CachedEntry, TrendsCacheEntry, SummaryCacheEntry } from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
 const DB_VERSION = 2;
