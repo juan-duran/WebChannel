@@ -182,7 +182,7 @@ class CacheStorage {
     data: SummaryData,
     metadata?: SummaryCacheEntry['metadata'],
   ): Promise<void> {
-    const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
+    const key = this.buildSummaryKey(trendId, topicId, userId);
     const entry: CachedEntry<SummaryCacheEntry> = {
       data: { summary: data, metadata: metadata ?? null },
       timestamp: Date.now(),
