@@ -409,21 +409,27 @@ class TapNavigationService {
     const trendIdentifier = this.normalizeId(trendRank) ?? String(trendRank);
     const topicIdentifier = this.normalizeId(topicRank) ?? String(topicRank);
     const cached = await cacheStorage.getSummary(trendIdentifier, topicIdentifier, userId);
-    await cacheStorage.deleteSummary(trendIdentifier, topicIdentifier, userId);
 
-    if (cached?.data) {
-      const canonicalIds = this.extractCanonicalSummaryIds(
-        cached.data.summary,
-        (cached.data.metadata as Record<string, unknown> | null) ?? null,
-      );
+    const canonicalIds = this.extractCanonicalSummaryIds(
+      cached?.data.summary,
+      (cached?.data.metadata as Record<string, unknown> | null) ?? null,
+    );
 
-      if (
-        canonicalIds.trendId &&
-        canonicalIds.topicId &&
-        (canonicalIds.trendId !== trendIdentifier || canonicalIds.topicId !== topicIdentifier)
-      ) {
-        await cacheStorage.deleteSummary(canonicalIds.trendId, canonicalIds.topicId, userId);
-      }
+    const aliasKeys =
+      canonicalIds.trendId &&
+      canonicalIds.topicId &&
+      (canonicalIds.trendId !== trendIdentifier || canonicalIds.topicId !== topicIdentifier)
+        ? [{ trendId: canonicalIds.trendId, topicId: canonicalIds.topicId }]
+        : [];
+
+    await cacheStorage.deleteSummary(trendIdentifier, topicIdentifier, userId, aliasKeys);
+
+    if (
+      !cached?.data &&
+      aliasKeys.length === 0 &&
+      (trendIdentifier !== trendRank || topicIdentifier !== topicRank)
+    ) {
+      await cacheStorage.deleteSummary(trendRank, topicRank, userId);
     }
   }
 

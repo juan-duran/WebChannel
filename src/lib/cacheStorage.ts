@@ -198,9 +198,19 @@ class CacheStorage {
     await Promise.all(uniqueKeys.map((key) => this.set(STORE_NAMES.summaries, key, entry)));
   }
 
-  async deleteSummary(trendId: number | string, topicId: number | string, userId: string): Promise<void> {
-    const key = this.buildSummaryKey(trendId, topicId, userId);
-    return this.delete(STORE_NAMES.summaries, key);
+  async deleteSummary(
+    trendId: number | string,
+    topicId: number | string,
+    userId: string,
+    aliases: { trendId: number | string; topicId: number | string }[] = [],
+  ): Promise<void> {
+    const keys = [
+      { trendId, topicId },
+      ...aliases,
+    ].map(({ trendId: trend, topicId: topic }) => this.buildSummaryKey(trend, topic, userId));
+
+    const uniqueKeys = Array.from(new Set(keys));
+    await Promise.all(uniqueKeys.map((key) => this.delete(STORE_NAMES.summaries, key)));
   }
 
   private async get<T>(storeName: string, key: string): Promise<CachedEntry<T> | null> {
