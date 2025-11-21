@@ -178,7 +178,15 @@ export function TapNavigationPage() {
       }
 
       const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
-      setTrends(nextTrends);
+      // basic de-duplication by position + title to avoid repeated blocks in UI
+      const seen = new Set<string>();
+      const deduped = nextTrends.filter((t) => {
+        const key = `${t.position ?? ''}-${t.title ?? ''}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setTrends(deduped);
       setTrendsSummary(parsed.trendsSummary ?? null);
       setExpandedTrendId(null);
       setSelectedTopic(null);
@@ -299,10 +307,22 @@ export function TapNavigationPage() {
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
     const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
+    const selectedTrendLabel = currentTrend
+      ? `Assunto #${currentTrend.position} — ${currentTrend.title ?? currentTrend.category ?? ''}`.trim()
+      : null;
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
-        <div className={`flex-1 overflow-y-auto ${contentPadding}`}>
+        <div className={`flex-1 overflow-y-auto ${contentPadding} space-y-4`}>
+          <div className="flex flex-col gap-1">
+            <p className="text-xs font-semibold text-gray-500">Resumo do tópico</p>
+            {selectedTrendLabel && <p className="text-sm text-gray-700">{selectedTrendLabel}</p>}
+            {selectedTopic && (
+              <p className="text-sm text-gray-700">
+                Tópico #{selectedTopic.number}: {selectedTopic.description}
+              </p>
+            )}
+          </div>
           {selectedTopic ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -491,7 +511,7 @@ export function TapNavigationPage() {
 
             <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
               <div className="space-y-3">{renderTrendList()}</div>
-              <div>{renderSummaryContent('desktop')}</div>
+              <div className="min-h-[520px]">{renderSummaryContent('desktop')}</div>
             </div>
           </>
         )}
