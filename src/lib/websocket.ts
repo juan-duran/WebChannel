@@ -272,7 +272,9 @@ export class WebSocketService {
 
     if (message.correlationId) {
       this.notifyCorrelationHandlers(message.correlationId, message);
-      this.markRequestFulfilled(message.correlationId);
+      if (this.isTerminalCorrelationMessage(message)) {
+        this.markRequestFulfilled(message.correlationId);
+      }
     } else if (message.type === 'message' && message.role === 'assistant') {
       this.markFirstPendingRequestFulfilled();
     }
@@ -282,6 +284,60 @@ export class WebSocketService {
     }
 
     this.notifyHandlers(message.type, message);
+  }
+
+  private isTerminalCorrelationMessage(message: WebSocketMessage): boolean {
+    const terminalTypes = new Set([
+      'message_end',
+      'response_end',
+      'response_final',
+      'stream_end',
+    ]);
+
+    if (typeof message.type === 'string' && terminalTypes.has(message.type)) {
+      return true;
+    }
+
+    const metadata = message.metadata;
+
+    if (!metadata || typeof metadata !== 'object') {
+      return true;
+    }
+
+    const booleanTerminalFlags = [
+      (metadata as Record<string, unknown>).isFinal,
+      (metadata as Record<string, unknown>).final,
+      (metadata as Record<string, unknown>).is_final,
+      (metadata as Record<string, unknown>).isTerminal,
+      (metadata as Record<string, unknown>).terminal,
+      (metadata as Record<string, unknown>).is_terminal,
+      (metadata as Record<string, unknown>).done,
+      (metadata as Record<string, unknown>).isDone,
+      (metadata as Record<string, unknown>).completed,
+    ];
+
+    if (booleanTerminalFlags.some((flag) => flag === true)) {
+      return true;
+    }
+
+    const normalizedMetadata = metadata as Record<string, unknown>;
+    const terminalTextFlags = [
+      normalizedMetadata.messageType,
+      normalizedMetadata.message_type,
+      normalizedMetadata.status,
+      normalizedMetadata.stage,
+      normalizedMetadata.phase,
+      normalizedMetadata.event,
+      normalizedMetadata.type,
+    ]
+      .filter((value): value is string => typeof value === 'string')
+      .map((value) => value.toLowerCase());
+
+    return terminalTextFlags.some((value) =>
+      ['final', 'end', 'done', 'complete', 'completed', 'terminal', 'finished', 'stop'].includes(
+        value,
+      ),
+    );
   }
 
   private notifyHandlers(type: WebSocketMessageType, message: WebSocketMessage) {
