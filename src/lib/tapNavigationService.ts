@@ -32,6 +32,7 @@ export interface TapNavigationResponse {
   metadata?: Record<string, unknown>;
   topicsSummary?: string | null;
   trendsSummary?: string | null;
+  correlationId?: string;
 }
 
 class TapNavigationService {
@@ -250,7 +251,14 @@ class TapNavigationService {
     topicRank: number,
     trendRank: number,
     userId: string,
-    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
+    options?: {
+      forceRefresh?: boolean;
+      trendId?: string;
+      topicId?: string;
+      signal?: AbortSignal;
+      timeoutMs?: number;
+      correlationId?: string;
+    },
   ): Promise<TapNavigationResponse> {
     const cacheKey = `summary_${options?.trendId ?? trendRank}_${options?.topicId ?? topicRank}_${userId}`;
 
@@ -272,7 +280,14 @@ class TapNavigationService {
     topicRank: number,
     trendRank: number,
     userId: string,
-    options?: { forceRefresh?: boolean; trendId?: string; topicId?: string },
+    options?: {
+      forceRefresh?: boolean;
+      trendId?: string;
+      topicId?: string;
+      signal?: AbortSignal;
+      timeoutMs?: number;
+      correlationId?: string;
+    },
   ): Promise<TapNavigationResponse> {
     try {
       const cached = await cacheStorage.getSummary(
@@ -294,7 +309,11 @@ class TapNavigationService {
       }
 
       const message = `Assunto ${options?.trendId ?? trendRank} topico ${options?.topicId ?? topicRank}`;
-      const payload = await this.requestFromAgent(message, 'summary');
+      const { payload, correlationId } = await this.requestFromAgent(message, 'summary', {
+        signal: options?.signal,
+        timeoutMs: options?.timeoutMs,
+        correlationId: options?.correlationId,
+      });
 
       if (payload.summary) {
         await cacheStorage.setSummary(
@@ -308,6 +327,7 @@ class TapNavigationService {
           data: payload.summary as SummaryData,
           fromCache: false,
           metadata: payload.metadata ?? undefined,
+          correlationId,
         };
       }
 
@@ -325,6 +345,7 @@ class TapNavigationService {
       return {
         success: false,
         error: invalidDataMessage,
+        ...(options?.correlationId ? { correlationId: options.correlationId } : {}),
       };
     } catch (error) {
       console.error('Error fetching summary:', error);
@@ -359,7 +380,7 @@ class TapNavigationService {
   ): Promise<void> {
     try {
       const message = `Assunto ${trendRank} topico ${topicRank}`;
-      const payload = await this.requestFromAgent(message, 'summary');
+      const { payload } = await this.requestFromAgent(message, 'summary', { timeoutMs: 45_000 });
       if (payload.summary) {
         await cacheStorage.setSummary(topicRank, trendRank, userId, payload.summary as SummaryData);
       }
@@ -385,11 +406,11 @@ class TapNavigationService {
   private async requestFromAgent(
     message: string,
     expectedLayer: TapNavigationStructuredData['layer'] | TapNavigationStructuredData['layer'][],
-    options?: { signal?: AbortSignal },
-  ): Promise<TapNavigationStructuredData> {
+    options?: { signal?: AbortSignal; timeoutMs?: number; correlationId?: string },
+  ): Promise<{ correlationId: string; payload: TapNavigationStructuredData }> {
     return new Promise((resolve, reject) => {
       let resolved = false;
-      const correlationId = websocketService.generateCorrelationId();
+      const correlationId = options?.correlationId ?? websocketService.generateCorrelationId();
       const maxReplayAttempts = 3;
       const abortSignal = options?.signal;
 
@@ -464,7 +485,7 @@ class TapNavigationService {
 
           cleanup();
 
-          resolve(normalized);
+          resolve({ correlationId, payload: normalized });
         }
       };
 
@@ -532,7 +553,7 @@ class TapNavigationService {
         abortSignal.addEventListener('abort', handleAbort, { once: true });
       }
 
-      const timeoutDuration = 120_000; // 2 minutes to match assistant SLA
+      const timeoutDuration = options?.timeoutMs ?? 45_000; // default to 45s for snappier UX
 
       const timeout = setTimeout(() => {
         if (resolved) return;

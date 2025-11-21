@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
@@ -32,6 +32,8 @@ export function TapNavigationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const summaryAbortRef = useRef<AbortController | null>(null);
+  const summaryCorrelationRef = useRef<string | null>(null);
 
   const formatTimestamp = useMemo(() => {
     if (!lastUpdated) return null;
@@ -61,10 +63,17 @@ export function TapNavigationPage() {
 
   const fetchSummaryForTopic = useCallback(
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
+      if (summaryAbortRef.current) {
+        summaryAbortRef.current.abort();
+      }
+      const abortController = new AbortController();
+      summaryAbortRef.current = abortController;
       setSummaryError(null);
       setSelectedSummary(null);
       setSummaryFromCache(false);
       setIsLoadingSummary(true);
+      const correlationId = websocketService.generateCorrelationId();
+      summaryCorrelationRef.current = correlationId;
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -91,6 +100,9 @@ export function TapNavigationPage() {
             trendId,
             topicId,
             forceRefresh: options?.forceRefresh,
+            signal: abortController.signal,
+            timeoutMs: 45_000,
+            correlationId,
           },
         );
 
@@ -98,14 +110,22 @@ export function TapNavigationPage() {
           setSelectedSummary(result.data as SummaryData);
           setSummaryFromCache(Boolean(result.fromCache));
           setSummaryError(result.error ?? null);
+          summaryCorrelationRef.current = null;
         } else {
           setSummaryError(result.error || 'Não foi possível obter o resumo.');
+          summaryCorrelationRef.current = null;
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
-        setSummaryError(message);
+        if (abortController.signal.aborted) {
+          setSummaryError('Solicitação cancelada.');
+        } else {
+          const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
+          setSummaryError(message);
+        }
+        summaryCorrelationRef.current = null;
       } finally {
         setIsLoadingSummary(false);
+        summaryAbortRef.current = null;
       }
     },
     [],
@@ -158,18 +178,21 @@ export function TapNavigationPage() {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
 
-  // Ensure WebSocket connects on page load so first summary request isn't lost
-  useEffect(() => {
-    websocketService.connect().catch(() => {
-      // silent failure; fetchSummaryForTopic will surface an error
-    });
-  }, []);
-
   // Listen for assistant summary messages that may arrive asynchronously (e.g., via /api/messages/send)
   useEffect(() => {
     const handleIncoming = (message: WebSocketMessage) => {
       if (message.type !== 'message' || message.role !== 'assistant') return;
       if (message.contentType !== 'summary' && (message as any).content_type !== 'summary') return;
+
+      const incomingCorrelation =
+        (message as any).correlation_id ?? message.correlationId ?? (message as any).correlation_id;
+      if (
+        summaryCorrelationRef.current &&
+        incomingCorrelation &&
+        incomingCorrelation !== summaryCorrelationRef.current
+      ) {
+        return;
+      }
 
       const structured = (message.structuredData ?? (message as any).structured_data) as any;
       const summaryPayload =
@@ -200,6 +223,7 @@ export function TapNavigationPage() {
           });
           setIsLoadingSummary(false);
           setSummaryError(null);
+          summaryCorrelationRef.current = null;
           return;
         }
       }
@@ -210,6 +234,7 @@ export function TapNavigationPage() {
         });
         setIsLoadingSummary(false);
         setSummaryError(null);
+        summaryCorrelationRef.current = null;
       }
     };
 

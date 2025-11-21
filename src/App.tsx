@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthForm } from './components/AuthForm';
 import { Layout } from './components/Layout';
@@ -6,6 +6,7 @@ import { ChatPageWebSocket } from './pages/ChatPageWebSocket';
 import { TapNavigationPage } from './pages/TapNavigationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
+import { websocketService } from './lib/websocket';
 
 type Page = 'chat' | 'profile';
 
@@ -18,6 +19,26 @@ function AppContent() {
   const handleNavigate = (page: 'chat' | 'profile') => {
     setCurrentPage(page);
   };
+
+  useEffect(() => {
+    if (!user) {
+      websocketService.disconnect();
+      return;
+    }
+
+    let cancelled = false;
+    websocketService
+      .connect()
+      .catch(() => {
+        if (cancelled) return;
+        // connection errors will surface on demand
+      });
+
+    return () => {
+      cancelled = true;
+      websocketService.disconnect();
+    };
+  }, [user]);
 
   if (loading) {
     return (
