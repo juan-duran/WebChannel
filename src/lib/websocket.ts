@@ -72,7 +72,7 @@ export class WebSocketService {
   private sessionReadyPromiseVersion = 0;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
-  private requestTimeoutMs = 20000;
+  private requestTimeoutMs = 120000;
   private sessionReadyTimeoutMs = 10000;
 
   constructor(private wsUrl: string) {}
