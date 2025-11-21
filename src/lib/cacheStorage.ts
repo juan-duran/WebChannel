@@ -1,4 +1,11 @@
-import { TrendData, TopicData, SummaryData, CachedEntry, TrendsCacheEntry } from '../types/tapNavigation';
+import {
+  TrendData,
+  TopicData,
+  SummaryData,
+  CachedEntry,
+  TrendsCacheEntry,
+  SummaryCacheEntry,
+} from '../types/tapNavigation';
 
 const DB_NAME = 'QuantyTapNavigationCache';
 const DB_VERSION = 2;
@@ -163,9 +170,9 @@ class CacheStorage {
     topicId: number | string,
     trendId: number | string,
     userId: string,
-  ): Promise<CachedEntry<SummaryData> | null> {
+  ): Promise<CachedEntry<SummaryCacheEntry> | null> {
     const key = this.buildSummaryKey(trendId, topicId, userId);
-    return this.get<SummaryData>(STORE_NAMES.summaries, key);
+    return this.get<SummaryCacheEntry>(STORE_NAMES.summaries, key);
   }
 
   async setSummary(
@@ -173,10 +180,11 @@ class CacheStorage {
     trendId: number | string,
     userId: string,
     data: SummaryData,
+    metadata?: SummaryCacheEntry['metadata'],
   ): Promise<void> {
     const key = this.buildSummaryKey(data.thread_id ?? trendId, data.comment_id ?? topicId, userId);
-    const entry: CachedEntry<SummaryData> = {
-      data,
+    const entry: CachedEntry<SummaryCacheEntry> = {
+      data: { summary: data, metadata: metadata ?? null },
       timestamp: Date.now(),
       expiresAt: Date.now() + TTL.summaries,
     };
