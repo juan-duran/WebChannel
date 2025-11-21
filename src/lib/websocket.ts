@@ -693,7 +693,6 @@ export class WebSocketService {
   setRequestTimeout(ms: number) {
     this.requestTimeoutMs = ms;
   }
-
   generateCorrelationId(): string {
     return `corr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   }
