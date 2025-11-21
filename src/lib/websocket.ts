@@ -47,6 +47,8 @@ type QueuedRequest = {
   status: RequestStatus;
   expectsCorrelation: boolean;
   enqueueTimestamp: number;
+  isSending: boolean;
+  hasSentSuccessfully: boolean;
   timeoutId?: ReturnType<typeof setTimeout>;
 };
 
@@ -449,6 +451,8 @@ export class WebSocketService {
             maxRetries: options?.maxRetries ?? existing.maxRetries,
             expectsCorrelation: true,
             enqueueTimestamp: existing.enqueueTimestamp ?? Date.now(),
+            isSending: existing.isSending ?? false,
+            hasSentSuccessfully: existing.hasSentSuccessfully ?? false,
           }
         : {
             message,
@@ -457,6 +461,8 @@ export class WebSocketService {
             status: 'pending',
             expectsCorrelation: true,
             enqueueTimestamp: Date.now(),
+            isSending: false,
+            hasSentSuccessfully: false,
           };
 
       this.requestQueue.set(correlationId, queueEntry);
@@ -727,19 +733,33 @@ export class WebSocketService {
     this.markRequestFulfilled(correlationId);
   }
 
-  private async sendQueuedRequest(correlationId: string) {
+  private async sendQueuedRequest(correlationId: string, options: { isExplicitRetry?: boolean } = {}) {
     const entry = this.requestQueue.get(correlationId);
     if (!entry || entry.status !== 'pending') {
       return;
     }
 
-    if (entry.attempts >= entry.maxRetries) {
+    if (entry.isSending) {
+      return;
+    }
+
+    const { isExplicitRetry = false } = options;
+    const shouldIncrementForRetry = isExplicitRetry && !entry.hasSentSuccessfully;
+
+    const updatedEntry: QueuedRequest = {
+      ...entry,
+      isSending: true,
+      attempts: shouldIncrementForRetry ? entry.attempts + 1 : entry.attempts,
+      hasSentSuccessfully: entry.hasSentSuccessfully ?? false,
+    };
+
+    if (updatedEntry.attempts >= updatedEntry.maxRetries) {
+      this.requestQueue.set(correlationId, { ...updatedEntry, isSending: false });
       this.failQueuedRequest(correlationId);
       return;
     }
 
-    entry.attempts += 1;
-    this.requestQueue.set(correlationId, entry);
+    this.requestQueue.set(correlationId, updatedEntry);
 
     try {
       await this.ensureConnected('send_queued_request');
@@ -749,10 +769,37 @@ export class WebSocketService {
         throw new Error('Unable to establish WebSocket connection');
       }
 
-      this.ws.send(JSON.stringify(entry.message));
+      this.ws.send(JSON.stringify(updatedEntry.message));
+
+      const refreshedEntry = this.requestQueue.get(correlationId);
+      if (refreshedEntry && refreshedEntry.status === 'pending') {
+        this.requestQueue.set(correlationId, {
+          ...refreshedEntry,
+          attempts: 0,
+          isSending: false,
+          hasSentSuccessfully: true,
+        });
+      }
     } catch (error) {
-      if (entry.attempts >= entry.maxRetries) {
-        this.failQueuedRequest(correlationId);
+      const failedEntry = this.requestQueue.get(correlationId);
+      if (failedEntry && failedEntry.status === 'pending') {
+        const alreadyIncremented = shouldIncrementForRetry;
+        const nextAttempts = failedEntry.hasSentSuccessfully
+          ? failedEntry.attempts
+          : failedEntry.attempts + (alreadyIncremented ? 0 : 1);
+
+        const retryCandidate: QueuedRequest = {
+          ...failedEntry,
+          attempts: nextAttempts,
+          isSending: false,
+          hasSentSuccessfully: failedEntry.hasSentSuccessfully,
+        };
+
+        this.requestQueue.set(correlationId, retryCandidate);
+
+        if (retryCandidate.attempts >= retryCandidate.maxRetries) {
+          this.failQueuedRequest(correlationId);
+        }
       }
 
       throw error;
@@ -766,9 +813,9 @@ export class WebSocketService {
 
     for (const correlationId of this.requestQueue.keys()) {
       const entry = this.requestQueue.get(correlationId);
-      if (!entry || entry.status !== 'pending') continue;
+      if (!entry || entry.status !== 'pending' || entry.isSending) continue;
 
-      await this.sendQueuedRequest(correlationId);
+      await this.sendQueuedRequest(correlationId, { isExplicitRetry: true });
     }
   }
 
