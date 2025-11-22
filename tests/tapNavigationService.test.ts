@@ -500,3 +500,92 @@ test('fetchTopics accepts topic-layer structured data and maps it by trend', asy
   assert.equal(Array.isArray(result.data) && result.data[0]?.description, 'Topic from topic layer');
   assert.equal(result.topicsSummary, 'Topic summary');
 });
+
+test('fetchSummary returns cached summary when available', async () => {
+  const originalGetSummary = (cacheStorage as any).getSummary;
+  const originalIsStale = (cacheStorage as any).isStale;
+  const originalRequestFromAgent = (tapNavigationService as any).requestFromAgent;
+  let agentCalled = false;
+
+  try {
+    (cacheStorage as any).getSummary = async () => ({
+      data: {
+        summary: { thesis: 'Cached summary' },
+        metadata: { foo: 'bar' },
+      },
+      timestamp: Date.now() - 1000,
+      expiresAt: Date.now() + 1000 * 60 * 10,
+    });
+    (cacheStorage as any).isStale = () => false;
+    (tapNavigationService as any).requestFromAgent = async () => {
+      agentCalled = true;
+      throw new Error('should not be called when cache is present');
+    };
+
+    const result = await tapNavigationService.fetchSummary(1, 1, 'user-1');
+
+    assert.equal(result.success, true);
+    assert.equal(result.fromCache, true);
+    assert.equal(result.data?.thesis, 'Cached summary');
+    assert.equal(agentCalled, false);
+  } finally {
+    (cacheStorage as any).getSummary = originalGetSummary;
+    (cacheStorage as any).isStale = originalIsStale;
+    (tapNavigationService as any).requestFromAgent = originalRequestFromAgent;
+  }
+});
+
+test('fetchSummary bypasses cache on forceRefresh and persists new summary', async () => {
+  const originalGetSummary = (cacheStorage as any).getSummary;
+  const originalIsStale = (cacheStorage as any).isStale;
+  const originalInvalidate = (tapNavigationService as any).invalidateSummaryCache;
+  const originalRequestFromAgent = (tapNavigationService as any).requestFromAgent;
+  const originalSetSummary = (cacheStorage as any).setSummary;
+
+  let invalidateCalled = false;
+  let agentCalled = false;
+  let setSummaryCalled = false;
+
+  try {
+    (cacheStorage as any).getSummary = async () => ({
+      data: {
+        summary: { thesis: 'Stale summary' },
+        metadata: null,
+      },
+      timestamp: Date.now() - 1000,
+      expiresAt: Date.now() + 1000 * 60 * 10,
+    });
+    (cacheStorage as any).isStale = () => false;
+    (tapNavigationService as any).invalidateSummaryCache = async () => {
+      invalidateCalled = true;
+    };
+    (tapNavigationService as any).requestFromAgent = async () => {
+      agentCalled = true;
+      return {
+        layer: 'summary',
+        trends: null,
+        topics: null,
+        summary: { thesis: 'Fresh summary' },
+        metadata: { refreshed: true },
+      } as any;
+    };
+    (cacheStorage as any).setSummary = async () => {
+      setSummaryCalled = true;
+    };
+
+    const result = await tapNavigationService.fetchSummary(1, 1, 'user-1', { forceRefresh: true });
+
+    assert.equal(result.success, true);
+    assert.equal(result.fromCache, false);
+    assert.equal(result.data?.thesis, 'Fresh summary');
+    assert.equal(invalidateCalled, true);
+    assert.equal(agentCalled, true);
+    assert.equal(setSummaryCalled, true);
+  } finally {
+    (cacheStorage as any).getSummary = originalGetSummary;
+    (cacheStorage as any).isStale = originalIsStale;
+    (tapNavigationService as any).invalidateSummaryCache = originalInvalidate;
+    (tapNavigationService as any).requestFromAgent = originalRequestFromAgent;
+    (cacheStorage as any).setSummary = originalSetSummary;
+  }
+});
