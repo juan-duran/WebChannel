@@ -8,6 +8,7 @@ import { safeJsonParse } from '../lib/safeJsonParse';
 import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
+import { extractTopicEngagement } from '../utils/topicEngagement';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -57,11 +58,6 @@ export function TapNavigationPage() {
       dateStyle: 'short',
     }).format(date);
   }, []);
-
-  const getTopicEngagement = useCallback(
-    (topic?: DailyTrendTopic | null) => topic?.['likes-data'] ?? topic?.likesData ?? 'Não informado',
-    [],
-  );
 
   const summaryTopicName =
     selectedSummary?.['topic-name'] ??
@@ -313,6 +309,7 @@ export function TapNavigationPage() {
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
     const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
+    const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
@@ -343,16 +340,15 @@ export function TapNavigationPage() {
                 <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
-                <p>
-                  <span className="font-semibold text-gray-900">Engajamento do comentário:</span>{' '}
-                  {getTopicEngagement(selectedTopic)}
-                </p>
-                <p>
-                  <span className="font-semibold text-gray-900">Respostas (💬):</span>{' '}
-                  {typeof selectedTopic.replies_total === 'number' ? selectedTopic.replies_total : 'Sem dados'}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <span className="font-semibold text-gray-900">👍 {topicEngagement?.likesLabel ?? 'Não informado'}</span>
+                  <span className="text-gray-500">(Likes)</span>
+                  <span className="text-gray-400">·</span>
+                  <span className="font-semibold text-gray-900">💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}</span>
+                  <span className="text-gray-500">(Debates do comentário)</span>
+                </div>
                 {selectedTopic.posted_at && (
-                  <p>
+                  <p className="text-xs text-gray-600">
                     <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
                   </p>
                 )}

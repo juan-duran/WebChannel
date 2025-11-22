@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
+import { extractTopicEngagement } from '../../utils/topicEngagement';
 import { TopicSkeleton } from './LoadingProgress';
 
 interface TrendCardProps {
@@ -26,9 +27,6 @@ const formatDate = (value?: string | null) => {
     dateStyle: 'short',
   }).format(date);
 };
-
-const getTopicEngagement = (topic: DailyTrendTopic) =>
-  topic['likes-data'] ?? topic.likesData ?? 'Não informado';
 
 const deduplicateTopics = (topics: DailyTrendTopic[]) => {
   const seen = new Set<string>();
@@ -177,10 +175,7 @@ export function TrendCard({
             ) : uniqueTopics.length > 0 ? (
               <div className="space-y-2">
                 {uniqueTopics.map((topic) => {
-                  const repliesLabel =
-                    typeof topic.replies_total === 'number'
-                      ? topic.replies_total
-                      : 'Sem dados';
+                  const { likesLabel, repliesLabel } = extractTopicEngagement(topic);
 
                   return (
                     <button
@@ -202,12 +197,15 @@ export function TrendCard({
                         />
                       </div>
                       <p className="text-sm text-gray-700">{topic.description}</p>
-                      <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                        <span className="font-medium text-gray-800">
-                          Engajamento do comentário: {getTopicEngagement(topic)}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                          👍 {likesLabel}
+                          <span className="text-gray-500 font-normal">(Likes)</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
-                          Respostas (💬): {repliesLabel}
+                        <span className="text-gray-400">·</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                          💬 {repliesLabel}
+                          <span className="text-gray-500 font-normal">(Debates do comentário)</span>
                         </span>
                       </div>
                       {topic.posted_at && (
