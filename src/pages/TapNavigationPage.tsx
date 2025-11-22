@@ -383,13 +383,6 @@ export function TapNavigationPage() {
                         )}
                       </div>
 
-                    {(selectedSummary.thread_id || selectedSummary.comment_id) && (
-                      <p className="text-[11px] text-gray-500">
-                        {selectedSummary.thread_id && <span>Thread: {selectedSummary.thread_id}</span>}
-                        {selectedSummary.thread_id && selectedSummary.comment_id && <span> · </span>}
-                        {selectedSummary.comment_id && <span>Comentário: {selectedSummary.comment_id}</span>}
-                      </p>
-                    )}
                   </div>
 
                   {summaryContext.length > 0 && (
