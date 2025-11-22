@@ -487,6 +487,8 @@ export function TapNavigationPage() {
     );
   };
 
+  const showMobileSummary = Boolean(selectedTopic || selectedSummary);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm sticky top-0 z-30">
@@ -559,12 +561,18 @@ export function TapNavigationPage() {
             )}
 
             <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
-              <div className="w-full transition-transform duration-300 ease-in-out translate-x-0">
+              <div
+                className={`w-full transition-transform duration-300 ease-in-out ${
+                  showMobileSummary ? '-translate-x-full' : 'translate-x-0'
+                }`}
+              >
                 <div className="space-y-3 pb-8">{renderTrendList()}</div>
               </div>
-              <div className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0">
-                {renderSummaryContent('mobile')}
-              </div>
+              {showMobileSummary && (
+                <div className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0">
+                  {renderSummaryContent('mobile')}
+                </div>
+              )}
             </div>
 
             <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
