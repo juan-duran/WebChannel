@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
+import { extractTopicEngagement } from '../../utils/topicEngagement';
 import { TopicSkeleton } from './LoadingProgress';
 
 interface TrendCardProps {
@@ -23,12 +25,21 @@ const formatDate = (value?: string | null) => {
 
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
-    timeStyle: 'short',
   }).format(date);
 };
 
-const getTopicEngagement = (topic: DailyTrendTopic) =>
-  topic['likes-data'] ?? topic.likesData ?? 'Não informado';
+const deduplicateTopics = (topics: DailyTrendTopic[]) => {
+  const seen = new Set<string>();
+
+  return topics.filter((topic) => {
+    const key = `${topic.number ?? 'unknown'}|${(topic.description ?? '').trim().toLowerCase()}`;
+
+    if (seen.has(key)) return false;
+
+    seen.add(key);
+    return true;
+  });
+};
 
 export function TrendCard({
   trend,
@@ -44,6 +55,7 @@ export function TrendCard({
   disabled = false,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
+  const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
 
   const handleToggle = () => {
     if (disabled) return;
@@ -54,8 +66,6 @@ export function TrendCard({
     }
   };
 
-  const publishedAt = formatDate(trend.posted_at);
-  const capturedAt = formatDate(trend.last_captured_at);
   const engagementValue = trend.value ?? trend.upvotes ?? 'Não informado';
 
   return (
@@ -132,7 +142,7 @@ export function TrendCard({
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
           <div className="space-y-3">
-            {topics && topics.length > 0 && (
+            {uniqueTopics.length > 0 && (
               <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tópicos</h4>
             )}
             {topicsSummary && (
@@ -143,7 +153,7 @@ export function TrendCard({
             )}
             {isLoadingTopics ? (
               <TopicSkeleton />
-            ) : topicsError && (!topics || topics.length === 0) ? (
+            ) : topicsError && uniqueTopics.length === 0 ? (
               <div className="text-center py-6" role="alert">
                 <p className="text-sm text-red-600 mb-3 flex items-center justify-center gap-2">
                   <AlertCircle className="w-4 h-4" aria-hidden="true" />
@@ -162,13 +172,10 @@ export function TrendCard({
                   </button>
                 )}
               </div>
-            ) : topics && topics.length > 0 ? (
+            ) : uniqueTopics.length > 0 ? (
               <div className="space-y-2">
-                {topics.map((topic) => {
-                  const repliesLabel =
-                    typeof topic.replies_total === 'number'
-                      ? topic.replies_total
-                      : 'Sem dados';
+                {uniqueTopics.map((topic) => {
+                  const { likesLabel, repliesLabel } = extractTopicEngagement(topic);
 
                   return (
                     <button
@@ -190,20 +197,17 @@ export function TrendCard({
                         />
                       </div>
                       <p className="text-sm text-gray-700">{topic.description}</p>
-                      <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                        <span className="font-medium text-gray-800">
-                          Engajamento do comentário: {getTopicEngagement(topic)}
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                          👍 {likesLabel}
+                          <span className="text-gray-500 font-normal">(Likes)</span>
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
-                          Respostas (💬): {repliesLabel}
+                        <span className="text-gray-400">·</span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                          💬 {repliesLabel}
+                          <span className="text-gray-500 font-normal">(Debates do comentário)</span>
                         </span>
                       </div>
-                      {topic.author && (
-                        <p className="text-xs text-gray-500">Autor: {topic.author}</p>
-                      )}
-                      {topic.upvotes && (
-                        <p className="text-xs text-gray-500">Upvotes: {topic.upvotes}</p>
-                      )}
                       {topic.posted_at && (
                         <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
                       )}
