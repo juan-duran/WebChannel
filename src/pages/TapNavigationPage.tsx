@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
@@ -313,6 +313,22 @@ export function TapNavigationPage() {
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
+        {isMobile && (
+          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTopic(null);
+                setSelectedSummary(null);
+              }}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label="Voltar para lista"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              <span>Voltar</span>
+            </button>
+          </div>
+        )}
         <div className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
