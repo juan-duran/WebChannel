@@ -282,29 +282,43 @@ class TapNavigationService {
     const { trendCacheId, topicCacheId } = this.buildSummaryCacheIds(topicRank, trendRank, options);
     const rawTrendId = String(options?.trendId ?? trendRank);
     const rawTopicId = String(options?.topicId ?? topicRank);
-    const useSummaryCache = false; // Temporarily disabled while summary caching issues are investigated.
+    const useSummaryCache = true;
 
     try {
-      const cached = useSummaryCache
-        ? await cacheStorage.getSummary(topicCacheId, trendCacheId, userId)
-        : null;
-      const cachedFromAlias =
-        useSummaryCache && !cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)
-          ? await cacheStorage.getSummary(rawTopicId, rawTrendId, userId)
-          : null;
-      const resolvedCached = cached ?? cachedFromAlias;
+      let resolvedCached: Awaited<ReturnType<typeof cacheStorage.getSummary>> | null = null;
 
-      if (useSummaryCache && resolvedCached && !options?.forceRefresh) {
-        if (cacheStorage.isStale(resolvedCached)) {
-          this.refreshSummaryInBackground(topicCacheId, trendCacheId, userId);
+      if (useSummaryCache) {
+        const cached = await cacheStorage.getSummary(topicCacheId, trendCacheId, userId);
+        const cachedFromAlias =
+          !cached && (trendCacheId !== rawTrendId || topicCacheId !== rawTopicId)
+            ? await cacheStorage.getSummary(rawTopicId, rawTrendId, userId)
+            : null;
+
+        resolvedCached = cached ?? cachedFromAlias;
+
+        if (options?.forceRefresh) {
+          await this.invalidateSummaryCache(topicCacheId, trendCacheId, userId);
+          resolvedCached = null;
+        } else if (resolvedCached) {
+          if (cacheStorage.isStale(resolvedCached)) {
+            this.refreshSummaryInBackground(topicCacheId, trendCacheId, userId);
+          }
+
+          console.log('[TapNavigationService][SummaryCache]', {
+            event: 'summary_cache_hit',
+            trendCacheId,
+            topicCacheId,
+            canonicalTrendId: rawTrendId,
+            canonicalTopicId: rawTopicId,
+          });
+
+          return {
+            success: true,
+            data: resolvedCached.data.summary,
+            fromCache: true,
+            metadata: resolvedCached.data.metadata ?? undefined,
+          };
         }
-
-        return {
-          success: true,
-          data: resolvedCached.data.summary,
-          fromCache: true,
-          metadata: resolvedCached.data.metadata ?? undefined,
-        };
       }
 
       const message = `Assunto ${trendCacheId} topico ${topicCacheId}`;
@@ -340,6 +354,12 @@ class TapNavigationService {
             payload.metadata ?? undefined,
             aliasKeys,
           );
+          console.log('[TapNavigationService][SummaryCache]', {
+            event: 'summary_cache_set',
+            trendCacheId,
+            topicCacheId,
+            aliases: aliasKeys,
+          });
         }
         return {
           success: true,
