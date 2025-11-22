@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
@@ -8,6 +8,7 @@ import { safeJsonParse } from '../lib/safeJsonParse';
 import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
+import { extractTopicEngagement } from '../utils/topicEngagement';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -34,6 +35,10 @@ export function TapNavigationPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
+  const mobileListScrollPosition = useRef(0);
+
   const formatTimestamp = useMemo(() => {
     if (!lastUpdated) return null;
     const date = new Date(lastUpdated);
@@ -51,14 +56,8 @@ export function TapNavigationPage() {
 
     return new Intl.DateTimeFormat('pt-BR', {
       dateStyle: 'short',
-      timeStyle: 'short',
     }).format(date);
   }, []);
-
-  const getTopicEngagement = useCallback(
-    (topic?: DailyTrendTopic | null) => topic?.['likes-data'] ?? topic?.likesData ?? 'Não informado',
-    [],
-  );
 
   const summaryTopicName =
     selectedSummary?.['topic-name'] ??
@@ -310,6 +309,7 @@ export function TapNavigationPage() {
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
     const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
+    const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
@@ -340,16 +340,15 @@ export function TapNavigationPage() {
                 <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
               </div>
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
-                <p>
-                  <span className="font-semibold text-gray-900">Engajamento do comentário:</span>{' '}
-                  {getTopicEngagement(selectedTopic)}
-                </p>
-                <p>
-                  <span className="font-semibold text-gray-900">Respostas (💬):</span>{' '}
-                  {typeof selectedTopic.replies_total === 'number' ? selectedTopic.replies_total : 'Sem dados'}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                  <span className="font-semibold text-gray-900">👍 {topicEngagement?.likesLabel ?? 'Não informado'}</span>
+                  <span className="text-gray-500">(Likes)</span>
+                  <span className="text-gray-400">·</span>
+                  <span className="font-semibold text-gray-900">💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}</span>
+                  <span className="text-gray-500">(Debates do comentário)</span>
+                </div>
                 {selectedTopic.posted_at && (
-                  <p>
+                  <p className="text-xs text-gray-600">
                     <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
                   </p>
                 )}
@@ -498,6 +497,29 @@ export function TapNavigationPage() {
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
 
+  useEffect(() => {
+    if (showMobileSummary) {
+      if (mobileListContainerRef.current) {
+        mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
+      }
+
+      if (mobileSummaryWrapperRef.current) {
+        mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
+      }
+    } else if (mobileListContainerRef.current) {
+      mobileListContainerRef.current.scrollTo({
+        top: mobileListScrollPosition.current,
+        behavior: 'auto',
+      });
+    }
+  }, [showMobileSummary]);
+
+  const handleMobileListScroll = useCallback(() => {
+    if (mobileListContainerRef.current) {
+      mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm sticky top-0 z-30">
@@ -575,10 +597,19 @@ export function TapNavigationPage() {
                   showMobileSummary ? '-translate-x-full' : 'translate-x-0'
                 }`}
               >
-                <div className="space-y-3 pb-8">{renderTrendList()}</div>
+                <div
+                  ref={mobileListContainerRef}
+                  onScroll={handleMobileListScroll}
+                  className="space-y-3 pb-8 max-h-[70vh] overflow-y-auto"
+                >
+                  {renderTrendList()}
+                </div>
               </div>
               {showMobileSummary && (
-                <div className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0">
+                <div
+                  ref={mobileSummaryWrapperRef}
+                  className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
+                >
                   {renderSummaryContent('mobile')}
                 </div>
               )}
