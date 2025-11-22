@@ -35,6 +35,17 @@ export function TapNavigationPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const summaryCacheRef = useRef<
+    Map<
+      string,
+      {
+        summary: SummaryData;
+        metadata: Record<string, unknown> | null;
+        fromCache: boolean;
+      }
+    >
+  >(new Map());
+
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
   const mobileListScrollPosition = useRef(0);
@@ -72,6 +83,15 @@ export function TapNavigationPage() {
   const summaryDebate = Array.isArray(selectedSummary?.debate)
     ? selectedSummary.debate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     : [];
+
+  const createCacheKey = useCallback((trendId: string | number | null | undefined, topicId: string | number | null | undefined) => {
+    const normalize = (value: string | number | null | undefined) => {
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    };
+
+    return `${normalize(trendId)}::${normalize(topicId)}`;
+  }, []);
 
   const fetchSummaryForTopic = useCallback(
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
@@ -174,6 +194,20 @@ export function TapNavigationPage() {
           const resolvedTrendId = resolveMetadataId(result.metadata, ['trendId', 'trend-id'], trendId);
           const resolvedTopicId = resolveMetadataId(result.metadata, ['topicId', 'topic-id'], topicId);
 
+          const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId);
+          const fallbackCacheKey = createCacheKey(trendId, topicId);
+
+          const cacheEntry = {
+            summary: result.data as SummaryData,
+            metadata: (result.metadata as Record<string, unknown>) ?? null,
+            fromCache: Boolean(result.fromCache),
+          };
+
+          summaryCacheRef.current.set(cacheKey, cacheEntry);
+          if (cacheKey !== fallbackCacheKey) {
+            summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
+          }
+
           console.log('[TapNavigationPage] Summary fetched successfully', {
             event: 'summary_fetch',
             status: 'succeeded' as const,
@@ -222,7 +256,7 @@ export function TapNavigationPage() {
         setIsLoadingSummary(false);
       }
     },
-    [],
+    [createCacheKey],
   );
 
   const fetchLatestTrends = useCallback(async (options?: { isRefresh?: boolean }) => {
@@ -253,6 +287,7 @@ export function TapNavigationPage() {
         throw new Error('Não foi possível interpretar os dados de tendências.');
       }
 
+      summaryCacheRef.current.clear();
       const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
       setTrends(nextTrends);
       setTrendsSummary(parsed.trendsSummary ?? null);
@@ -293,9 +328,24 @@ export function TapNavigationPage() {
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
               setSelectedTopic(topic);
-              setSelectedSummary(null);
               setSummaryError(null);
-              setSummaryFromCache(false);
+
+              const cachedSummary = summaryCacheRef.current.get(
+                createCacheKey(
+                  trend.id ?? trend.position ?? trend.title ?? '',
+                  topic.id ?? topic.number ?? topic.description ?? '',
+                ),
+              );
+
+              if (cachedSummary) {
+                setSelectedSummary(cachedSummary.summary);
+                setSummaryMetadata(cachedSummary.metadata);
+                setSummaryFromCache(Boolean(cachedSummary.fromCache));
+              } else {
+                setSelectedSummary(null);
+                setSummaryMetadata(null);
+                setSummaryFromCache(false);
+              }
             }}
             disabled={isLoading || isRefreshing}
           />
