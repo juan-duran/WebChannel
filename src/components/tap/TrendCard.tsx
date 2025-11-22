@@ -1,7 +1,6 @@
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { TopicSkeleton } from './LoadingProgress';
-import { TrendAssetPreview } from './TrendAssetPreview';
 
 interface TrendCardProps {
   trend: DailyTrend;
@@ -72,7 +71,7 @@ export function TrendCard({
       >
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-sm font-bold text-blue-700">Assunto #{trend.position}</span>
+            <span className="text-sm font-bold text-blue-700">#{trend.position}</span>
           </div>
 
           <div className="flex-1 min-w-0 space-y-1.5">
@@ -132,129 +131,89 @@ export function TrendCard({
           id={contentId}
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
-          <TrendAssetPreview
-            asset={trend}
-            fallbackUrl={trend.asset_short_url}
-            fallbackTitle={trend.title}
-            fallbackDescription={trend.snippet}
-            className="mb-4"
-          />
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-3">
+          <div className="space-y-3">
+            {topics && topics.length > 0 && (
+              <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tópicos</h4>
+            )}
+            {topicsSummary && (
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                <p className="text-xs font-semibold text-gray-900 mb-1">Resumo rápido</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{trend.snippet ?? 'Informação não disponível.'}</p>
+                <p className="text-xs font-semibold text-gray-900 mb-1">Panorama do Assunto</p>
+                <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{topicsSummary}</p>
               </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                <p className="text-xs font-semibold text-gray-900 mb-1">Comentário em destaque</p>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {trend.top_comment_preview ?? 'Nenhum comentário em destaque disponível.'}
+            )}
+            {isLoadingTopics ? (
+              <TopicSkeleton />
+            ) : topicsError && (!topics || topics.length === 0) ? (
+              <div className="text-center py-6" role="alert">
+                <p className="text-sm text-red-600 mb-3 flex items-center justify-center gap-2">
+                  <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                  {topicsError}
                 </p>
-              </div>
-
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 space-y-1.5">
-                <p>
-                  <span className="font-semibold text-gray-900">Engajamento:</span> {engagementValue}
-                </p>
-                {publishedAt && (
-                  <p>
-                    <span className="font-semibold text-gray-900">Publicado:</span> {publishedAt}
-                  </p>
-                )}
-                {capturedAt && (
-                  <p>
-                    <span className="font-semibold text-gray-900">Atualizado:</span> {capturedAt}
-                  </p>
+                {onRetryTopics && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onRetryTopics();
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-full hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  >
+                    Tentar novamente
+                  </button>
                 )}
               </div>
-            </div>
+            ) : topics && topics.length > 0 ? (
+              <div className="space-y-2">
+                {topics.map((topic) => {
+                  const repliesLabel =
+                    typeof topic.replies_total === 'number'
+                      ? topic.replies_total
+                      : 'Sem dados';
 
-            <div className="space-y-3">
-              {topics && topics.length > 0 && (
-                <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tópicos</h4>
-              )}
-              {topicsSummary && (
-                <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                  <p className="text-xs font-semibold text-gray-900 mb-1">Panorama do Assunto</p>
-                  <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{topicsSummary}</p>
-                </div>
-              )}
-              {isLoadingTopics ? (
-                <TopicSkeleton />
-              ) : topicsError && (!topics || topics.length === 0) ? (
-                <div className="text-center py-6" role="alert">
-                  <p className="text-sm text-red-600 mb-3 flex items-center justify-center gap-2">
-                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                    {topicsError}
-                  </p>
-                  {onRetryTopics && (
+                  return (
                     <button
+                      key={`topic-${topic.number}`}
+                      onClick={() => onTopicSelect(topic)}
+                      disabled={disabled}
                       type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onRetryTopics();
-                      }}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-full hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      className="w-full flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Tentar novamente
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-900">
+                          <span className="inline-flex items-center justify-center rounded-full bg-green-100 px-2 py-1 text-green-700">
+                            Tópico #{topic.number}
+                          </span>
+                        </div>
+                        <ChevronDown
+                          className="w-4 h-4 text-gray-400 group-hover:text-green-600 flex-shrink-0 -rotate-90"
+                          aria-hidden="true"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-700">{topic.description}</p>
+                      <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                        <span className="font-medium text-gray-800">
+                          Engajamento do comentário: {getTopicEngagement(topic)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
+                          Respostas (💬): {repliesLabel}
+                        </span>
+                      </div>
+                      {topic.author && (
+                        <p className="text-xs text-gray-500">Autor: {topic.author}</p>
+                      )}
+                      {topic.upvotes && (
+                        <p className="text-xs text-gray-500">Upvotes: {topic.upvotes}</p>
+                      )}
+                      {topic.posted_at && (
+                        <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
+                      )}
                     </button>
-                  )}
-                </div>
-              ) : topics && topics.length > 0 ? (
-                <div className="space-y-2">
-                  {topics.map((topic) => {
-                    const repliesLabel =
-                      typeof topic.replies_total === 'number'
-                        ? topic.replies_total
-                        : 'Sem dados';
-
-                    return (
-                      <button
-                        key={`topic-${topic.number}`}
-                        onClick={() => onTopicSelect(topic)}
-                        disabled={disabled}
-                        type="button"
-                        className="w-full flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-gray-900">
-                            <span className="inline-flex items-center justify-center rounded-full bg-green-100 px-2 py-1 text-green-700">
-                              Tópico #{topic.number}
-                            </span>
-                          </div>
-                          <ChevronDown
-                            className="w-4 h-4 text-gray-400 group-hover:text-green-600 flex-shrink-0 -rotate-90"
-                            aria-hidden="true"
-                          />
-                        </div>
-                        <p className="text-sm text-gray-700">{topic.description}</p>
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-600">
-                          <span className="font-medium text-gray-800">
-                            Engajamento do comentário: {getTopicEngagement(topic)}
-                          </span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1">
-                            Respostas (💬): {repliesLabel}
-                          </span>
-                        </div>
-                        {topic.author && (
-                          <p className="text-xs text-gray-500">Autor: {topic.author}</p>
-                        )}
-                        {topic.upvotes && (
-                          <p className="text-xs text-gray-500">Upvotes: {topic.upvotes}</p>
-                        )}
-                        {topic.posted_at && (
-                          <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 text-center py-4">Nenhum tópico disponível</p>
-              )}
-            </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 text-center py-4">Nenhum tópico disponível</p>
+            )}
           </div>
         </div>
       )}
