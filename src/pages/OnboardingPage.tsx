@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -76,8 +76,95 @@ export function OnboardingPage() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [, setEmploymentStatus] = useState('');
+  const [, setEducationLevel] = useState('');
+  const [, setFamilyStatus] = useState('');
+  const [, setLivingWith] = useState('');
+  const [, setIncomeBracket] = useState('');
+  const [, setReligion] = useState('');
+  const [, setMoralValues] = useState<string[]>([]);
+
+  const setHandle = useCallback((value: string) => {
+    setFormState((prev) => ({ ...prev, handle: value }));
+  }, []);
+
+  const setPreferredSendTime = useCallback((value: FormState['preferred_send_time']) => {
+    setFormState((prev) => ({ ...prev, preferred_send_time: value }));
+  }, []);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
+
+  useEffect(() => {
+    if (!userEmail) {
+      return;
+    }
+
+    const fetchUserData = async () => {
+      const { data, error } = await supabase
+        .from('users')
+        .select(
+          `
+            handle,
+            preferred_send_time,
+            subscribers (
+              employment_status,
+              education_level
+            ),
+            user_family_profile (
+              family_status,
+              living_with,
+              income_bracket
+            ),
+            user_moral_profile (
+              religion,
+              moral_values
+            )
+          `,
+        )
+        .eq('email', userEmail)
+        .single();
+
+      if (error) {
+        console.error('Erro ao carregar dados do usuário', error);
+        return;
+      }
+
+      const subscriberProfile = Array.isArray(data?.subscribers)
+        ? data?.subscribers[0]
+        : data?.subscribers;
+
+      const familyProfile = Array.isArray(data?.user_family_profile)
+        ? data?.user_family_profile[0]
+        : data?.user_family_profile;
+
+      const moralProfile = Array.isArray(data?.user_moral_profile)
+        ? data?.user_moral_profile[0]
+        : data?.user_moral_profile;
+
+      setHandle(data?.handle ?? '');
+      setPreferredSendTime((data?.preferred_send_time as FormState['preferred_send_time'] | null) ?? '');
+      setEmploymentStatus(subscriberProfile?.employment_status ?? '');
+      setEducationLevel(subscriberProfile?.education_level ?? '');
+      setFamilyStatus(familyProfile?.family_status ?? '');
+      setLivingWith(familyProfile?.living_with ?? '');
+      setIncomeBracket(familyProfile?.income_bracket ?? '');
+      setReligion(moralProfile?.religion ?? '');
+      setMoralValues(moralProfile?.moral_values ?? []);
+    };
+
+    fetchUserData();
+  }, [
+    userEmail,
+    setEducationLevel,
+    setEmploymentStatus,
+    setFamilyStatus,
+    setHandle,
+    setIncomeBracket,
+    setLivingWith,
+    setMoralValues,
+    setPreferredSendTime,
+    setReligion,
+  ]);
 
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
