@@ -1,21 +1,26 @@
-import { ReactNode, useState } from 'react';
-import { MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
+import { ReactNode, useMemo, useState } from 'react';
+import { MessageCircle, User, Menu, X, LogOut, ClipboardList, RefreshCw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: 'chat' | 'profile';
-  onNavigate: (page: 'chat' | 'profile') => void;
+  currentPage: 'chat' | 'profile' | 'onboarding' | 'tap';
+  onNavigate: (page: 'chat' | 'profile' | 'onboarding' | 'tap') => void;
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const { signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
 
-  const navItems = [
-    { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
-    { id: 'profile' as const, icon: User, label: 'Perfil' },
-  ];
+  const navItems = useMemo(
+    () => [
+      { id: 'tap' as const, icon: RefreshCw, label: 'Tendências' },
+      { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
+      { id: 'profile' as const, icon: User, label: 'Perfil' },
+      { id: 'onboarding' as const, icon: ClipboardList, label: 'Onboarding' },
+    ],
+    [],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
