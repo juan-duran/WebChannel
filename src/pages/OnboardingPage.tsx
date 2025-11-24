@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -47,12 +47,19 @@ const theologicalAlignmentOptions = [
 type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
-  family_stage: OnboardingPayload['family_profile']['stage'];
-  children_age_range: OnboardingPayload['family_profile']['children_age_range'];
-  faith_importance: OnboardingPayload['beliefs']['faith_importance'];
-  community_involvement: OnboardingPayload['beliefs']['community_involvement'];
-  theological_alignment: OnboardingPayload['beliefs']['theological_alignment'];
+  family_stage: string;
+  children_age_range: string;
+  faith_importance: string;
+  community_involvement: string;
+  theological_alignment: string;
   content_boundaries: string;
+  employment_status: string;
+  education_level: string;
+  family_status: string;
+  living_with: string;
+  income_bracket: string;
+  religion: string;
+  moral_values: string[];
 };
 
 const defaultFormState: FormState = {
@@ -64,6 +71,13 @@ const defaultFormState: FormState = {
   community_involvement: 'participante',
   theological_alignment: 'equilibrada',
   content_boundaries: '',
+  employment_status: '',
+  education_level: '',
+  family_status: '',
+  living_with: '',
+  income_bracket: '',
+  religion: '',
+  moral_values: [],
 };
 
 export function OnboardingPage() {
@@ -76,21 +90,6 @@ export function OnboardingPage() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [, setEmploymentStatus] = useState('');
-  const [, setEducationLevel] = useState('');
-  const [, setFamilyStatus] = useState('');
-  const [, setLivingWith] = useState('');
-  const [, setIncomeBracket] = useState('');
-  const [, setReligion] = useState('');
-  const [, setMoralValues] = useState<string[]>([]);
-
-  const setHandle = useCallback((value: string) => {
-    setFormState((prev) => ({ ...prev, handle: value }));
-  }, []);
-
-  const setPreferredSendTime = useCallback((value: FormState['preferred_send_time']) => {
-    setFormState((prev) => ({ ...prev, preferred_send_time: value }));
-  }, []);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
@@ -141,30 +140,22 @@ export function OnboardingPage() {
         ? data?.user_moral_profile[0]
         : data?.user_moral_profile;
 
-      setHandle(data?.handle ?? '');
-      setPreferredSendTime((data?.preferred_send_time as FormState['preferred_send_time'] | null) ?? '');
-      setEmploymentStatus(subscriberProfile?.employment_status ?? '');
-      setEducationLevel(subscriberProfile?.education_level ?? '');
-      setFamilyStatus(familyProfile?.family_status ?? '');
-      setLivingWith(familyProfile?.living_with ?? '');
-      setIncomeBracket(familyProfile?.income_bracket ?? '');
-      setReligion(moralProfile?.religion ?? '');
-      setMoralValues(moralProfile?.moral_values ?? []);
+      setFormState((prev) => ({
+        ...prev,
+        handle: data?.handle ?? '',
+        preferred_send_time: (data?.preferred_send_time as FormState['preferred_send_time'] | null) ?? '',
+        employment_status: subscriberProfile?.employment_status ?? '',
+        education_level: subscriberProfile?.education_level ?? '',
+        family_status: familyProfile?.family_status ?? '',
+        living_with: familyProfile?.living_with ?? '',
+        income_bracket: familyProfile?.income_bracket ?? '',
+        religion: moralProfile?.religion ?? '',
+        moral_values: moralProfile?.moral_values ?? [],
+      }));
     };
 
     fetchUserData();
-  }, [
-    userEmail,
-    setEducationLevel,
-    setEmploymentStatus,
-    setFamilyStatus,
-    setHandle,
-    setIncomeBracket,
-    setLivingWith,
-    setMoralValues,
-    setPreferredSendTime,
-    setReligion,
-  ]);
+  }, [userEmail]);
 
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
@@ -199,17 +190,17 @@ export function OnboardingPage() {
     const payload: OnboardingPayload = {
       handle: formState.handle.trim(),
       preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
-      family_profile: {
-        stage: formState.family_stage,
-        children_age_range: formState.children_age_range,
-      },
-      beliefs: {
-        faith_importance: formState.faith_importance,
-        community_involvement: formState.community_involvement,
-        theological_alignment: formState.theological_alignment,
-        content_boundaries: formState.content_boundaries.trim(),
-      },
+      employment_status: formState.employment_status || null,
+      education_level: formState.education_level || null,
+      family_status: formState.family_status || null,
+      living_with: formState.living_with || null,
+      income_bracket: formState.income_bracket || null,
+      religion: formState.religion || null,
     };
+
+    if (formState.moral_values.length > 0) {
+      payload.moral_values = formState.moral_values;
+    }
 
     setSubmitting(true);
 
