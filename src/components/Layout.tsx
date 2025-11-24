@@ -1,11 +1,11 @@
 import { ReactNode, useState } from 'react';
-import { MessageCircle, User, Menu, X, LogOut } from 'lucide-react';
+import { MessageCircle, User, Menu, X, LogOut, ClipboardList } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: 'chat' | 'profile';
-  onNavigate: (page: 'chat' | 'profile') => void;
+  currentPage: 'chat' | 'profile' | 'onboarding';
+  onNavigate: (page: 'chat' | 'profile' | 'onboarding') => void;
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
@@ -15,6 +15,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const navItems = [
     { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
     { id: 'profile' as const, icon: User, label: 'Perfil' },
+    { id: 'onboarding' as const, icon: ClipboardList, label: 'Onboarding' },
   ];
 
   return (
