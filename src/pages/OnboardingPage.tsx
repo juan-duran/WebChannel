@@ -5,9 +5,78 @@ import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
 const preferredSendTimeOptions = [
-  { label: 'Manhã (08h - 11h)', value: 'manha' as const },
-  { label: 'Tarde (12h - 17h)', value: 'tarde' as const },
-  { label: 'Noite (18h - 22h)', value: 'noite' as const },
+  { label: '08:00 (manhã)', value: '08:00' as const },
+  { label: '12:00 (início da tarde)', value: '12:00' as const },
+  { label: '18:00 (final da tarde)', value: '18:00' as const },
+  { label: '21:00 (noite)', value: '21:00' as const },
+];
+
+const employmentStatusOptions = [
+  { label: 'CLT / formal', value: 'employed_formal' as const },
+  { label: 'Autônomo ou freelancer', value: 'self_employed' as const },
+  { label: 'Empreendedor(a)', value: 'entrepreneur' as const },
+  { label: 'Servidor público', value: 'public_servant' as const },
+  { label: 'Estudante', value: 'student' as const },
+  { label: 'Do lar / cuidador(a)', value: 'homemaker' as const },
+  { label: 'Desempregado(a)', value: 'unemployed' as const },
+  { label: 'Aposentado(a)', value: 'retired' as const },
+];
+
+const educationLevelOptions = [
+  { label: 'Fundamental incompleto', value: 'fundamental_incompleto' as const },
+  { label: 'Fundamental completo', value: 'fundamental_completo' as const },
+  { label: 'Médio incompleto', value: 'medio_incompleto' as const },
+  { label: 'Médio completo', value: 'medio_completo' as const },
+  { label: 'Superior incompleto', value: 'superior_incompleto' as const },
+  { label: 'Superior completo', value: 'superior_completo' as const },
+  { label: 'Pós-graduação', value: 'pos_graduacao' as const },
+  { label: 'Mestrado ou doutorado', value: 'mestrado_doutorado' as const },
+];
+
+const familyStatusOptions = [
+  { label: 'Solteiro(a)', value: 'solteiro' as const },
+  { label: 'Namorando', value: 'namorando' as const },
+  { label: 'Noivo(a)', value: 'noivo' as const },
+  { label: 'Casado(a) / união estável', value: 'casado' as const },
+  { label: 'Divorciado(a)', value: 'divorciado' as const },
+  { label: 'Viúvo(a)', value: 'viuvo' as const },
+];
+
+const livingWithOptions = [
+  { label: 'Moro sozinho(a)', value: 'sozinho' as const },
+  { label: 'Com parceiro(a)', value: 'parceiro' as const },
+  { label: 'Com filhos', value: 'filhos' as const },
+  { label: 'Com pais ou família de origem', value: 'pais_familia_origem' as const },
+  { label: 'Com amigos', value: 'amigos' as const },
+  { label: 'Outros parentes', value: 'parentes' as const },
+];
+
+const incomeBracketOptions = [
+  { label: 'Até 2 salários mínimos', value: 'ate_2_sm' as const },
+  { label: 'De 2 a 5 salários mínimos', value: 'de_2_a_5_sm' as const },
+  { label: 'De 5 a 10 salários mínimos', value: 'de_5_a_10_sm' as const },
+  { label: 'Acima de 10 salários mínimos', value: 'acima_10_sm' as const },
+  { label: 'Prefiro não informar', value: 'prefiro_nao_dizer' as const },
+];
+
+const religionOptions = [
+  { label: 'Católica', value: 'catolica' as const },
+  { label: 'Evangélica / Protestante', value: 'evangelica' as const },
+  { label: 'Espírita', value: 'espirita' as const },
+  { label: 'Umbanda ou Candomblé', value: 'umbanda_candomble' as const },
+  { label: 'Espiritualista / sem religião institucional', value: 'espiritualista' as const },
+  { label: 'Ateu / agnóstico', value: 'ateu_agnostico' as const },
+  { label: 'Outra tradição', value: 'outra' as const },
+];
+
+const moralValuesOptions = [
+  { label: 'Família em primeiro lugar', value: 'familia' as const },
+  { label: 'Honestidade e transparência', value: 'honestidade' as const },
+  { label: 'Responsabilidade financeira', value: 'responsabilidade_financeira' as const },
+  { label: 'Respeito e igualdade', value: 'respeito_igualdade' as const },
+  { label: 'Fé e espiritualidade', value: 'fe_espiritualidade' as const },
+  { label: 'Serviço e comunidade', value: 'servico_comunidade' as const },
+  { label: 'Aprendizado contínuo', value: 'aprendizado_constante' as const },
 ];
 
 const familyStageOptions = [
@@ -230,6 +299,18 @@ export function OnboardingPage() {
     setFormState((prev) => ({ ...prev, [key]: value }));
   };
 
+  const toggleMoralValue = (value: string) => {
+    setFormState((prev) => {
+      const exists = prev.moral_values.includes(value);
+      return {
+        ...prev,
+        moral_values: exists
+          ? prev.moral_values.filter((item) => item !== value)
+          : [...prev.moral_values, value],
+      };
+    });
+  };
+
   return (
     <div className="py-6">
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
@@ -302,6 +383,150 @@ export function OnboardingPage() {
                 </p>
               )}
             </label>
+          </div>
+        </section>
+
+        <section className="form-card">
+          <header className="flex flex-col gap-1 mb-4">
+            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">Perfil</p>
+            <h3 className="text-lg font-semibold text-gray-900">Sua rotina e contexto</h3>
+            <p className="text-sm text-gray-600">Esses dados ajudam a adaptar exemplos e referências do conteúdo.</p>
+          </header>
+
+          <div className="field-stack">
+            <label className="space-y-1" htmlFor="employment_status">
+              <span className="font-medium text-gray-800">Situação profissional</span>
+              <select
+                id="employment_status"
+                name="employment_status"
+                value={formState.employment_status}
+                onChange={(e) => updateField('employment_status', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {employmentStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1" htmlFor="education_level">
+              <span className="font-medium text-gray-800">Escolaridade</span>
+              <select
+                id="education_level"
+                name="education_level"
+                value={formState.education_level}
+                onChange={(e) => updateField('education_level', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {educationLevelOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1" htmlFor="family_status">
+              <span className="font-medium text-gray-800">Estado civil</span>
+              <select
+                id="family_status"
+                name="family_status"
+                value={formState.family_status}
+                onChange={(e) => updateField('family_status', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {familyStatusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1" htmlFor="living_with">
+              <span className="font-medium text-gray-800">Com quem você mora?</span>
+              <select
+                id="living_with"
+                name="living_with"
+                value={formState.living_with}
+                onChange={(e) => updateField('living_with', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {livingWithOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="space-y-1" htmlFor="income_bracket">
+              <span className="font-medium text-gray-800">Faixa de renda familiar</span>
+              <select
+                id="income_bracket"
+                name="income_bracket"
+                value={formState.income_bracket}
+                onChange={(e) => updateField('income_bracket', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {incomeBracketOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500">Usamos apenas para personalizar exemplos e sugestões.</p>
+            </label>
+
+            <label className="space-y-1" htmlFor="religion">
+              <span className="font-medium text-gray-800">Caminho de fé</span>
+              <select
+                id="religion"
+                name="religion"
+                value={formState.religion}
+                onChange={(e) => updateField('religion', e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Selecione uma opção</option>
+                {religionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <fieldset className="space-y-2">
+              <legend className="font-medium text-gray-800">Valores que guiam suas escolhas</legend>
+              <p className="text-sm text-gray-600">Selecione quantos quiser para ajustar o tom das mensagens.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {moralValuesOptions.map((option) => {
+                  const checked = formState.moral_values.includes(option.value);
+                  return (
+                    <label
+                      key={option.value}
+                      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:border-blue-300"
+                    >
+                      <input
+                        type="checkbox"
+                        value={option.value}
+                        checked={checked}
+                        onChange={() => toggleMoralValue(option.value)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span>{option.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
           </div>
         </section>
 
