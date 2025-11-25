@@ -116,6 +116,7 @@ const theologicalAlignmentOptions = [
 type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
+  onboarding_complete: boolean;
   family_stage: string;
   children_age_range: string;
   faith_importance: string;
@@ -134,6 +135,7 @@ type FormState = {
 const defaultFormState: FormState = {
   handle: '',
   preferred_send_time: '',
+  onboarding_complete: false,
   family_stage: 'casal_sem_filhos',
   children_age_range: 'nenhum',
   faith_importance: 'central',
@@ -169,14 +171,18 @@ export function OnboardingPage() {
 
     const fetchUserData = async () => {
       const { data, error } = await supabase
-        .from('users')
+        .from('subscribers')
         .select(
           `
             handle,
             preferred_send_time,
-            subscribers (
-              employment_status,
-              education_level
+            onboarding_complete,
+            employment_status,
+            education_level,
+            users (
+              handle,
+              preferred_send_time,
+              onboarding_complete
             ),
             user_family_profile (
               family_status,
@@ -197,10 +203,6 @@ export function OnboardingPage() {
         return;
       }
 
-      const subscriberProfile = Array.isArray(data?.subscribers)
-        ? data?.subscribers[0]
-        : data?.subscribers;
-
       const familyProfile = Array.isArray(data?.user_family_profile)
         ? data?.user_family_profile[0]
         : data?.user_family_profile;
@@ -211,10 +213,11 @@ export function OnboardingPage() {
 
       setFormState((prev) => ({
         ...prev,
-        handle: data?.handle ?? '',
-        preferred_send_time: (data?.preferred_send_time as FormState['preferred_send_time'] | null) ?? '',
-        employment_status: subscriberProfile?.employment_status ?? '',
-        education_level: subscriberProfile?.education_level ?? '',
+        handle: data?.handle ?? data?.users?.handle ?? '',
+        preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '08:00',
+        onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
+        employment_status: data?.employment_status ?? '',
+        education_level: data?.education_level ?? '',
         family_status: familyProfile?.family_status ?? '',
         living_with: familyProfile?.living_with ?? '',
         income_bracket: familyProfile?.income_bracket ?? '',
@@ -320,6 +323,19 @@ export function OnboardingPage() {
           <p className="text-gray-600">
             Conte um pouco sobre você para personalizarmos suas sugestões e comunicações.
           </p>
+          <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 mt-2">
+            {formState.onboarding_complete ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                <span>Onboarding concluído</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <span>Onboarding pendente</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
