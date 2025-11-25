@@ -6,6 +6,20 @@ import type { OnboardingPayload } from '../types/onboarding';
 
 type ValueMap = Record<string, string>;
 
+type OnboardingProfile = {
+  user_email: string | null;
+  handle: string | null;
+  preferred_send_time: string | null;
+  onboarding_complete: boolean | null;
+  employment_status: string | null;
+  education_level: string | null;
+  family_status: string | null;
+  living_with: string | null;
+  income_bracket: string | null;
+  religion: string | null;
+  moral_values: string[] | null;
+};
+
 const preferredSendTimeOptions = [
   { label: '08:00 (manhã)', value: '08:00' as const },
   { label: '12:00 (início da tarde)', value: '12:00' as const },
@@ -249,31 +263,9 @@ export function OnboardingPage() {
     }
 
     const { data, error } = await supabase
-      .from('subscribers')
-      .select(
-        `
-          handle,
-          preferred_send_time,
-          onboarding_complete,
-          employment_status,
-          education_level,
-          users (
-            handle,
-            preferred_send_time,
-            onboarding_complete
-          ),
-          user_family_profile (
-            family_status,
-            living_with,
-            income_bracket
-          ),
-          user_moral_profile (
-            religion,
-            moral_values
-          )
-        `,
-      )
-      .eq('email', userEmail)
+      .rpc<OnboardingProfile>('rpc_get_web_onboarding', {
+        p_email: userEmail,
+      })
       .single();
 
     if (error) {
@@ -281,26 +273,18 @@ export function OnboardingPage() {
       return;
     }
 
-    const familyProfile = Array.isArray(data?.user_family_profile)
-      ? data?.user_family_profile[0]
-      : data?.user_family_profile;
-
-    const moralProfile = Array.isArray(data?.user_moral_profile)
-      ? data?.user_moral_profile[0]
-      : data?.user_moral_profile;
-
     setFormState((prev) => ({
       ...prev,
-      handle: (data?.handle ?? data?.users?.handle ?? '').trim(),
+      handle: (data?.handle ?? '').trim(),
       preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
-      onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
+      onboarding_complete: data?.onboarding_complete ?? false,
       employment_status: mapValueFromBackend(data?.employment_status, employmentStatusValueMap),
       education_level: mapValueFromBackend(data?.education_level, educationLevelValueMap),
-      family_status: mapValueFromBackend(familyProfile?.family_status, familyStatusValueMap),
-      living_with: mapValueFromBackend(familyProfile?.living_with, livingWithValueMap),
-      income_bracket: mapValueFromBackend(familyProfile?.income_bracket, incomeBracketValueMap),
-      religion: mapValueFromBackend(moralProfile?.religion, religionValueMap),
-      moral_values: mapArrayFromBackend(moralProfile?.moral_values, moralValuesValueMap),
+      family_status: mapValueFromBackend(data?.family_status, familyStatusValueMap),
+      living_with: mapValueFromBackend(data?.living_with, livingWithValueMap),
+      income_bracket: mapValueFromBackend(data?.income_bracket, incomeBracketValueMap),
+      religion: mapValueFromBackend(data?.religion, religionValueMap),
+      moral_values: mapArrayFromBackend(data?.moral_values, moralValuesValueMap),
     }));
   }, [userEmail]);
 
