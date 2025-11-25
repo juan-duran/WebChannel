@@ -515,7 +515,7 @@ export function OnboardingPage() {
 
       {status.type && (
         <div
-          className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+          className={`mb-5 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
             status.type === 'success'
               ? 'bg-green-50 border-green-200 text-green-800'
               : 'bg-red-50 border-red-200 text-red-800'
