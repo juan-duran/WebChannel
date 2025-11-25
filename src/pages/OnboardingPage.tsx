@@ -28,11 +28,19 @@ const preferredSendTimeOptions = [
 ];
 
 const employmentStatusValueMap: ValueMap = {
-  desempregado: 'unemployed',
-  estudante: 'student',
-  meio_periodo: 'part_time',
-  tempo_integral: 'full_time',
-  aposentado: 'retired',
+  desempregado: 'desempregado',
+  estudante: 'estudante',
+  meio_periodo: 'meio_periodo',
+  tempo_integral: 'tempo_integral',
+  aposentado: 'aposentado',
+};
+
+const employmentStatusBackendAliases: ValueMap = {
+  unemployed: 'desempregado',
+  student: 'estudante',
+  part_time: 'meio_periodo',
+  full_time: 'tempo_integral',
+  retired: 'aposentado',
 };
 
 const employmentStatusOptions = [
@@ -44,13 +52,23 @@ const employmentStatusOptions = [
 ];
 
 const educationLevelValueMap: ValueMap = {
-  nenhum: 'none',
-  fundamental: 'primary',
-  medio: 'secondary',
-  graduacao: 'bachelors',
-  mestrado: 'masters',
-  doutorado: 'doctorate',
-  outros: 'other',
+  nenhum: 'nenhum',
+  fundamental: 'fundamental',
+  medio: 'medio',
+  graduacao: 'graduacao',
+  mestrado: 'mestrado',
+  doutorado: 'doutorado',
+  outros: 'outros',
+};
+
+const educationLevelBackendAliases: ValueMap = {
+  none: 'nenhum',
+  primary: 'fundamental',
+  secondary: 'medio',
+  bachelors: 'graduacao',
+  masters: 'mestrado',
+  doctorate: 'doutorado',
+  other: 'outros',
 };
 
 const educationLevelOptions = [
@@ -64,11 +82,19 @@ const educationLevelOptions = [
 ];
 
 const familyStatusValueMap: ValueMap = {
-  solteiro: 'single',
-  casado: 'married',
-  divorciado: 'divorced',
-  viuvo: 'widowed',
-  uniao_estavel: 'civil_union',
+  solteiro: 'solteiro',
+  casado: 'casado',
+  divorciado: 'divorciado',
+  viuvo: 'viuvo',
+  uniao_estavel: 'uniao_estavel',
+};
+
+const familyStatusBackendAliases: ValueMap = {
+  single: 'solteiro',
+  married: 'casado',
+  divorced: 'divorciado',
+  widowed: 'viuvo',
+  civil_union: 'uniao_estavel',
 };
 
 const familyStatusOptions = [
@@ -80,12 +106,21 @@ const familyStatusOptions = [
 ];
 
 const livingWithValueMap: ValueMap = {
-  sozinho: 'alone',
-  parceiro: 'partner',
-  filhos: 'children',
-  familia_extensa: 'extended_family',
-  colegas_quarto: 'roommates',
-  outro: 'other',
+  sozinho: 'sozinho',
+  parceiro: 'parceiro',
+  filhos: 'filhos',
+  familia_extensa: 'familia_extensa',
+  colegas_quarto: 'colegas_quarto',
+  outro: 'outro',
+};
+
+const livingWithBackendAliases: ValueMap = {
+  alone: 'sozinho',
+  partner: 'parceiro',
+  children: 'filhos',
+  extended_family: 'familia_extensa',
+  roommates: 'colegas_quarto',
+  other: 'outro',
 };
 
 const livingWithOptions = [
@@ -98,11 +133,19 @@ const livingWithOptions = [
 ];
 
 const incomeBracketValueMap: ValueMap = {
-  baixa: 'low',
-  media_baixa: 'lower_middle',
-  media: 'middle',
-  media_alta: 'upper_middle',
-  alta: 'high',
+  baixa: 'baixa',
+  media_baixa: 'media_baixa',
+  media: 'media',
+  media_alta: 'media_alta',
+  alta: 'alta',
+};
+
+const incomeBracketBackendAliases: ValueMap = {
+  low: 'baixa',
+  lower_middle: 'media_baixa',
+  middle: 'media',
+  upper_middle: 'media_alta',
+  high: 'alta',
 };
 
 const incomeBracketOptions = [
@@ -114,19 +157,35 @@ const incomeBracketOptions = [
 ];
 
 const religionValueMap: ValueMap = {
-  catolico: 'catholic',
-  protestante: 'protestant',
-  evangelico: 'evangelical',
-  espirita: 'spiritist',
+  catolico: 'catolico',
+  protestante: 'protestante',
+  evangelico: 'evangelico',
+  espirita: 'espirita',
   umbanda: 'umbanda',
   candomble: 'candomble',
-  judaico: 'jewish',
-  islamico: 'islamic',
-  budista: 'buddhist',
+  judaico: 'judaico',
+  islamico: 'islamico',
+  budista: 'budista',
   hindu: 'hindu',
-  ateu: 'atheist',
-  agnostico: 'agnostic',
-  outros: 'other',
+  ateu: 'ateu',
+  agnostico: 'agnostico',
+  outros: 'outros',
+};
+
+const religionBackendAliases: ValueMap = {
+  catholic: 'catolico',
+  protestant: 'protestante',
+  evangelical: 'evangelico',
+  spiritist: 'espirita',
+  umbanda: 'umbanda',
+  candomble: 'candomble',
+  jewish: 'judaico',
+  islamic: 'islamico',
+  buddhist: 'budista',
+  hindu: 'hindu',
+  atheist: 'ateu',
+  agnostic: 'agnostico',
+  other: 'outros',
 };
 
 const religionOptions = [
@@ -146,16 +205,29 @@ const religionOptions = [
 ];
 
 const moralValuesValueMap: ValueMap = {
-  fe: 'faith',
-  honestidade: 'honesty',
-  respeito: 'respect',
-  responsabilidade: 'responsibility',
-  compaixao: 'compassion',
-  justica: 'justice',
-  familia: 'family',
-  perseveranca: 'perseverance',
-  servico: 'service',
-  humildade: 'humility',
+  fe: 'fe',
+  honestidade: 'honestidade',
+  respeito: 'respeito',
+  responsabilidade: 'responsabilidade',
+  compaixao: 'compaixao',
+  justica: 'justica',
+  familia: 'familia',
+  perseveranca: 'perseveranca',
+  servico: 'servico',
+  humildade: 'humildade',
+};
+
+const moralValuesBackendAliases: ValueMap = {
+  faith: 'fe',
+  honesty: 'honestidade',
+  respect: 'respeito',
+  responsibility: 'responsabilidade',
+  compassion: 'compaixao',
+  justice: 'justica',
+  family: 'familia',
+  perseverance: 'perseveranca',
+  service: 'servico',
+  humility: 'humildade',
 };
 
 const moralValuesOptions = [
@@ -187,8 +259,13 @@ export type FormState = {
 const invertValueMap = (map: ValueMap): ValueMap =>
   Object.fromEntries(Object.entries(map).map(([uiValue, backendValue]) => [backendValue, uiValue]));
 
-const mapValueFromBackend = (value: string | null | undefined, map: ValueMap) => {
+const mapValueFromBackend = (
+  value: string | null | undefined,
+  map: ValueMap,
+  aliases: ValueMap = {},
+) => {
   if (!value) return '';
+  if (aliases[value]) return aliases[value];
   const inverse = invertValueMap(map);
   if (inverse[value]) return inverse[value];
   return map[value] ? value : '';
@@ -199,11 +276,10 @@ const mapValueToBackend = (value: string, map: ValueMap) => {
   return map[value] ?? value;
 };
 
-const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap) => {
+const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap, aliases: ValueMap = {}) => {
   if (!Array.isArray(values)) return [];
-  const inverse = invertValueMap(map);
   return values
-    .map((entry) => inverse[entry] ?? (map[entry] ? entry : null))
+    .map((entry) => mapValueFromBackend(entry, map, aliases))
     .filter((entry): entry is string => Boolean(entry));
 };
 
@@ -280,13 +356,33 @@ export function OnboardingPage() {
       handle: (data?.handle ?? '').trim(),
       preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
       onboarding_complete: data?.onboarding_complete ?? false,
-      employment_status: mapValueFromBackend(data?.employment_status, employmentStatusValueMap),
-      education_level: mapValueFromBackend(data?.education_level, educationLevelValueMap),
-      family_status: mapValueFromBackend(data?.family_status, familyStatusValueMap),
-      living_with: mapValueFromBackend(data?.living_with, livingWithValueMap),
-      income_bracket: mapValueFromBackend(data?.income_bracket, incomeBracketValueMap),
-      religion: mapValueFromBackend(data?.religion, religionValueMap),
-      moral_values: mapArrayFromBackend(data?.moral_values, moralValuesValueMap),
+      employment_status: mapValueFromBackend(
+        data?.employment_status,
+        employmentStatusValueMap,
+        employmentStatusBackendAliases,
+      ),
+      education_level: mapValueFromBackend(
+        data?.education_level,
+        educationLevelValueMap,
+        educationLevelBackendAliases,
+      ),
+      family_status: mapValueFromBackend(
+        data?.family_status,
+        familyStatusValueMap,
+        familyStatusBackendAliases,
+      ),
+      living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
+      income_bracket: mapValueFromBackend(
+        data?.income_bracket,
+        incomeBracketValueMap,
+        incomeBracketBackendAliases,
+      ),
+      religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
+      moral_values: mapArrayFromBackend(
+        data?.moral_values,
+        moralValuesValueMap,
+        moralValuesBackendAliases,
+      ),
     }));
   }, [userEmail]);
 
