@@ -31,6 +31,16 @@ const withoutSelections = {
 
 const payload = buildOnboardingPayload(withoutSelections);
 
+assert.equal(
+  payload.employment_status,
+  'full_time',
+  'employment_status should be mapped to backend enum values',
+);
+assert.equal(payload.education_level, 'bachelors', 'education_level should be mapped to backend enum values');
+assert.equal(payload.family_status, 'married', 'family_status should be mapped to backend enum values');
+assert.equal(payload.living_with, 'partner', 'living_with should be mapped to backend enum values');
+assert.equal(payload.income_bracket, 'middle', 'income_bracket should be mapped to backend enum values');
+assert.equal(payload.religion, 'catholic', 'religion should be mapped to backend enum values');
 assert.deepEqual(payload.moral_values, [], 'deselecting every moral value should send an empty array');
 
 console.log('Onboarding payload moral_values reset test passed.');
