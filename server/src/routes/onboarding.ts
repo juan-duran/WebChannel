@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { supabaseService } from '../services/supabase.js';
 import { coreSupabaseService, OnboardingPayload } from '../services/coreSupabase.js';
+import { logger } from '../utils/logger.js';
 
 interface AuthenticatedRequest extends Request {
   authUser?: {
@@ -32,9 +33,11 @@ async function authenticateUser(req: AuthenticatedRequest, res: Response, next: 
 onboardingRouter.use(authenticateUser);
 
 onboardingRouter.get('/', async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const email = req.authUser?.email;
+  const email = req.authUser?.email;
+  const requestId = req.headers['x-request-id'];
 
+  try {
+    
     if (!email) {
       return res.status(400).json({ error: 'Missing user email' });
     }
@@ -42,14 +45,26 @@ onboardingRouter.get('/', async (req: AuthenticatedRequest, res: Response) => {
     const profile = await coreSupabaseService.getOnboardingProfile(email);
     return res.json({ data: profile });
   } catch (error) {
+    logger.error(
+      {
+        email,
+        requestId,
+        supabaseError: error instanceof Error ? error.message : String(error),
+        error,
+      },
+      'Failed to load onboarding data',
+    );
+
     return res.status(500).json({ error: 'Failed to load onboarding data' });
   }
 });
 
 onboardingRouter.post('/', async (req: AuthenticatedRequest, res: Response) => {
+  const email = req.authUser?.email;
+  const requestId = req.headers['x-request-id'];
+  const payload = req.body?.payload as OnboardingPayload | undefined;
+
   try {
-    const email = req.authUser?.email;
-    const payload = req.body?.payload as OnboardingPayload | undefined;
 
     if (!email) {
       return res.status(400).json({ error: 'Missing user email' });
@@ -62,6 +77,16 @@ onboardingRouter.post('/', async (req: AuthenticatedRequest, res: Response) => {
     await coreSupabaseService.updateOnboardingProfile(email, payload);
     return res.status(200).json({ success: true });
   } catch (error) {
+    logger.error(
+      {
+        email,
+        requestId,
+        supabaseError: error instanceof Error ? error.message : String(error),
+        error,
+      },
+      'Failed to update onboarding data',
+    );
+
     return res.status(500).json({ error: 'Failed to update onboarding data' });
   }
 });
