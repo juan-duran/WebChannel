@@ -12,6 +12,50 @@ interface AuthenticatedRequest extends Request {
 
 const onboardingRouter = Router();
 
+type ValidationResult = { isValid: true } | { isValid: false; errors: string[] };
+
+function validateOnboardingPayload(payload: unknown): ValidationResult {
+  if (typeof payload !== 'object' || payload === null) {
+    return { isValid: false, errors: ['Payload must be an object'] };
+  }
+
+  const onboardingPayload = payload as Partial<OnboardingPayload>;
+  const errors: string[] = [];
+
+  if (!onboardingPayload.handle || typeof onboardingPayload.handle !== 'string' || !onboardingPayload.handle.trim()) {
+    errors.push('handle is required and must be a non-empty string');
+  }
+
+  const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (!onboardingPayload.preferred_send_time || !timePattern.test(onboardingPayload.preferred_send_time)) {
+    errors.push('preferred_send_time is required and must match HH:MM in 24-hour format');
+  }
+
+  if (!Array.isArray(onboardingPayload.moral_values)) {
+    errors.push('moral_values is required and must be an array of strings');
+  } else if (!onboardingPayload.moral_values.every((value) => typeof value === 'string')) {
+    errors.push('moral_values must only contain strings');
+  }
+
+  const optionalStringFields: (keyof OnboardingPayload)[] = [
+    'employment_status',
+    'education_level',
+    'family_status',
+    'living_with',
+    'income_bracket',
+    'religion',
+  ];
+
+  optionalStringFields.forEach((field) => {
+    const value = onboardingPayload[field];
+    if (value !== undefined && value !== null && typeof value !== 'string') {
+      errors.push(`${field} must be a string, null, or undefined`);
+    }
+  });
+
+  return errors.length ? { isValid: false, errors } : { isValid: true };
+}
+
 async function authenticateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
 
@@ -72,6 +116,11 @@ onboardingRouter.post('/', async (req: AuthenticatedRequest, res: Response) => {
 
     if (!payload) {
       return res.status(400).json({ error: 'Missing onboarding payload' });
+    }
+
+    const validationResult = validateOnboardingPayload(payload);
+    if (!validationResult.isValid) {
+      return res.status(400).json({ error: 'Invalid onboarding payload', details: validationResult.errors });
     }
 
     await coreSupabaseService.updateOnboardingProfile(email, payload);
