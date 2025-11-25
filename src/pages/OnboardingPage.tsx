@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -138,7 +138,7 @@ type FormState = {
 
 const defaultFormState: FormState = {
   handle: '',
-  preferred_send_time: '',
+  preferred_send_time: '08:00',
   onboarding_complete: false,
   family_stage: 'casal_sem_filhos',
   children_age_range: 'nenhum',
@@ -168,70 +168,70 @@ export function OnboardingPage() {
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
-  useEffect(() => {
+  const fetchUserData = useCallback(async () => {
     if (!userEmail) {
       return;
     }
 
-    const fetchUserData = async () => {
-      const { data, error } = await supabase
-        .from('subscribers')
-        .select(
-          `
+    const { data, error } = await supabase
+      .from('subscribers')
+      .select(
+        `
+          handle,
+          preferred_send_time,
+          onboarding_complete,
+          employment_status,
+          education_level,
+          users (
             handle,
             preferred_send_time,
-            onboarding_complete,
-            employment_status,
-            education_level,
-            users (
-              handle,
-              preferred_send_time,
-              onboarding_complete
-            ),
-            user_family_profile (
-              family_status,
-              living_with,
-              income_bracket
-            ),
-            user_moral_profile (
-              religion,
-              moral_values
-            )
-          `,
-        )
-        .eq('email', userEmail)
-        .single();
+            onboarding_complete
+          ),
+          user_family_profile (
+            family_status,
+            living_with,
+            income_bracket
+          ),
+          user_moral_profile (
+            religion,
+            moral_values
+          )
+        `,
+      )
+      .eq('email', userEmail)
+      .single();
 
-      if (error) {
-        console.error('Erro ao carregar dados do usuário', error);
-        return;
-      }
+    if (error) {
+      console.error('Erro ao carregar dados do usuário', error);
+      return;
+    }
 
-      const familyProfile = Array.isArray(data?.user_family_profile)
-        ? data?.user_family_profile[0]
-        : data?.user_family_profile;
+    const familyProfile = Array.isArray(data?.user_family_profile)
+      ? data?.user_family_profile[0]
+      : data?.user_family_profile;
 
-      const moralProfile = Array.isArray(data?.user_moral_profile)
-        ? data?.user_moral_profile[0]
-        : data?.user_moral_profile;
+    const moralProfile = Array.isArray(data?.user_moral_profile)
+      ? data?.user_moral_profile[0]
+      : data?.user_moral_profile;
 
-      setFormState((prev) => ({
-        ...prev,
-        handle: data?.handle ?? data?.users?.handle ?? '',
-        preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '08:00',
-        onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
-        employment_status: data?.employment_status ?? '',
-        education_level: data?.education_level ?? '',
-        family_status: familyProfile?.family_status ?? '',
-        living_with: familyProfile?.living_with ?? '',
-        income_bracket: familyProfile?.income_bracket ?? '',
-        religion: moralProfile?.religion ?? '',
-        moral_values: moralProfile?.moral_values ?? [],
-      }));
-    };
-
-    fetchUserData();
+    setFormState((prev) => ({
+      ...prev,
+      handle: (data?.handle ?? data?.users?.handle ?? '').trim(),
+      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '08:00',
+      onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
+      employment_status: data?.employment_status ?? '',
+      education_level: data?.education_level ?? '',
+      family_status: familyProfile?.family_status ?? '',
+      living_with: familyProfile?.living_with ?? '',
+      income_bracket: familyProfile?.income_bracket ?? '',
+      religion: moralProfile?.religion ?? '',
+      moral_values: moralProfile?.moral_values ?? [],
+    }));
   }, [userEmail]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
@@ -261,18 +261,21 @@ export function OnboardingPage() {
 
     const payload: OnboardingPayload = {
       handle: formState.handle.trim(),
-      preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
+      preferred_send_time: (formState.preferred_send_time || '08:00') as OnboardingPayload['preferred_send_time'],
       employment_status: formState.employment_status || null,
       education_level: formState.education_level || null,
       family_status: formState.family_status || null,
       living_with: formState.living_with || null,
       income_bracket: formState.income_bracket || null,
       religion: formState.religion || null,
+      moral_values: formState.moral_values ?? [],
+      content_boundaries: formState.content_boundaries || null,
+      family_stage: formState.family_stage || null,
+      children_age_range: formState.children_age_range || null,
+      faith_importance: formState.faith_importance || null,
+      community_involvement: formState.community_involvement || null,
+      theological_alignment: formState.theological_alignment || null,
     };
-
-    if (formState.moral_values.length > 0) {
-      payload.moral_values = formState.moral_values;
-    }
 
     setSubmitting(true);
 
@@ -286,6 +289,7 @@ export function OnboardingPage() {
         throw error;
       }
 
+      await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
       const message =
@@ -323,19 +327,17 @@ export function OnboardingPage() {
           <p className="text-gray-600">
             Conte um pouco sobre você para personalizarmos suas sugestões e comunicações.
           </p>
-          <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 mt-2">
-            {formState.onboarding_complete ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-green-600" />
-                <span>Onboarding concluído</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-4 h-4 text-amber-500" />
-                <span>Onboarding pendente</span>
-              </>
-            )}
-          </div>
+          {formState.onboarding_complete ? (
+            <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+              <CheckCircle2 className="w-4 h-4" />
+              Perfil completo
+            </span>
+          ) : (
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 mt-2">
+              <AlertCircle className="w-4 h-4 text-amber-500" />
+              <span>Onboarding pendente</span>
+            </div>
+          )}
         </div>
       </div>
 
