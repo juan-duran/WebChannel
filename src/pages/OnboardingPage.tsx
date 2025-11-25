@@ -83,7 +83,7 @@ const moralValuesOptions = [
   { label: 'Humildade', value: 'humildade' as const },
 ];
 
-type FormState = {
+export type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
   onboarding_complete: boolean;
@@ -108,6 +108,23 @@ const defaultFormState: FormState = {
   religion: '',
   moral_values: [],
 };
+
+export const toggleMoralValueSelection = (currentValues: string[], value: string) =>
+  currentValues.includes(value)
+    ? currentValues.filter((item) => item !== value)
+    : [...currentValues, value];
+
+export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
+  handle: formState.handle.trim(),
+  preferred_send_time: (formState.preferred_send_time || '08:00') as OnboardingPayload['preferred_send_time'],
+  employment_status: formState.employment_status || null,
+  education_level: formState.education_level || null,
+  family_status: formState.family_status || null,
+  living_with: formState.living_with || null,
+  income_bracket: formState.income_bracket || null,
+  religion: formState.religion || null,
+  moral_values: Array.isArray(formState.moral_values) ? formState.moral_values : [],
+});
 
 export function OnboardingPage() {
   const { user } = useAuth();
@@ -213,17 +230,7 @@ export function OnboardingPage() {
       return;
     }
 
-    const payload: OnboardingPayload = {
-      handle: formState.handle.trim(),
-      preferred_send_time: (formState.preferred_send_time || '08:00') as OnboardingPayload['preferred_send_time'],
-      employment_status: formState.employment_status || null,
-      education_level: formState.education_level || null,
-      family_status: formState.family_status || null,
-      living_with: formState.living_with || null,
-      income_bracket: formState.income_bracket || null,
-      religion: formState.religion || null,
-      moral_values: formState.moral_values ?? [],
-    };
+    const payload = buildOnboardingPayload(formState);
 
     setSubmitting(true);
 
@@ -255,15 +262,10 @@ export function OnboardingPage() {
   };
 
   const toggleMoralValue = (value: string) => {
-    setFormState((prev) => {
-      const exists = prev.moral_values.includes(value);
-      return {
-        ...prev,
-        moral_values: exists
-          ? prev.moral_values.filter((item) => item !== value)
-          : [...prev.moral_values, value],
-      };
-    });
+    setFormState((prev) => ({
+      ...prev,
+      moral_values: toggleMoralValueSelection(prev.moral_values, value),
+    }));
   };
 
   return (
