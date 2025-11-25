@@ -341,56 +341,69 @@ export function OnboardingPage() {
       return;
     }
 
-    const response = await fetch('/api/onboarding', {
-      headers: {
-        Authorization: `Bearer ${session.access_token}`,
-      },
-    });
+    try {
+      const response = await fetch('/api/onboarding', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-    if (!response.ok) {
-      console.info('Dados de onboarding indisponíveis, ignorando carregamento.', await response.text());
-      return;
+      if (!response.ok) {
+        const errorMessage = await response.text().catch(() => '');
+        console.info('Dados de onboarding indisponíveis, ignorando carregamento.', errorMessage);
+        setStatus({
+          type: 'error',
+          message: 'Não foi possível carregar seus dados de onboarding. Tente novamente ou fale com o suporte.',
+        });
+        return;
+      }
+
+      const { data } = (await response.json()) as { data: OnboardingProfile | null };
+
+      if (!data) {
+        return;
+      }
+
+      setFormState((prev) => ({
+        ...prev,
+        handle: (data?.handle ?? '').trim(),
+        preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
+        onboarding_complete: data?.onboarding_complete ?? false,
+        employment_status: mapValueFromBackend(
+          data?.employment_status,
+          employmentStatusValueMap,
+          employmentStatusBackendAliases,
+        ),
+        education_level: mapValueFromBackend(
+          data?.education_level,
+          educationLevelValueMap,
+          educationLevelBackendAliases,
+        ),
+        family_status: mapValueFromBackend(
+          data?.family_status,
+          familyStatusValueMap,
+          familyStatusBackendAliases,
+        ),
+        living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
+        income_bracket: mapValueFromBackend(
+          data?.income_bracket,
+          incomeBracketValueMap,
+          incomeBracketBackendAliases,
+        ),
+        religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
+        moral_values: mapArrayFromBackend(
+          data?.moral_values,
+          moralValuesValueMap,
+          moralValuesBackendAliases,
+        ),
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar dados de onboarding', error);
+      setStatus({
+        type: 'error',
+        message: 'Não foi possível carregar seus dados de onboarding. Tente novamente ou fale com o suporte.',
+      });
     }
-
-    const { data } = (await response.json()) as { data: OnboardingProfile | null };
-
-    if (!data) {
-      return;
-    }
-
-    setFormState((prev) => ({
-      ...prev,
-      handle: (data?.handle ?? '').trim(),
-      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
-      onboarding_complete: data?.onboarding_complete ?? false,
-      employment_status: mapValueFromBackend(
-        data?.employment_status,
-        employmentStatusValueMap,
-        employmentStatusBackendAliases,
-      ),
-      education_level: mapValueFromBackend(
-        data?.education_level,
-        educationLevelValueMap,
-        educationLevelBackendAliases,
-      ),
-      family_status: mapValueFromBackend(
-        data?.family_status,
-        familyStatusValueMap,
-        familyStatusBackendAliases,
-      ),
-      living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
-      income_bracket: mapValueFromBackend(
-        data?.income_bracket,
-        incomeBracketValueMap,
-        incomeBracketBackendAliases,
-      ),
-      religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
-      moral_values: mapArrayFromBackend(
-        data?.moral_values,
-        moralValuesValueMap,
-        moralValuesBackendAliases,
-      ),
-    }));
   }, [session?.access_token, userEmail]);
 
   useEffect(() => {
@@ -496,6 +509,28 @@ export function OnboardingPage() {
           )}
         </div>
       </div>
+
+      {status.type && (
+        <div
+          className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+            status.type === 'success'
+              ? 'bg-green-50 border-green-200 text-green-800'
+              : 'bg-red-50 border-red-200 text-red-800'
+          }`}
+        >
+          {status.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-5 h-5 mt-0.5" />
+          )}
+          <div className="space-y-1">
+            <p className="font-semibold">
+              {status.type === 'success' ? 'Tudo certo!' : 'Ops, algo deu errado'}
+            </p>
+            <p>{status.message}</p>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <section className="form-card">
@@ -703,29 +738,6 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-
-        {status.type && (
-          <div
-            className={`flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
-              status.type === 'success'
-                ? 'bg-green-50 border-green-200 text-green-800'
-                : 'bg-red-50 border-red-200 text-red-800'
-            }`}
-          >
-            {status.type === 'success' ? (
-              <CheckCircle2 className="w-5 h-5 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-5 h-5 mt-0.5" />
-            )}
-            <div className="space-y-1">
-              <p className="font-semibold">
-                {status.type === 'success' ? 'Tudo certo!' : 'Ops, algo deu errado'}
-              </p>
-              <p>{status.message}</p>
-            </div>
-          </div>
-        )}
-
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             type="submit"
