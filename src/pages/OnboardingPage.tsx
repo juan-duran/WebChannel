@@ -83,50 +83,10 @@ const moralValuesOptions = [
   { label: 'Humildade', value: 'humildade' as const },
 ];
 
-const familyStageOptions = [
-  { label: 'Casal sem filhos', value: 'casal_sem_filhos' as const },
-  { label: 'Casal com filhos', value: 'casal_com_filhos' as const },
-  { label: 'Família monoparental', value: 'familia_monoparental' as const },
-  { label: 'Solteiro(a)', value: 'solteiro' as const },
-  { label: 'Outro formato', value: 'outro' as const },
-];
-
-const childrenAgeRangeOptions = [
-  { label: 'Não tenho filhos', value: 'nenhum' as const },
-  { label: '0 a 5 anos', value: '0_5' as const },
-  { label: '6 a 12 anos', value: '6_12' as const },
-  { label: '13 a 17 anos', value: '13_17' as const },
-  { label: '18+ anos', value: '18_mais' as const },
-];
-
-const faithImportanceOptions = [
-  { label: 'Central na rotina', value: 'central' as const },
-  { label: 'Moderada', value: 'moderada' as const },
-  { label: 'Aberta e em construção', value: 'aberta' as const },
-];
-
-const communityInvolvementOptions = [
-  { label: 'Visitante ou explorando', value: 'visitante' as const },
-  { label: 'Participante ativo', value: 'participante' as const },
-  { label: 'Liderança ou voluntário', value: 'lideranca' as const },
-];
-
-const theologicalAlignmentOptions = [
-  { label: 'Mais tradicional', value: 'tradicional' as const },
-  { label: 'Buscando equilíbrio', value: 'equilibrada' as const },
-  { label: 'Mais progressista', value: 'progressista' as const },
-];
-
 type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
   onboarding_complete: boolean;
-  family_stage: string;
-  children_age_range: string;
-  faith_importance: string;
-  community_involvement: string;
-  theological_alignment: string;
-  content_boundaries: string;
   employment_status: string;
   education_level: string;
   family_status: string;
@@ -140,12 +100,6 @@ const defaultFormState: FormState = {
   handle: '',
   preferred_send_time: '08:00',
   onboarding_complete: false,
-  family_stage: 'casal_sem_filhos',
-  children_age_range: 'nenhum',
-  faith_importance: 'central',
-  community_involvement: 'participante',
-  theological_alignment: 'equilibrada',
-  content_boundaries: '',
   employment_status: '',
   education_level: '',
   family_status: '',
@@ -269,12 +223,6 @@ export function OnboardingPage() {
       income_bracket: formState.income_bracket || null,
       religion: formState.religion || null,
       moral_values: formState.moral_values ?? [],
-      content_boundaries: formState.content_boundaries || null,
-      family_stage: formState.family_stage || null,
-      children_age_range: formState.children_age_range || null,
-      faith_importance: formState.faith_importance || null,
-      community_involvement: formState.community_involvement || null,
-      theological_alignment: formState.theological_alignment || null,
     };
 
     setSubmitting(true);
@@ -545,137 +493,6 @@ export function OnboardingPage() {
                 })}
               </div>
             </fieldset>
-          </div>
-        </section>
-
-        <section className="form-card">
-          <header className="flex flex-col gap-1 mb-4">
-            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
-              Perfil familiar
-            </p>
-            <h3 className="text-lg font-semibold text-gray-900">Entenda seu contexto</h3>
-            <p className="text-sm text-gray-600">
-              Essas escolhas nos ajudam a sugerir conteúdos e rotinas relevantes para sua família.
-            </p>
-          </header>
-
-          <div className="field-stack">
-            <label className="space-y-1" htmlFor="family_stage">
-              <span className="font-medium text-gray-800">Configuração familiar</span>
-              <select
-                id="family_stage"
-                name="family_stage"
-                value={formState.family_stage}
-                onChange={(e) => updateField('family_stage', e.target.value as FormState['family_stage'])}
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {familyStageOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1" htmlFor="children_age_range">
-              <span className="font-medium text-gray-800">Faixa etária dos filhos</span>
-              <select
-                id="children_age_range"
-                name="children_age_range"
-                value={formState.children_age_range}
-                onChange={(e) => updateField('children_age_range', e.target.value as FormState['children_age_range'])}
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {childrenAgeRangeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section className="form-card">
-          <header className="flex flex-col gap-1 mb-4">
-            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
-              Crenças e valores
-            </p>
-            <h3 className="text-lg font-semibold text-gray-900">Conteúdos que respeitam seu ritmo</h3>
-            <p className="text-sm text-gray-600">
-              Escolha as afirmações que mais combinam com você para personalizarmos a linguagem e o tom.
-            </p>
-          </header>
-
-          <div className="field-stack">
-            <label className="space-y-1" htmlFor="faith_importance">
-              <span className="font-medium text-gray-800">Importância da fé no dia a dia</span>
-              <select
-                id="faith_importance"
-                name="faith_importance"
-                value={formState.faith_importance}
-                onChange={(e) => updateField('faith_importance', e.target.value as FormState['faith_importance'])}
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {faithImportanceOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1" htmlFor="community_involvement">
-              <span className="font-medium text-gray-800">Envolvimento com a comunidade</span>
-              <select
-                id="community_involvement"
-                name="community_involvement"
-                value={formState.community_involvement}
-                onChange={(e) =>
-                  updateField('community_involvement', e.target.value as FormState['community_involvement'])
-                }
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {communityInvolvementOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1" htmlFor="theological_alignment">
-              <span className="font-medium text-gray-800">Postura teológica</span>
-              <select
-                id="theological_alignment"
-                name="theological_alignment"
-                value={formState.theological_alignment}
-                onChange={(e) =>
-                  updateField('theological_alignment', e.target.value as FormState['theological_alignment'])
-                }
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                {theologicalAlignmentOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="space-y-1" htmlFor="content_boundaries">
-              <span className="font-medium text-gray-800">Limites e preferências de conteúdo</span>
-              <textarea
-                id="content_boundaries"
-                name="content_boundaries"
-                rows={3}
-                value={formState.content_boundaries}
-                onChange={(e) => updateField('content_boundaries', e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Ex.: Prefiro mensagens mais curtas, linguagem acolhedora e referências práticas."
-              />
-              <p className="text-xs text-gray-500">Opcional, mas ajuda muito a ajustar o tom.</p>
-            </label>
           </div>
         </section>
 
