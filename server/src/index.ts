@@ -46,6 +46,20 @@ async function startServer() {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath)); // isso já serve / -> index.html
 
+    // catch-all para rotas do app SPA (exceto API/Admin/WebSocket)
+    app.get('*', (req, res, next) => {
+      if (
+        req.path.startsWith('/api') ||
+        req.path.startsWith('/admin') ||
+        req.path.startsWith('/health') ||
+        req.path.startsWith(config.server.path)
+      ) {
+        return next();
+      }
+
+      return res.sendFile(path.join(distPath, 'index.html'));
+    });
+
     // WebSocket
     const wss = new WebSocketServer({
       server,
