@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { PostgrestMaybeSingleResponse, createClient, SupabaseClient } from '@supabase/supabase-js';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -38,8 +38,8 @@ class CoreSupabaseService {
 
   async getOnboardingProfile(email: string): Promise<OnboardingProfile | null> {
     try {
-      const { data, error } = await this.client
-        .rpc<OnboardingProfile>('rpc_get_web_onboarding', { p_email: email })
+      const { data, error }: PostgrestMaybeSingleResponse<OnboardingProfile> = await this.client
+        .rpc<OnboardingProfile, { p_email: string }>('rpc_get_web_onboarding', { p_email: email })
         .maybeSingle();
 
       if (error) throw error;
