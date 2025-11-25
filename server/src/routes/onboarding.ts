@@ -4,7 +4,7 @@ import { coreSupabaseService, OnboardingPayload } from '../services/coreSupabase
 
 interface AuthenticatedRequest extends Request {
   authUser?: {
-    id: string;
+    userId: string;
     email: string;
   };
 }
