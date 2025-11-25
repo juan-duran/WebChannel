@@ -12,71 +12,75 @@ const preferredSendTimeOptions = [
 ];
 
 const employmentStatusOptions = [
-  { label: 'CLT / formal', value: 'employed_formal' as const },
-  { label: 'Autônomo ou freelancer', value: 'self_employed' as const },
-  { label: 'Empreendedor(a)', value: 'entrepreneur' as const },
-  { label: 'Servidor público', value: 'public_servant' as const },
-  { label: 'Estudante', value: 'student' as const },
-  { label: 'Do lar / cuidador(a)', value: 'homemaker' as const },
-  { label: 'Desempregado(a)', value: 'unemployed' as const },
-  { label: 'Aposentado(a)', value: 'retired' as const },
+  { label: 'Desempregado(a)', value: 'desempregado' as const },
+  { label: 'Estudante', value: 'estudante' as const },
+  { label: 'Trabalho meio período', value: 'meio_periodo' as const },
+  { label: 'Trabalho em tempo integral', value: 'tempo_integral' as const },
+  { label: 'Aposentado(a)', value: 'aposentado' as const },
 ];
 
 const educationLevelOptions = [
-  { label: 'Fundamental incompleto', value: 'fundamental_incompleto' as const },
-  { label: 'Fundamental completo', value: 'fundamental_completo' as const },
-  { label: 'Médio incompleto', value: 'medio_incompleto' as const },
-  { label: 'Médio completo', value: 'medio_completo' as const },
-  { label: 'Superior incompleto', value: 'superior_incompleto' as const },
-  { label: 'Superior completo', value: 'superior_completo' as const },
-  { label: 'Pós-graduação', value: 'pos_graduacao' as const },
-  { label: 'Mestrado ou doutorado', value: 'mestrado_doutorado' as const },
+  { label: 'Nenhum', value: 'nenhum' as const },
+  { label: 'Ensino fundamental', value: 'fundamental' as const },
+  { label: 'Ensino médio', value: 'medio' as const },
+  { label: 'Graduação', value: 'graduacao' as const },
+  { label: 'Mestrado', value: 'mestrado' as const },
+  { label: 'Doutorado', value: 'doutorado' as const },
+  { label: 'Outros', value: 'outros' as const },
 ];
 
 const familyStatusOptions = [
   { label: 'Solteiro(a)', value: 'solteiro' as const },
-  { label: 'Namorando', value: 'namorando' as const },
-  { label: 'Noivo(a)', value: 'noivo' as const },
-  { label: 'Casado(a) / união estável', value: 'casado' as const },
+  { label: 'Casado(a)', value: 'casado' as const },
   { label: 'Divorciado(a)', value: 'divorciado' as const },
   { label: 'Viúvo(a)', value: 'viuvo' as const },
+  { label: 'União estável', value: 'uniao_estavel' as const },
 ];
 
 const livingWithOptions = [
   { label: 'Moro sozinho(a)', value: 'sozinho' as const },
   { label: 'Com parceiro(a)', value: 'parceiro' as const },
   { label: 'Com filhos', value: 'filhos' as const },
-  { label: 'Com pais ou família de origem', value: 'pais_familia_origem' as const },
-  { label: 'Com amigos', value: 'amigos' as const },
-  { label: 'Outros parentes', value: 'parentes' as const },
+  { label: 'Com família extensa', value: 'familia_extensa' as const },
+  { label: 'Com colegas de quarto', value: 'colegas_quarto' as const },
+  { label: 'Outro arranjo', value: 'outro' as const },
 ];
 
 const incomeBracketOptions = [
-  { label: 'Até 2 salários mínimos', value: 'ate_2_sm' as const },
-  { label: 'De 2 a 5 salários mínimos', value: 'de_2_a_5_sm' as const },
-  { label: 'De 5 a 10 salários mínimos', value: 'de_5_a_10_sm' as const },
-  { label: 'Acima de 10 salários mínimos', value: 'acima_10_sm' as const },
-  { label: 'Prefiro não informar', value: 'prefiro_nao_dizer' as const },
+  { label: 'Baixa', value: 'baixa' as const },
+  { label: 'Média-baixa', value: 'media_baixa' as const },
+  { label: 'Média', value: 'media' as const },
+  { label: 'Média-alta', value: 'media_alta' as const },
+  { label: 'Alta', value: 'alta' as const },
 ];
 
 const religionOptions = [
-  { label: 'Católica', value: 'catolica' as const },
-  { label: 'Evangélica / Protestante', value: 'evangelica' as const },
+  { label: 'Católico(a)', value: 'catolico' as const },
+  { label: 'Protestante', value: 'protestante' as const },
+  { label: 'Evangélico(a)', value: 'evangelico' as const },
   { label: 'Espírita', value: 'espirita' as const },
-  { label: 'Umbanda ou Candomblé', value: 'umbanda_candomble' as const },
-  { label: 'Espiritualista / sem religião institucional', value: 'espiritualista' as const },
-  { label: 'Ateu / agnóstico', value: 'ateu_agnostico' as const },
-  { label: 'Outra tradição', value: 'outra' as const },
+  { label: 'Umbanda', value: 'umbanda' as const },
+  { label: 'Candomblé', value: 'candomble' as const },
+  { label: 'Judaico', value: 'judaico' as const },
+  { label: 'Islâmico', value: 'islamico' as const },
+  { label: 'Budista', value: 'budista' as const },
+  { label: 'Hindu', value: 'hindu' as const },
+  { label: 'Ateu', value: 'ateu' as const },
+  { label: 'Agnóstico', value: 'agnostico' as const },
+  { label: 'Outros', value: 'outros' as const },
 ];
 
 const moralValuesOptions = [
-  { label: 'Família em primeiro lugar', value: 'familia' as const },
-  { label: 'Honestidade e transparência', value: 'honestidade' as const },
-  { label: 'Responsabilidade financeira', value: 'responsabilidade_financeira' as const },
-  { label: 'Respeito e igualdade', value: 'respeito_igualdade' as const },
-  { label: 'Fé e espiritualidade', value: 'fe_espiritualidade' as const },
-  { label: 'Serviço e comunidade', value: 'servico_comunidade' as const },
-  { label: 'Aprendizado contínuo', value: 'aprendizado_constante' as const },
+  { label: 'Fé', value: 'fe' as const },
+  { label: 'Honestidade', value: 'honestidade' as const },
+  { label: 'Respeito', value: 'respeito' as const },
+  { label: 'Responsabilidade', value: 'responsabilidade' as const },
+  { label: 'Compaixão', value: 'compaixao' as const },
+  { label: 'Justiça', value: 'justica' as const },
+  { label: 'Família', value: 'familia' as const },
+  { label: 'Perseverança', value: 'perseveranca' as const },
+  { label: 'Serviço', value: 'servico' as const },
+  { label: 'Humildade', value: 'humildade' as const },
 ];
 
 const familyStageOptions = [
