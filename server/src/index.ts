@@ -47,7 +47,7 @@ async function startServer() {
     app.use(express.static(distPath)); // isso já serve / -> index.html
 
     // catch-all para rotas do app SPA (exceto API/Admin/WebSocket)
-    app.get('*', (req, res, next) => {
+    app.get('/*', (req, res, next) => {
       if (
         req.path.startsWith('/api') ||
         req.path.startsWith('/admin') ||
