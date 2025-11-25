@@ -235,18 +235,14 @@ export function OnboardingPage() {
 
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
-    const handleWords = formState.handle.trim().split(/\s+/).filter(Boolean);
+    const trimmedHandle = formState.handle.trim();
 
-    if (handleWords.length < 2) {
-      newErrors.handle = 'Use pelo menos duas palavras para se apresentar.';
+    if (!trimmedHandle) {
+      newErrors.handle = 'Informe um apelido ou forma de tratamento.';
     }
 
-    if (formState.handle.trim().length > 60) {
-      newErrors.handle = 'O apelido pode ter no máximo 60 caracteres.';
-    }
-
-    if (!formState.preferred_send_time) {
-      newErrors.preferred_send_time = 'Escolha um horário preferido para receber conteúdos.';
+    if (!/^\d{2}:\d{2}$/.test(formState.preferred_send_time)) {
+      newErrors.preferred_send_time = 'Escolha um horário válido no formato HH:MM.';
     }
 
     return newErrors;
