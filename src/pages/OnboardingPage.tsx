@@ -357,10 +357,20 @@ export function OnboardingPage() {
         return;
       }
 
+      const preferredTime = (() => {
+        if (!data?.preferred_send_time) return '';
+        const match = data.preferred_send_time.match(/^(\d{2}:\d{2})/);
+        if (match) return match[1];
+        if (/^\d{2}$/.test(data.preferred_send_time)) {
+          return `${data.preferred_send_time}:00`;
+        }
+        return data.preferred_send_time;
+      })();
+
       setFormState((prev) => ({
         ...prev,
         handle: (data?.handle ?? '').trim(),
-        preferred_send_time: data?.preferred_send_time?.slice(0, 2) ?? '',
+        preferred_send_time: preferredTime,
         onboarding_complete: data?.onboarding_complete ?? false,
         employment_status: mapValueFromBackend(
           data?.employment_status,
@@ -411,8 +421,8 @@ export function OnboardingPage() {
       newErrors.handle = 'Informe um apelido ou forma de tratamento.';
     }
 
-    if (!/^\d{2}$/.test(formState.preferred_send_time)) {
-      newErrors.preferred_send_time = 'Informe um horário válido no formato HH.';
+    if (!/^\d{2}:\d{2}$/.test(formState.preferred_send_time)) {
+      newErrors.preferred_send_time = 'Informe um horário válido no formato HH:mm.';
     }
 
     return newErrors;
@@ -566,16 +576,8 @@ export function OnboardingPage() {
                 id="preferred_send_time"
                 name="preferred_send_time"
                 type="time"
-                step={3600}
-                min="00:00"
-                max="23:00"
-                value={formState.preferred_send_time ? `${formState.preferred_send_time.padStart(2, '0')}:00` : ''}
-                onChange={(e) =>
-                  updateField(
-                    'preferred_send_time',
-                    (e.target.value?.slice(0, 2) ?? '') as FormState['preferred_send_time'],
-                  )
-                }
+                value={formState.preferred_send_time}
+                onChange={(e) => updateField('preferred_send_time', e.target.value as FormState['preferred_send_time'])}
                 className={`w-full rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.preferred_send_time ? 'border-red-400' : 'border-gray-200'
                 }`}
