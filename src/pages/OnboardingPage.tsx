@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { coreSupabase } from '../lib/coreSupabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
@@ -321,7 +320,7 @@ export const buildOnboardingPayload = (formState: FormState): OnboardingPayload 
 });
 
 export function OnboardingPage() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const userEmail = user?.email ?? '';
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -338,14 +337,22 @@ export function OnboardingPage() {
       return;
     }
 
-    const { data, error } = await coreSupabase
-      .rpc<OnboardingProfile>('rpc_get_web_onboarding', { p_email: userEmail })
-      .maybeSingle();
-
-    if (error) {
-      console.info('Dados de onboarding indisponíveis, ignorando carregamento.', error);
+    if (!session?.access_token) {
       return;
     }
+
+    const response = await fetch('/api/onboarding', {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.info('Dados de onboarding indisponíveis, ignorando carregamento.', await response.text());
+      return;
+    }
+
+    const { data } = (await response.json()) as { data: OnboardingProfile | null };
 
     if (!data) {
       return;
@@ -384,7 +391,7 @@ export function OnboardingPage() {
         moralValuesBackendAliases,
       ),
     }));
-  }, [userEmail]);
+  }, [session?.access_token, userEmail]);
 
   useEffect(() => {
     fetchUserData();
@@ -421,13 +428,25 @@ export function OnboardingPage() {
     setSubmitting(true);
 
     try {
-      const { error } = await coreSupabase.rpc('rpc_update_web_onboarding', {
-        p_email: userEmail,
-        p_payload: payload,
+      if (!session?.access_token) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+
+      const response = await fetch('/api/onboarding', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ payload }),
       });
 
-      if (error) {
-        throw error;
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const message = typeof errorBody.error === 'string'
+          ? errorBody.error
+          : 'Não foi possível salvar suas preferências. Tente novamente.';
+        throw new Error(message);
       }
 
       setFormState((prev) => ({ ...prev, onboarding_complete: true }));
