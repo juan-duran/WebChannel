@@ -263,11 +263,7 @@ export function OnboardingPage() {
     }
 
     const { data, error } = await coreSupabase
-      .from<OnboardingProfile>('v_web_onboarding')
-      .select(
-        `user_email, handle, preferred_send_time, onboarding_complete, employment_status, education_level, family_status, living_with, income_bracket, religion, moral_values`
-      )
-      .eq('user_email', userEmail)
+      .rpc<OnboardingProfile>('rpc_get_web_onboarding', { p_email: userEmail })
       .maybeSingle();
 
     if (error) {
