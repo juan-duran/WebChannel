@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { coreSupabase } from '../lib/coreSupabaseClient';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
@@ -262,7 +262,7 @@ export function OnboardingPage() {
       return;
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await coreSupabase
       .rpc<OnboardingProfile>('rpc_get_web_onboarding', {
         p_email: userEmail,
       })
@@ -323,7 +323,7 @@ export function OnboardingPage() {
     setSubmitting(true);
 
     try {
-      const { error } = await supabase.rpc('rpc_update_web_onboarding', {
+      const { error } = await coreSupabase.rpc('rpc_update_web_onboarding', {
         p_email: userEmail,
         p_payload: payload,
       });
