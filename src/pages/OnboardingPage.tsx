@@ -1,248 +1,70 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { coreSupabase } from '../lib/coreSupabaseClient';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
-type ValueMap = Record<string, string>;
-
-type OnboardingProfile = {
-  user_email: string | null;
-  handle: string | null;
-  preferred_send_time: string | null;
-  onboarding_complete: boolean | null;
-  employment_status: string | null;
-  education_level: string | null;
-  family_status: string | null;
-  living_with: string | null;
-  income_bracket: string | null;
-  religion: string | null;
-  moral_values: string[] | null;
-};
-
 const preferredSendTimeOptions = [
-  { label: '08:00 (manhã)', value: '08:00' as const },
-  { label: '12:00 (início da tarde)', value: '12:00' as const },
-  { label: '18:00 (final da tarde)', value: '18:00' as const },
-  { label: '21:00 (noite)', value: '21:00' as const },
+  { label: 'Manhã (08h - 11h)', value: 'manha' as const },
+  { label: 'Tarde (12h - 17h)', value: 'tarde' as const },
+  { label: 'Noite (18h - 22h)', value: 'noite' as const },
 ];
 
-const employmentStatusValueMap: ValueMap = {
-  desempregado: 'unemployed',
-  estudante: 'student',
-  meio_periodo: 'part_time',
-  tempo_integral: 'full_time',
-  aposentado: 'retired',
-};
-
-const employmentStatusOptions = [
-  { label: 'Desempregado(a)', value: 'desempregado' as const },
-  { label: 'Estudante', value: 'estudante' as const },
-  { label: 'Trabalho meio período', value: 'meio_periodo' as const },
-  { label: 'Trabalho em tempo integral', value: 'tempo_integral' as const },
-  { label: 'Aposentado(a)', value: 'aposentado' as const },
-];
-
-const educationLevelValueMap: ValueMap = {
-  nenhum: 'none',
-  fundamental: 'primary',
-  medio: 'secondary',
-  graduacao: 'bachelors',
-  mestrado: 'masters',
-  doutorado: 'doctorate',
-  outros: 'other',
-};
-
-const educationLevelOptions = [
-  { label: 'Nenhum', value: 'nenhum' as const },
-  { label: 'Ensino fundamental', value: 'fundamental' as const },
-  { label: 'Ensino médio', value: 'medio' as const },
-  { label: 'Graduação', value: 'graduacao' as const },
-  { label: 'Mestrado', value: 'mestrado' as const },
-  { label: 'Doutorado', value: 'doutorado' as const },
-  { label: 'Outros', value: 'outros' as const },
-];
-
-const familyStatusValueMap: ValueMap = {
-  solteiro: 'single',
-  casado: 'married',
-  divorciado: 'divorced',
-  viuvo: 'widowed',
-  uniao_estavel: 'civil_union',
-};
-
-const familyStatusOptions = [
+const familyStageOptions = [
+  { label: 'Casal sem filhos', value: 'casal_sem_filhos' as const },
+  { label: 'Casal com filhos', value: 'casal_com_filhos' as const },
+  { label: 'Família monoparental', value: 'familia_monoparental' as const },
   { label: 'Solteiro(a)', value: 'solteiro' as const },
-  { label: 'Casado(a)', value: 'casado' as const },
-  { label: 'Divorciado(a)', value: 'divorciado' as const },
-  { label: 'Viúvo(a)', value: 'viuvo' as const },
-  { label: 'União estável', value: 'uniao_estavel' as const },
+  { label: 'Outro formato', value: 'outro' as const },
 ];
 
-const livingWithValueMap: ValueMap = {
-  sozinho: 'alone',
-  parceiro: 'partner',
-  filhos: 'children',
-  familia_extensa: 'extended_family',
-  colegas_quarto: 'roommates',
-  outro: 'other',
-};
-
-const livingWithOptions = [
-  { label: 'Moro sozinho(a)', value: 'sozinho' as const },
-  { label: 'Com parceiro(a)', value: 'parceiro' as const },
-  { label: 'Com filhos', value: 'filhos' as const },
-  { label: 'Com família extensa', value: 'familia_extensa' as const },
-  { label: 'Com colegas de quarto', value: 'colegas_quarto' as const },
-  { label: 'Outro arranjo', value: 'outro' as const },
+const childrenAgeRangeOptions = [
+  { label: 'Não tenho filhos', value: 'nenhum' as const },
+  { label: '0 a 5 anos', value: '0_5' as const },
+  { label: '6 a 12 anos', value: '6_12' as const },
+  { label: '13 a 17 anos', value: '13_17' as const },
+  { label: '18+ anos', value: '18_mais' as const },
 ];
 
-const incomeBracketValueMap: ValueMap = {
-  baixa: 'low',
-  media_baixa: 'lower_middle',
-  media: 'middle',
-  media_alta: 'upper_middle',
-  alta: 'high',
-};
-
-const incomeBracketOptions = [
-  { label: 'Baixa', value: 'baixa' as const },
-  { label: 'Média-baixa', value: 'media_baixa' as const },
-  { label: 'Média', value: 'media' as const },
-  { label: 'Média-alta', value: 'media_alta' as const },
-  { label: 'Alta', value: 'alta' as const },
+const faithImportanceOptions = [
+  { label: 'Central na rotina', value: 'central' as const },
+  { label: 'Moderada', value: 'moderada' as const },
+  { label: 'Aberta e em construção', value: 'aberta' as const },
 ];
 
-const religionValueMap: ValueMap = {
-  catolico: 'catholic',
-  protestante: 'protestant',
-  evangelico: 'evangelical',
-  espirita: 'spiritist',
-  umbanda: 'umbanda',
-  candomble: 'candomble',
-  judaico: 'jewish',
-  islamico: 'islamic',
-  budista: 'buddhist',
-  hindu: 'hindu',
-  ateu: 'atheist',
-  agnostico: 'agnostic',
-  outros: 'other',
-};
-
-const religionOptions = [
-  { label: 'Católico(a)', value: 'catolico' as const },
-  { label: 'Protestante', value: 'protestante' as const },
-  { label: 'Evangélico(a)', value: 'evangelico' as const },
-  { label: 'Espírita', value: 'espirita' as const },
-  { label: 'Umbanda', value: 'umbanda' as const },
-  { label: 'Candomblé', value: 'candomble' as const },
-  { label: 'Judaico', value: 'judaico' as const },
-  { label: 'Islâmico', value: 'islamico' as const },
-  { label: 'Budista', value: 'budista' as const },
-  { label: 'Hindu', value: 'hindu' as const },
-  { label: 'Ateu', value: 'ateu' as const },
-  { label: 'Agnóstico', value: 'agnostico' as const },
-  { label: 'Outros', value: 'outros' as const },
+const communityInvolvementOptions = [
+  { label: 'Visitante ou explorando', value: 'visitante' as const },
+  { label: 'Participante ativo', value: 'participante' as const },
+  { label: 'Liderança ou voluntário', value: 'lideranca' as const },
 ];
 
-const moralValuesValueMap: ValueMap = {
-  fe: 'faith',
-  honestidade: 'honesty',
-  respeito: 'respect',
-  responsabilidade: 'responsibility',
-  compaixao: 'compassion',
-  justica: 'justice',
-  familia: 'family',
-  perseveranca: 'perseverance',
-  servico: 'service',
-  humildade: 'humility',
-};
-
-const moralValuesOptions = [
-  { label: 'Fé', value: 'fe' as const },
-  { label: 'Honestidade', value: 'honestidade' as const },
-  { label: 'Respeito', value: 'respeito' as const },
-  { label: 'Responsabilidade', value: 'responsabilidade' as const },
-  { label: 'Compaixão', value: 'compaixao' as const },
-  { label: 'Justiça', value: 'justica' as const },
-  { label: 'Família', value: 'familia' as const },
-  { label: 'Perseverança', value: 'perseveranca' as const },
-  { label: 'Serviço', value: 'servico' as const },
-  { label: 'Humildade', value: 'humildade' as const },
+const theologicalAlignmentOptions = [
+  { label: 'Mais tradicional', value: 'tradicional' as const },
+  { label: 'Buscando equilíbrio', value: 'equilibrada' as const },
+  { label: 'Mais progressista', value: 'progressista' as const },
 ];
 
-export type FormState = {
+type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
-  onboarding_complete: boolean;
-  employment_status: string;
-  education_level: string;
-  family_status: string;
-  living_with: string;
-  income_bracket: string;
-  religion: string;
-  moral_values: string[];
+  family_stage: OnboardingPayload['family_profile']['stage'];
+  children_age_range: OnboardingPayload['family_profile']['children_age_range'];
+  faith_importance: OnboardingPayload['beliefs']['faith_importance'];
+  community_involvement: OnboardingPayload['beliefs']['community_involvement'];
+  theological_alignment: OnboardingPayload['beliefs']['theological_alignment'];
+  content_boundaries: string;
 };
-
-const invertValueMap = (map: ValueMap): ValueMap =>
-  Object.fromEntries(Object.entries(map).map(([uiValue, backendValue]) => [backendValue, uiValue]));
-
-const mapValueFromBackend = (value: string | null | undefined, map: ValueMap) => {
-  if (!value) return '';
-  const inverse = invertValueMap(map);
-  if (inverse[value]) return inverse[value];
-  return map[value] ? value : '';
-};
-
-const mapValueToBackend = (value: string, map: ValueMap) => {
-  if (!value) return null;
-  return map[value] ?? value;
-};
-
-const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap) => {
-  if (!Array.isArray(values)) return [];
-  const inverse = invertValueMap(map);
-  return values
-    .map((entry) => inverse[entry] ?? (map[entry] ? entry : null))
-    .filter((entry): entry is string => Boolean(entry));
-};
-
-const mapArrayToBackend = (values: string[], map: ValueMap) =>
-  Array.isArray(values)
-    ? values
-        .map((value) => mapValueToBackend(value, map))
-        .filter((entry): entry is string => Boolean(entry))
-    : [];
 
 const defaultFormState: FormState = {
   handle: '',
   preferred_send_time: '',
-  onboarding_complete: false,
-  employment_status: '',
-  education_level: '',
-  family_status: '',
-  living_with: '',
-  income_bracket: '',
-  religion: '',
-  moral_values: [],
+  family_stage: 'casal_sem_filhos',
+  children_age_range: 'nenhum',
+  faith_importance: 'central',
+  community_involvement: 'participante',
+  theological_alignment: 'equilibrada',
+  content_boundaries: '',
 };
-
-export const toggleMoralValueSelection = (currentValues: string[], value: string) =>
-  currentValues.includes(value)
-    ? currentValues.filter((item) => item !== value)
-    : [...currentValues, value];
-
-export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
-  handle: formState.handle.trim(),
-  preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
-  employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
-  education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
-  family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
-  living_with: mapValueToBackend(formState.living_with, livingWithValueMap),
-  income_bracket: mapValueToBackend(formState.income_bracket, incomeBracketValueMap),
-  religion: mapValueToBackend(formState.religion, religionValueMap),
-  moral_values: mapArrayToBackend(formState.moral_values, moralValuesValueMap),
-});
 
 export function OnboardingPage() {
   const { user } = useAuth();
@@ -257,55 +79,20 @@ export function OnboardingPage() {
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
-  const fetchUserData = useCallback(async () => {
-    if (!userEmail) {
-      return;
-    }
-
-    const { data, error } = await coreSupabase
-      .rpc<OnboardingProfile>('rpc_update_web_onboarding', {
-        p_email: userEmail,
-      })
-      .single();
-
-    if (error) {
-      console.info('Dados de onboarding indisponíveis, ignorando carregamento.', error);
-      return;
-    }
-
-    if (!data) {
-      return;
-    }
-
-    setFormState((prev) => ({
-      ...prev,
-      handle: (data?.handle ?? '').trim(),
-      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
-      onboarding_complete: data?.onboarding_complete ?? false,
-      employment_status: mapValueFromBackend(data?.employment_status, employmentStatusValueMap),
-      education_level: mapValueFromBackend(data?.education_level, educationLevelValueMap),
-      family_status: mapValueFromBackend(data?.family_status, familyStatusValueMap),
-      living_with: mapValueFromBackend(data?.living_with, livingWithValueMap),
-      income_bracket: mapValueFromBackend(data?.income_bracket, incomeBracketValueMap),
-      religion: mapValueFromBackend(data?.religion, religionValueMap),
-      moral_values: mapArrayFromBackend(data?.moral_values, moralValuesValueMap),
-    }));
-  }, [userEmail]);
-
-  useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
-
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
-    const trimmedHandle = formState.handle.trim();
+    const handleWords = formState.handle.trim().split(/\s+/).filter(Boolean);
 
-    if (!trimmedHandle) {
-      newErrors.handle = 'Informe um apelido ou forma de tratamento.';
+    if (handleWords.length < 2) {
+      newErrors.handle = 'Use pelo menos duas palavras para se apresentar.';
     }
 
-    if (!/^\d{2}:\d{2}$/.test(formState.preferred_send_time)) {
-      newErrors.preferred_send_time = 'Escolha um horário válido no formato HH:MM.';
+    if (formState.handle.trim().length > 60) {
+      newErrors.handle = 'O apelido pode ter no máximo 60 caracteres.';
+    }
+
+    if (!formState.preferred_send_time) {
+      newErrors.preferred_send_time = 'Escolha um horário preferido para receber conteúdos.';
     }
 
     return newErrors;
@@ -322,12 +109,25 @@ export function OnboardingPage() {
       return;
     }
 
-    const payload = buildOnboardingPayload(formState);
+    const payload: OnboardingPayload = {
+      handle: formState.handle.trim(),
+      preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
+      family_profile: {
+        stage: formState.family_stage,
+        children_age_range: formState.children_age_range,
+      },
+      beliefs: {
+        faith_importance: formState.faith_importance,
+        community_involvement: formState.community_involvement,
+        theological_alignment: formState.theological_alignment,
+        content_boundaries: formState.content_boundaries.trim(),
+      },
+    };
 
     setSubmitting(true);
 
     try {
-      const { error } = await coreSupabase.rpc('rpc_update_web_onboarding', {
+      const { error } = await supabase.rpc('rpc_update_web_onboarding', {
         p_email: userEmail,
         p_payload: payload,
       });
@@ -336,8 +136,6 @@ export function OnboardingPage() {
         throw error;
       }
 
-      setFormState((prev) => ({ ...prev, onboarding_complete: true }));
-      await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
       const message =
@@ -354,13 +152,6 @@ export function OnboardingPage() {
     setFormState((prev) => ({ ...prev, [key]: value }));
   };
 
-  const toggleMoralValue = (value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      moral_values: toggleMoralValueSelection(prev.moral_values, value),
-    }));
-  };
-
   return (
     <div className="py-6">
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
@@ -370,17 +161,6 @@ export function OnboardingPage() {
           <p className="text-gray-600">
             Conte um pouco sobre você para personalizarmos suas sugestões e comunicações.
           </p>
-          {formState.onboarding_complete ? (
-            <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-              <CheckCircle2 className="w-4 h-4" />
-              Perfil completo
-            </span>
-          ) : (
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 mt-2">
-              <AlertCircle className="w-4 h-4 text-amber-500" />
-              <span>Onboarding pendente</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -449,23 +229,26 @@ export function OnboardingPage() {
 
         <section className="form-card">
           <header className="flex flex-col gap-1 mb-4">
-            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">Perfil</p>
-            <h3 className="text-lg font-semibold text-gray-900">Sua rotina e contexto</h3>
-            <p className="text-sm text-gray-600">Esses dados ajudam a adaptar exemplos e referências do conteúdo.</p>
+            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
+              Perfil familiar
+            </p>
+            <h3 className="text-lg font-semibold text-gray-900">Entenda seu contexto</h3>
+            <p className="text-sm text-gray-600">
+              Essas escolhas nos ajudam a sugerir conteúdos e rotinas relevantes para sua família.
+            </p>
           </header>
 
           <div className="field-stack">
-            <label className="space-y-1" htmlFor="employment_status">
-              <span className="font-medium text-gray-800">Situação profissional</span>
+            <label className="space-y-1" htmlFor="family_stage">
+              <span className="font-medium text-gray-800">Configuração familiar</span>
               <select
-                id="employment_status"
-                name="employment_status"
-                value={formState.employment_status}
-                onChange={(e) => updateField('employment_status', e.target.value)}
+                id="family_stage"
+                name="family_stage"
+                value={formState.family_stage}
+                onChange={(e) => updateField('family_stage', e.target.value as FormState['family_stage'])}
                 className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selecione uma opção</option>
-                {employmentStatusOptions.map((option) => (
+                {familyStageOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -473,17 +256,47 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="education_level">
-              <span className="font-medium text-gray-800">Escolaridade</span>
+            <label className="space-y-1" htmlFor="children_age_range">
+              <span className="font-medium text-gray-800">Faixa etária dos filhos</span>
               <select
-                id="education_level"
-                name="education_level"
-                value={formState.education_level}
-                onChange={(e) => updateField('education_level', e.target.value)}
+                id="children_age_range"
+                name="children_age_range"
+                value={formState.children_age_range}
+                onChange={(e) => updateField('children_age_range', e.target.value as FormState['children_age_range'])}
                 className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selecione uma opção</option>
-                {educationLevelOptions.map((option) => (
+                {childrenAgeRangeOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section className="form-card">
+          <header className="flex flex-col gap-1 mb-4">
+            <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
+              Crenças e valores
+            </p>
+            <h3 className="text-lg font-semibold text-gray-900">Conteúdos que respeitam seu ritmo</h3>
+            <p className="text-sm text-gray-600">
+              Escolha as afirmações que mais combinam com você para personalizarmos a linguagem e o tom.
+            </p>
+          </header>
+
+          <div className="field-stack">
+            <label className="space-y-1" htmlFor="faith_importance">
+              <span className="font-medium text-gray-800">Importância da fé no dia a dia</span>
+              <select
+                id="faith_importance"
+                name="faith_importance"
+                value={formState.faith_importance}
+                onChange={(e) => updateField('faith_importance', e.target.value as FormState['faith_importance'])}
+                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                {faithImportanceOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -491,17 +304,18 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="family_status">
-              <span className="font-medium text-gray-800">Estado civil</span>
+            <label className="space-y-1" htmlFor="community_involvement">
+              <span className="font-medium text-gray-800">Envolvimento com a comunidade</span>
               <select
-                id="family_status"
-                name="family_status"
-                value={formState.family_status}
-                onChange={(e) => updateField('family_status', e.target.value)}
+                id="community_involvement"
+                name="community_involvement"
+                value={formState.community_involvement}
+                onChange={(e) =>
+                  updateField('community_involvement', e.target.value as FormState['community_involvement'])
+                }
                 className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selecione uma opção</option>
-                {familyStatusOptions.map((option) => (
+                {communityInvolvementOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -509,17 +323,18 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="living_with">
-              <span className="font-medium text-gray-800">Com quem você mora?</span>
+            <label className="space-y-1" htmlFor="theological_alignment">
+              <span className="font-medium text-gray-800">Postura teológica</span>
               <select
-                id="living_with"
-                name="living_with"
-                value={formState.living_with}
-                onChange={(e) => updateField('living_with', e.target.value)}
+                id="theological_alignment"
+                name="theological_alignment"
+                value={formState.theological_alignment}
+                onChange={(e) =>
+                  updateField('theological_alignment', e.target.value as FormState['theological_alignment'])
+                }
                 className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Selecione uma opção</option>
-                {livingWithOptions.map((option) => (
+                {theologicalAlignmentOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -527,67 +342,19 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="income_bracket">
-              <span className="font-medium text-gray-800">Faixa de renda familiar</span>
-              <select
-                id="income_bracket"
-                name="income_bracket"
-                value={formState.income_bracket}
-                onChange={(e) => updateField('income_bracket', e.target.value)}
+            <label className="space-y-1" htmlFor="content_boundaries">
+              <span className="font-medium text-gray-800">Limites e preferências de conteúdo</span>
+              <textarea
+                id="content_boundaries"
+                name="content_boundaries"
+                rows={3}
+                value={formState.content_boundaries}
+                onChange={(e) => updateField('content_boundaries', e.target.value)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Selecione uma opção</option>
-                {incomeBracketOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500">Usamos apenas para personalizar exemplos e sugestões.</p>
+                placeholder="Ex.: Prefiro mensagens mais curtas, linguagem acolhedora e referências práticas."
+              />
+              <p className="text-xs text-gray-500">Opcional, mas ajuda muito a ajustar o tom.</p>
             </label>
-
-            <label className="space-y-1" htmlFor="religion">
-              <span className="font-medium text-gray-800">Caminho de fé</span>
-              <select
-                id="religion"
-                name="religion"
-                value={formState.religion}
-                onChange={(e) => updateField('religion', e.target.value)}
-                className="w-full rounded-lg border border-gray-200 px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Selecione uma opção</option>
-                {religionOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <fieldset className="space-y-2">
-              <legend className="font-medium text-gray-800">Valores que guiam suas escolhas</legend>
-              <p className="text-sm text-gray-600">Selecione quantos quiser para ajustar o tom das mensagens.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {moralValuesOptions.map((option) => {
-                  const checked = formState.moral_values.includes(option.value);
-                  return (
-                    <label
-                      key={option.value}
-                      className="flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm cursor-pointer hover:border-blue-300"
-                    >
-                      <input
-                        type="checkbox"
-                        value={option.value}
-                        checked={checked}
-                        onChange={() => toggleMoralValue(option.value)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span>{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </fieldset>
           </div>
         </section>
 
