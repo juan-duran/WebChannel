@@ -10,6 +10,17 @@ function requireEnv(key: string): string {
   return value;
 }
 
+function requireEnvAny(keys: string[]): string {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value) {
+      return value;
+    }
+  }
+
+  throw new Error(`Missing required environment variable. Provide one of: ${keys.join(', ')}`);
+}
+
 function optionalEnv(key: string, defaultValue: string): string {
   return process.env[key] || defaultValue;
 }
@@ -25,6 +36,15 @@ export const config = {
     url: requireEnv('VITE_SUPABASE_URL'),
     anonKey: requireEnv('VITE_SUPABASE_ANON_KEY'),
     serviceKey: optionalEnv('SUPABASE_SERVICE_KEY', ''),
+  },
+
+  coreSupabase: {
+    url: requireEnvAny(['CORE_SUPABASE_URL', 'VITE_CORE_SUPABASE_URL']),
+    serviceKey: requireEnvAny([
+      'CORE_SUPABASE_SERVICE_KEY',
+      'VITE_CORE_SUPABASE_SERVICE_KEY',
+      'CORE_SUPABASE_SERVICE_ROLE_KEY',
+    ]),
   },
 
   n8n: {
@@ -70,7 +90,21 @@ export function validateConfig() {
     'ADMIN_API_KEY',
   ];
 
-  const missing = required.filter(key => !process.env[key]);
+  const missing = [
+    ...required.filter(key => !process.env[key]),
+    ...(['CORE_SUPABASE_URL', 'VITE_CORE_SUPABASE_URL'].some(key => process.env[key])
+      ? []
+      : ['CORE_SUPABASE_URL/VITE_CORE_SUPABASE_URL']),
+    ...(
+      [
+        'CORE_SUPABASE_SERVICE_KEY',
+        'VITE_CORE_SUPABASE_SERVICE_KEY',
+        'CORE_SUPABASE_SERVICE_ROLE_KEY',
+      ].some(key => process.env[key])
+        ? []
+        : ['CORE_SUPABASE_SERVICE_KEY/VITE_CORE_SUPABASE_SERVICE_KEY/CORE_SUPABASE_SERVICE_ROLE_KEY']
+    ),
+  ];
 
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
