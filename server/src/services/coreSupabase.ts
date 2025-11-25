@@ -39,7 +39,7 @@ class CoreSupabaseService {
   async getOnboardingProfile(email: string): Promise<OnboardingProfile | null> {
     try {
       const { data, error }: PostgrestMaybeSingleResponse<OnboardingProfile> = await this.client
-        .rpc<OnboardingProfile, { p_email: string }>('rpc_get_web_onboarding', { p_email: email })
+        .rpc('rpc_get_web_onboarding', { p_email: email })
         .maybeSingle();
 
       if (error) throw error;
