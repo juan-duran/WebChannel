@@ -98,7 +98,7 @@ export type FormState = {
 
 const defaultFormState: FormState = {
   handle: '',
-  preferred_send_time: '08:00',
+  preferred_send_time: '',
   onboarding_complete: false,
   employment_status: '',
   education_level: '',
@@ -116,7 +116,7 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
 
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
   handle: formState.handle.trim(),
-  preferred_send_time: (formState.preferred_send_time || '08:00') as OnboardingPayload['preferred_send_time'],
+  preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
   employment_status: formState.employment_status || null,
   education_level: formState.education_level || null,
   family_status: formState.family_status || null,
@@ -188,7 +188,7 @@ export function OnboardingPage() {
     setFormState((prev) => ({
       ...prev,
       handle: (data?.handle ?? data?.users?.handle ?? '').trim(),
-      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '08:00',
+      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
       onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
       employment_status: data?.employment_status ?? '',
       education_level: data?.education_level ?? '',
