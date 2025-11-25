@@ -4,12 +4,22 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
+type ValueMap = Record<string, string>;
+
 const preferredSendTimeOptions = [
   { label: '08:00 (manhã)', value: '08:00' as const },
   { label: '12:00 (início da tarde)', value: '12:00' as const },
   { label: '18:00 (final da tarde)', value: '18:00' as const },
   { label: '21:00 (noite)', value: '21:00' as const },
 ];
+
+const employmentStatusValueMap: ValueMap = {
+  desempregado: 'unemployed',
+  estudante: 'student',
+  meio_periodo: 'part_time',
+  tempo_integral: 'full_time',
+  aposentado: 'retired',
+};
 
 const employmentStatusOptions = [
   { label: 'Desempregado(a)', value: 'desempregado' as const },
@@ -18,6 +28,16 @@ const employmentStatusOptions = [
   { label: 'Trabalho em tempo integral', value: 'tempo_integral' as const },
   { label: 'Aposentado(a)', value: 'aposentado' as const },
 ];
+
+const educationLevelValueMap: ValueMap = {
+  nenhum: 'none',
+  fundamental: 'primary',
+  medio: 'secondary',
+  graduacao: 'bachelors',
+  mestrado: 'masters',
+  doutorado: 'doctorate',
+  outros: 'other',
+};
 
 const educationLevelOptions = [
   { label: 'Nenhum', value: 'nenhum' as const },
@@ -29,6 +49,14 @@ const educationLevelOptions = [
   { label: 'Outros', value: 'outros' as const },
 ];
 
+const familyStatusValueMap: ValueMap = {
+  solteiro: 'single',
+  casado: 'married',
+  divorciado: 'divorced',
+  viuvo: 'widowed',
+  uniao_estavel: 'civil_union',
+};
+
 const familyStatusOptions = [
   { label: 'Solteiro(a)', value: 'solteiro' as const },
   { label: 'Casado(a)', value: 'casado' as const },
@@ -36,6 +64,15 @@ const familyStatusOptions = [
   { label: 'Viúvo(a)', value: 'viuvo' as const },
   { label: 'União estável', value: 'uniao_estavel' as const },
 ];
+
+const livingWithValueMap: ValueMap = {
+  sozinho: 'alone',
+  parceiro: 'partner',
+  filhos: 'children',
+  familia_extensa: 'extended_family',
+  colegas_quarto: 'roommates',
+  outro: 'other',
+};
 
 const livingWithOptions = [
   { label: 'Moro sozinho(a)', value: 'sozinho' as const },
@@ -46,6 +83,14 @@ const livingWithOptions = [
   { label: 'Outro arranjo', value: 'outro' as const },
 ];
 
+const incomeBracketValueMap: ValueMap = {
+  baixa: 'low',
+  media_baixa: 'lower_middle',
+  media: 'middle',
+  media_alta: 'upper_middle',
+  alta: 'high',
+};
+
 const incomeBracketOptions = [
   { label: 'Baixa', value: 'baixa' as const },
   { label: 'Média-baixa', value: 'media_baixa' as const },
@@ -53,6 +98,22 @@ const incomeBracketOptions = [
   { label: 'Média-alta', value: 'media_alta' as const },
   { label: 'Alta', value: 'alta' as const },
 ];
+
+const religionValueMap: ValueMap = {
+  catolico: 'catholic',
+  protestante: 'protestant',
+  evangelico: 'evangelical',
+  espirita: 'spiritist',
+  umbanda: 'umbanda',
+  candomble: 'candomble',
+  judaico: 'jewish',
+  islamico: 'islamic',
+  budista: 'buddhist',
+  hindu: 'hindu',
+  ateu: 'atheist',
+  agnostico: 'agnostic',
+  outros: 'other',
+};
 
 const religionOptions = [
   { label: 'Católico(a)', value: 'catolico' as const },
@@ -69,6 +130,19 @@ const religionOptions = [
   { label: 'Agnóstico', value: 'agnostico' as const },
   { label: 'Outros', value: 'outros' as const },
 ];
+
+const moralValuesValueMap: ValueMap = {
+  fe: 'faith',
+  honestidade: 'honesty',
+  respeito: 'respect',
+  responsabilidade: 'responsibility',
+  compaixao: 'compassion',
+  justica: 'justice',
+  familia: 'family',
+  perseveranca: 'perseverance',
+  servico: 'service',
+  humildade: 'humility',
+};
 
 const moralValuesOptions = [
   { label: 'Fé', value: 'fe' as const },
@@ -96,6 +170,36 @@ export type FormState = {
   moral_values: string[];
 };
 
+const invertValueMap = (map: ValueMap): ValueMap =>
+  Object.fromEntries(Object.entries(map).map(([uiValue, backendValue]) => [backendValue, uiValue]));
+
+const mapValueFromBackend = (value: string | null | undefined, map: ValueMap) => {
+  if (!value) return '';
+  const inverse = invertValueMap(map);
+  if (inverse[value]) return inverse[value];
+  return map[value] ? value : '';
+};
+
+const mapValueToBackend = (value: string, map: ValueMap) => {
+  if (!value) return null;
+  return map[value] ?? value;
+};
+
+const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap) => {
+  if (!Array.isArray(values)) return [];
+  const inverse = invertValueMap(map);
+  return values
+    .map((entry) => inverse[entry] ?? (map[entry] ? entry : null))
+    .filter((entry): entry is string => Boolean(entry));
+};
+
+const mapArrayToBackend = (values: string[], map: ValueMap) =>
+  Array.isArray(values)
+    ? values
+        .map((value) => mapValueToBackend(value, map))
+        .filter((entry): entry is string => Boolean(entry))
+    : [];
+
 const defaultFormState: FormState = {
   handle: '',
   preferred_send_time: '',
@@ -117,13 +221,13 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
   handle: formState.handle.trim(),
   preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
-  employment_status: formState.employment_status || null,
-  education_level: formState.education_level || null,
-  family_status: formState.family_status || null,
-  living_with: formState.living_with || null,
-  income_bracket: formState.income_bracket || null,
-  religion: formState.religion || null,
-  moral_values: Array.isArray(formState.moral_values) ? formState.moral_values : [],
+  employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
+  education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
+  family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
+  living_with: mapValueToBackend(formState.living_with, livingWithValueMap),
+  income_bracket: mapValueToBackend(formState.income_bracket, incomeBracketValueMap),
+  religion: mapValueToBackend(formState.religion, religionValueMap),
+  moral_values: mapArrayToBackend(formState.moral_values, moralValuesValueMap),
 });
 
 export function OnboardingPage() {
@@ -190,13 +294,13 @@ export function OnboardingPage() {
       handle: (data?.handle ?? data?.users?.handle ?? '').trim(),
       preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
       onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
-      employment_status: data?.employment_status ?? '',
-      education_level: data?.education_level ?? '',
-      family_status: familyProfile?.family_status ?? '',
-      living_with: familyProfile?.living_with ?? '',
-      income_bracket: familyProfile?.income_bracket ?? '',
-      religion: moralProfile?.religion ?? '',
-      moral_values: moralProfile?.moral_values ?? [],
+      employment_status: mapValueFromBackend(data?.employment_status, employmentStatusValueMap),
+      education_level: mapValueFromBackend(data?.education_level, educationLevelValueMap),
+      family_status: mapValueFromBackend(familyProfile?.family_status, familyStatusValueMap),
+      living_with: mapValueFromBackend(familyProfile?.living_with, livingWithValueMap),
+      income_bracket: mapValueFromBackend(familyProfile?.income_bracket, incomeBracketValueMap),
+      religion: mapValueFromBackend(moralProfile?.religion, religionValueMap),
+      moral_values: mapArrayFromBackend(moralProfile?.moral_values, moralValuesValueMap),
     }));
   }, [userEmail]);
 
