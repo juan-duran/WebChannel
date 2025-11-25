@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
@@ -240,6 +240,13 @@ export function OnboardingPage() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
+  const [fetchStatus, setFetchStatus] = useState<{ type: 'error' | 'info' | null; message: string }>(
+    {
+      type: null,
+      message: '',
+    },
+  );
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
@@ -248,60 +255,86 @@ export function OnboardingPage() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('subscribers')
-      .select(
-        `
-          handle,
-          preferred_send_time,
-          onboarding_complete,
-          employment_status,
-          education_level,
-          users (
+    setIsLoadingUserData(true);
+    setFetchStatus({ type: null, message: '' });
+
+    try {
+      const { data, error } = await supabase
+        .from('subscribers')
+        .select(
+          `
             handle,
             preferred_send_time,
-            onboarding_complete
-          ),
-          user_family_profile (
-            family_status,
-            living_with,
-            income_bracket
-          ),
-          user_moral_profile (
-            religion,
-            moral_values
-          )
-        `,
-      )
-      .eq('email', userEmail)
-      .single();
+            onboarding_complete,
+            employment_status,
+            education_level,
+            users (
+              handle,
+              preferred_send_time,
+              onboarding_complete
+            ),
+            user_family_profile (
+              family_status,
+              living_with,
+              income_bracket
+            ),
+            user_moral_profile (
+              religion,
+              moral_values
+            )
+          `,
+        )
+        .eq('email', userEmail)
+        .single();
 
-    if (error) {
-      console.error('Erro ao carregar dados do usuário', error);
-      return;
+      if (error) {
+        console.error('Erro ao carregar dados do usuário', error);
+        throw error;
+      }
+
+      if (!data) {
+        setFetchStatus({
+          type: 'info',
+          message: 'Nenhum dado encontrado. Preencha suas preferências para começar.',
+        });
+        return;
+      }
+
+      const familyProfile = Array.isArray(data.user_family_profile)
+        ? data.user_family_profile[0]
+        : data.user_family_profile;
+
+      const moralProfile = Array.isArray(data.user_moral_profile)
+        ? data.user_moral_profile[0]
+        : data.user_moral_profile;
+
+      setFormState((prev) => ({
+        ...prev,
+        handle: (data.handle ?? data.users?.handle ?? prev.handle).trim(),
+        preferred_send_time:
+          data.preferred_send_time?.slice(0, 5) ?? data.users?.preferred_send_time?.slice(0, 5) ?? prev.preferred_send_time,
+        onboarding_complete:
+          data.onboarding_complete ?? data.users?.onboarding_complete ?? prev.onboarding_complete,
+        employment_status:
+          mapValueFromBackend(data.employment_status, employmentStatusValueMap) || prev.employment_status,
+        education_level: mapValueFromBackend(data.education_level, educationLevelValueMap) || prev.education_level,
+        family_status:
+          mapValueFromBackend(familyProfile?.family_status, familyStatusValueMap) || prev.family_status,
+        living_with: mapValueFromBackend(familyProfile?.living_with, livingWithValueMap) || prev.living_with,
+        income_bracket:
+          mapValueFromBackend(familyProfile?.income_bracket, incomeBracketValueMap) || prev.income_bracket,
+        religion: mapValueFromBackend(moralProfile?.religion, religionValueMap) || prev.religion,
+        moral_values: mapArrayFromBackend(moralProfile?.moral_values, moralValuesValueMap) ?? prev.moral_values,
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? `Não foi possível carregar seus dados: ${error.message}`
+          : 'Não foi possível carregar seus dados. Tente novamente.';
+      setFetchStatus({ type: 'error', message });
+    } finally {
+      setIsLoadingUserData(false);
     }
-
-    const familyProfile = Array.isArray(data?.user_family_profile)
-      ? data?.user_family_profile[0]
-      : data?.user_family_profile;
-
-    const moralProfile = Array.isArray(data?.user_moral_profile)
-      ? data?.user_moral_profile[0]
-      : data?.user_moral_profile;
-
-    setFormState((prev) => ({
-      ...prev,
-      handle: (data?.handle ?? data?.users?.handle ?? '').trim(),
-      preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
-      onboarding_complete: data?.onboarding_complete ?? data?.users?.onboarding_complete ?? false,
-      employment_status: mapValueFromBackend(data?.employment_status, employmentStatusValueMap),
-      education_level: mapValueFromBackend(data?.education_level, educationLevelValueMap),
-      family_status: mapValueFromBackend(familyProfile?.family_status, familyStatusValueMap),
-      living_with: mapValueFromBackend(familyProfile?.living_with, livingWithValueMap),
-      income_bracket: mapValueFromBackend(familyProfile?.income_bracket, incomeBracketValueMap),
-      religion: mapValueFromBackend(moralProfile?.religion, religionValueMap),
-      moral_values: mapArrayFromBackend(moralProfile?.moral_values, moralValuesValueMap),
-    }));
   }, [userEmail]);
 
   useEffect(() => {
@@ -395,6 +428,47 @@ export function OnboardingPage() {
           )}
         </div>
       </div>
+
+      {isLoadingUserData && (
+        <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl px-4 py-3 mb-4 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          <span>Carregando suas preferências...</span>
+        </div>
+      )}
+
+      {fetchStatus.type && (
+        <div
+          className={`flex flex-col sm:flex-row sm:items-start gap-3 rounded-xl border px-4 py-3 text-sm mb-4 ${
+            fetchStatus.type === 'error'
+              ? 'bg-red-50 border-red-200 text-red-800'
+              : 'bg-amber-50 border-amber-200 text-amber-800'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {fetchStatus.type === 'error' ? (
+              <AlertCircle className="w-5 h-5 mt-0.5" />
+            ) : (
+              <CheckCircle2 className="w-5 h-5 mt-0.5 text-amber-600" />
+            )}
+            <div className="space-y-1">
+              <p className="font-semibold">
+                {fetchStatus.type === 'error' ? 'Não foi possível carregar seus dados' : 'Nenhum dado encontrado'}
+              </p>
+              <p>{fetchStatus.message}</p>
+            </div>
+          </div>
+
+          {fetchStatus.type === 'error' && (
+            <button
+              type="button"
+              onClick={fetchUserData}
+              className="inline-flex items-center gap-2 self-start rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50"
+            >
+              Tentar novamente
+            </button>
+          )}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <section className="form-card">
@@ -628,7 +702,7 @@ export function OnboardingPage() {
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <button
             type="submit"
-            disabled={submitting || isEmailMissing}
+            disabled={submitting || isEmailMissing || isLoadingUserData}
             className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:bg-blue-300"
           >
             {submitting ? 'Salvando...' : 'Salvar preferências'}
