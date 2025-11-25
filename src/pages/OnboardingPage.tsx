@@ -263,13 +263,19 @@ export function OnboardingPage() {
     }
 
     const { data, error } = await coreSupabase
-      .rpc<OnboardingProfile>('rpc_get_web_onboarding', {
-        p_email: userEmail,
-      })
-      .single();
+      .from<OnboardingProfile>('v_web_onboarding')
+      .select(
+        `user_email, handle, preferred_send_time, onboarding_complete, employment_status, education_level, family_status, living_with, income_bracket, religion, moral_values`
+      )
+      .eq('user_email', userEmail)
+      .maybeSingle();
 
     if (error) {
-      console.error('Erro ao carregar dados do usuário', error);
+      console.info('Dados de onboarding indisponíveis, ignorando carregamento.', error);
+      return;
+    }
+
+    if (!data) {
       return;
     }
 
