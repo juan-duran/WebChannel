@@ -19,13 +19,6 @@ type OnboardingProfile = {
   moral_values: string[] | null;
 };
 
-const preferredSendTimeOptions = [
-  { label: '08:00 (manhã)', value: '08:00' as const },
-  { label: '12:00 (início da tarde)', value: '12:00' as const },
-  { label: '18:00 (final da tarde)', value: '18:00' as const },
-  { label: '21:00 (noite)', value: '21:00' as const },
-];
-
 const employmentStatusValueMap: ValueMap = {
   desempregado: 'desempregado',
   estudante: 'estudante',
@@ -367,7 +360,7 @@ export function OnboardingPage() {
       setFormState((prev) => ({
         ...prev,
         handle: (data?.handle ?? '').trim(),
-        preferred_send_time: data?.preferred_send_time?.slice(0, 5) ?? '',
+        preferred_send_time: data?.preferred_send_time?.slice(0, 2) ?? '',
         onboarding_complete: data?.onboarding_complete ?? false,
         employment_status: mapValueFromBackend(
           data?.employment_status,
@@ -418,8 +411,8 @@ export function OnboardingPage() {
       newErrors.handle = 'Informe um apelido ou forma de tratamento.';
     }
 
-    if (!/^\d{2}:\d{2}$/.test(formState.preferred_send_time)) {
-      newErrors.preferred_send_time = 'Escolha um horário válido no formato HH:MM.';
+    if (!/^\d{2}$/.test(formState.preferred_send_time)) {
+      newErrors.preferred_send_time = 'Informe um horário válido no formato HH.';
     }
 
     return newErrors;
@@ -569,23 +562,25 @@ export function OnboardingPage() {
 
             <label className="space-y-1" htmlFor="preferred_send_time">
               <span className="font-medium text-gray-800">Horário preferido para receber mensagens</span>
-              <select
+              <input
                 id="preferred_send_time"
                 name="preferred_send_time"
-                value={formState.preferred_send_time}
-                onChange={(e) => updateField('preferred_send_time', e.target.value as FormState['preferred_send_time'])}
+                type="time"
+                step={3600}
+                min="00:00"
+                max="23:00"
+                value={formState.preferred_send_time ? `${formState.preferred_send_time.padStart(2, '0')}:00` : ''}
+                onChange={(e) =>
+                  updateField(
+                    'preferred_send_time',
+                    (e.target.value?.slice(0, 2) ?? '') as FormState['preferred_send_time'],
+                  )
+                }
                 className={`w-full rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.preferred_send_time ? 'border-red-400' : 'border-gray-200'
                 }`}
                 required
-              >
-                <option value="">Selecione um horário</option>
-                {preferredSendTimeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
               {errors.preferred_send_time && (
                 <p className="flex items-center gap-1 text-sm text-red-600">
                   <AlertCircle className="w-4 h-4" /> {errors.preferred_send_time}
