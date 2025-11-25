@@ -244,6 +244,7 @@ export function OnboardingPage() {
         throw error;
       }
 
+      setFormState((prev) => ({ ...prev, onboarding_complete: true }));
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
