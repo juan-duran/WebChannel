@@ -251,6 +251,18 @@ export type FormState = {
 const invertValueMap = (map: ValueMap): ValueMap =>
   Object.fromEntries(Object.entries(map).map(([uiValue, backendValue]) => [backendValue, uiValue]));
 
+const normalizePreferredSendTime = (value: string | null | undefined) => {
+  if (!value) return '';
+
+  const trimmed = value.trim();
+
+  if (/^\d{2}:\d{2}$/.test(trimmed)) return trimmed;
+  if (/^\d{2}:\d{2}:\d{2}$/.test(trimmed)) return trimmed.slice(0, 5);
+  if (/^\d{1,2}$/.test(trimmed)) return `${trimmed.padStart(2, '0')}:00`;
+
+  return trimmed;
+};
+
 const mapValueFromBackend = (
   value: string | null | undefined,
   map: ValueMap,
@@ -302,7 +314,9 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
 
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
   handle: formState.handle.trim(),
-  preferred_send_time: formState.preferred_send_time as OnboardingPayload['preferred_send_time'],
+  preferred_send_time: normalizePreferredSendTime(
+    formState.preferred_send_time,
+  ) as OnboardingPayload['preferred_send_time'],
   employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
   education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
   family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
@@ -357,20 +371,10 @@ export function OnboardingPage() {
         return;
       }
 
-      const preferredTime = (() => {
-        if (!data?.preferred_send_time) return '';
-        const match = data.preferred_send_time.match(/^(\d{2}:\d{2})/);
-        if (match) return match[1];
-        if (/^\d{2}$/.test(data.preferred_send_time)) {
-          return `${data.preferred_send_time}:00`;
-        }
-        return data.preferred_send_time;
-      })();
-
       setFormState((prev) => ({
         ...prev,
         handle: (data?.handle ?? '').trim(),
-        preferred_send_time: preferredTime,
+        preferred_send_time: normalizePreferredSendTime(data?.preferred_send_time),
         onboarding_complete: data?.onboarding_complete ?? false,
         employment_status: mapValueFromBackend(
           data?.employment_status,
@@ -416,12 +420,13 @@ export function OnboardingPage() {
   const validate = () => {
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     const trimmedHandle = formState.handle.trim();
+    const preferredTime = normalizePreferredSendTime(formState.preferred_send_time);
 
     if (!trimmedHandle) {
       newErrors.handle = 'Informe um apelido ou forma de tratamento.';
     }
 
-    if (!/^\d{2}:\d{2}$/.test(formState.preferred_send_time)) {
+    if (!/^\d{2}:\d{2}$/.test(preferredTime)) {
       newErrors.preferred_send_time = 'Informe um horário válido no formato HH:mm.';
     }
 
@@ -577,8 +582,10 @@ export function OnboardingPage() {
                 name="preferred_send_time"
                 type="time"
                 value={formState.preferred_send_time}
-                onChange={(e) => updateField('preferred_send_time', e.target.value as FormState['preferred_send_time'])}
-                className={`w-full rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                onChange={(e) =>
+                  updateField('preferred_send_time', normalizePreferredSendTime(e.target.value))
+                }
+                className={`w-full min-w-0 appearance-none rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.preferred_send_time ? 'border-red-400' : 'border-gray-200'
                 }`}
                 required
