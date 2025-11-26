@@ -877,6 +877,8 @@ export function OnboardingPage() {
             </div>
           </div>
         </div>
+        {/* Spacer to give the desktop sticky bar room to engage when scrolling */}
+        <div className="hidden sm:block h-16" aria-hidden />
       </form>
     </div>
   );
