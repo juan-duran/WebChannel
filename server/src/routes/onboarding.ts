@@ -37,9 +37,12 @@ function validateOnboardingPayload(payload: unknown): ValidationResult {
     errors.push('handle is required and must be a non-empty string');
   }
 
+  const preferredSendTime = onboardingPayload.preferred_send_time;
   const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
-  if (!onboardingPayload.preferred_send_time || !timePattern.test(onboardingPayload.preferred_send_time)) {
-    errors.push('preferred_send_time is required and must match HH:MM in 24-hour format');
+  if (preferredSendTime !== null && preferredSendTime !== undefined) {
+    if (typeof preferredSendTime !== 'string' || !timePattern.test(preferredSendTime)) {
+      errors.push('preferred_send_time must match HH:MM in 24-hour format when provided');
+    }
   }
 
   if (!Array.isArray(onboardingPayload.moral_values)) {
@@ -68,6 +71,8 @@ function validateOnboardingPayload(payload: unknown): ValidationResult {
 
   return errors.length ? { isValid: false, errors } : { isValid: true };
 }
+
+export { validateOnboardingPayload };
 
 async function authenticateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;

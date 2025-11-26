@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "server": "node server/dist/index.js",
-    "test:server": "cd server && tsx tests/websocket.test.ts"
+    "test:server": "cd server && tsx tests/websocket.test.ts && tsx tests/onboardingRoute.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.57.4",
