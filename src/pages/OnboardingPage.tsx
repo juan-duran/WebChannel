@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import type { FocusEvent, FormEvent, MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
@@ -379,6 +380,12 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
+  const openPreferredTimePicker = useCallback(
+    (event: MouseEvent<HTMLInputElement> | FocusEvent<HTMLInputElement>) =>
+      event.currentTarget.showPicker?.(),
+    [],
+  );
+
   const onboardingComplete = useMemo(() => hasCompletedOnboarding(formState), [formState]);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
@@ -688,6 +695,8 @@ export function OnboardingPage() {
                 name="preferred_send_time"
                 type="time"
                 value={formState.preferred_send_time ?? ''}
+                onClick={openPreferredTimePicker}
+                onFocus={openPreferredTimePicker}
                 onChange={(e) =>
                   updateField('preferred_send_time', normalizePreferredSendTime(e.target.value))
                 }
