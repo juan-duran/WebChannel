@@ -636,7 +636,7 @@ export function OnboardingPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5 pb-28 sm:pb-10 sm:relative">
+      <form onSubmit={handleSubmit} className="space-y-5 pb-28 sm:pb-32 sm:relative">
         <section className="form-card">
           <header className="flex flex-col gap-1 mb-4">
             <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
@@ -858,7 +858,7 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 bg-white/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:static sm:inset-auto sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0 sm:sticky sm:left-0 sm:right-0 sm:bottom-0">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 bg-white/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:fixed sm:inset-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:bottom-6 sm:w-full sm:max-w-screen-md sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0 sm:pb-0">
           <div className="sm:flex sm:items-center sm:justify-between sm:gap-6 sm:rounded-xl sm:border sm:border-gray-200 sm:bg-white sm:p-4 sm:shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <button
