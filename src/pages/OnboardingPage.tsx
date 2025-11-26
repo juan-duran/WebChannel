@@ -316,14 +316,36 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
     ? currentValues.filter((item) => item !== value)
     : [...currentValues, value];
 
-const hasMinimumOnboardingFields = (
-  state: Pick<FormState, 'handle' | 'preferred_send_time' | 'preferred_send_time_opt_out'>,
+const hasCompletedOnboarding = (
+  state: Pick<
+    FormState,
+    | 'handle'
+    | 'preferred_send_time'
+    | 'preferred_send_time_opt_out'
+    | 'employment_status'
+    | 'education_level'
+    | 'family_status'
+    | 'living_with'
+    | 'income_bracket'
+    | 'religion'
+    | 'moral_values'
+  >,
 ) => {
   const trimmedHandle = state.handle?.trim();
   const preferredSendTime = normalizePreferredSendTime(state.preferred_send_time);
   const hasPreferredSendTime = state.preferred_send_time_opt_out || Boolean(preferredSendTime);
 
-  return Boolean(trimmedHandle && hasPreferredSendTime);
+  return Boolean(
+    trimmedHandle &&
+      hasPreferredSendTime &&
+      state.employment_status &&
+      state.education_level &&
+      state.family_status &&
+      state.living_with &&
+      state.income_bracket &&
+      state.religion &&
+      state.moral_values?.length,
+  );
 };
 
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => {
@@ -362,12 +384,8 @@ export function OnboardingPage() {
     [],
   );
 
-  const onboardingComplete = useMemo(
-    () => formState.onboarding_complete || hasMinimumOnboardingFields(formState),
-    [formState],
-  );
-
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
+  const onboardingComplete = useMemo(() => hasCompletedOnboarding(formState), [formState]);
 
   const fetchUserData = useCallback(async () => {
     setIsOnboardingLoading(true);
@@ -409,15 +427,16 @@ export function OnboardingPage() {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
         const preferredSendTimeOptOut = data?.preferred_send_time === null;
-        const hasRequiredFields = hasMinimumOnboardingFields({
+        const hasRequiredFields = hasCompletedOnboarding({
+          ...prev,
           handle: normalizedHandle,
           preferred_send_time: normalizedPreferredTime,
           preferred_send_time_opt_out: preferredSendTimeOptOut,
         });
         const onboardingComplete =
           typeof data?.onboarding_complete === 'boolean'
-            ? data.onboarding_complete
-            : prev.onboarding_complete || hasRequiredFields;
+            ? data.onboarding_complete && hasRequiredFields
+            : hasRequiredFields;
 
         return {
           ...prev,
@@ -522,7 +541,10 @@ export function OnboardingPage() {
         throw new Error(message);
       }
 
-      setFormState((prev) => ({ ...prev, onboarding_complete: true }));
+      setFormState((prev) => ({
+        ...prev,
+        onboarding_complete: hasCompletedOnboarding(prev),
+      }));
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
