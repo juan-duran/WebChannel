@@ -362,11 +362,12 @@ export function OnboardingPage() {
     [],
   );
 
-  const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
   const onboardingComplete = useMemo(
     () => formState.onboarding_complete || hasMinimumOnboardingFields(formState),
     [formState],
   );
+
+  const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
   const fetchUserData = useCallback(async () => {
     setIsOnboardingLoading(true);
