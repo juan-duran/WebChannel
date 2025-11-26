@@ -14,6 +14,17 @@ const onboardingRouter = Router();
 
 type ValidationResult = { isValid: true } | { isValid: false; errors: string[] };
 
+type SupabaseError = Error & {
+  status?: number;
+  details?: string | null;
+  hint?: string | null;
+  code?: string | null;
+};
+
+function isSupabaseError(error: unknown): error is SupabaseError {
+  return Boolean(error) && typeof error === 'object' && 'message' in error;
+}
+
 function validateOnboardingPayload(payload: unknown): ValidationResult {
   if (typeof payload !== 'object' || payload === null) {
     return { isValid: false, errors: ['Payload must be an object'] };
@@ -137,6 +148,22 @@ onboardingRouter.post('/', async (req: AuthenticatedRequest, res: Response) => {
       },
       'Failed to update onboarding data',
     );
+
+    if (isSupabaseError(error)) {
+      const statusCode =
+        error.status && error.status >= 400 && error.status < 500
+          ? error.status
+          : error.code || error.details || error.hint
+            ? 400
+            : 500;
+
+      return res.status(statusCode).json({
+        error: 'Failed to update onboarding data',
+        message: error.message,
+        details: error.details ?? undefined,
+        code: error.code ?? undefined,
+      });
+    }
 
     return res.status(500).json({ error: 'Failed to update onboarding data' });
   }
