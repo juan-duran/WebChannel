@@ -376,39 +376,49 @@ export function OnboardingPage() {
         return;
       }
 
-      setFormState((prev) => ({
-        ...prev,
-        handle: (data?.handle ?? '').trim(),
-        preferred_send_time: normalizePreferredSendTime(data?.preferred_send_time),
-        onboarding_complete: data?.onboarding_complete ?? false,
-        employment_status: mapValueFromBackend(
-          data?.employment_status,
-          employmentStatusValueMap,
-          employmentStatusBackendAliases,
-        ),
-        education_level: mapValueFromBackend(
-          data?.education_level,
-          educationLevelValueMap,
-          educationLevelBackendAliases,
-        ),
-        family_status: mapValueFromBackend(
-          data?.family_status,
-          familyStatusValueMap,
-          familyStatusBackendAliases,
-        ),
-        living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
-        income_bracket: mapValueFromBackend(
-          data?.income_bracket,
-          incomeBracketValueMap,
-          incomeBracketBackendAliases,
-        ),
-        religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
-        moral_values: mapArrayFromBackend(
-          data?.moral_values,
-          moralValuesValueMap,
-          moralValuesBackendAliases,
-        ),
-      }));
+      setFormState((prev) => {
+        const normalizedHandle = (data?.handle ?? '').trim();
+        const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
+        const hasRequiredFields = Boolean(normalizedHandle && normalizedPreferredTime);
+        const onboardingComplete =
+          typeof data?.onboarding_complete === 'boolean'
+            ? data.onboarding_complete
+            : prev.onboarding_complete || hasRequiredFields;
+
+        return {
+          ...prev,
+          handle: normalizedHandle,
+          preferred_send_time: normalizedPreferredTime,
+          onboarding_complete: onboardingComplete,
+          employment_status: mapValueFromBackend(
+            data?.employment_status,
+            employmentStatusValueMap,
+            employmentStatusBackendAliases,
+          ),
+          education_level: mapValueFromBackend(
+            data?.education_level,
+            educationLevelValueMap,
+            educationLevelBackendAliases,
+          ),
+          family_status: mapValueFromBackend(
+            data?.family_status,
+            familyStatusValueMap,
+            familyStatusBackendAliases,
+          ),
+          living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
+          income_bracket: mapValueFromBackend(
+            data?.income_bracket,
+            incomeBracketValueMap,
+            incomeBracketBackendAliases,
+          ),
+          religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
+          moral_values: mapArrayFromBackend(
+            data?.moral_values,
+            moralValuesValueMap,
+            moralValuesBackendAliases,
+          ),
+        };
+      });
     } catch (error) {
       console.error('Erro ao carregar dados de onboarding', error);
       setStatus({
