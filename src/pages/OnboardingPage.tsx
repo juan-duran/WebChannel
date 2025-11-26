@@ -1,4 +1,5 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import type { FocusEvent, FormEvent, MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import type { OnboardingPayload } from '../types/onboarding';
@@ -331,10 +332,9 @@ export const hasCompletedOnboarding = (
   >,
 ) => {
   const trimmedHandle = state.handle?.trim();
-  const preferredSendTimeOptOut = Boolean(state.preferred_send_time_opt_out);
   const preferredSendTime = normalizePreferredSendTime(state.preferred_send_time);
+  const hasPreferredSendTime = state.preferred_send_time_opt_out || Boolean(preferredSendTime);
 
-  const hasPreferredSendTime = preferredSendTimeOptOut || Boolean(preferredSendTime);
   const requiredFields = [
     state.employment_status,
     state.education_level,
@@ -379,9 +379,14 @@ export function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
-  const onboardingComplete = useMemo(() => hasCompletedOnboarding(formState), [formState]);
+  const openPreferredTimePicker = useCallback(
+    (event: MouseEvent<HTMLInputElement> | FocusEvent<HTMLInputElement>) =>
+      event.currentTarget.showPicker?.(),
+    [],
+  );
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
+  const onboardingComplete = useMemo(() => hasCompletedOnboarding(formState), [formState]);
 
   const fetchUserData = useCallback(async () => {
     setIsOnboardingLoading(true);
@@ -423,29 +428,29 @@ export function OnboardingPage() {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
         const preferredSendTimeOptOut = data?.preferred_send_time === null;
-        const employmentStatus = mapValueFromBackend(
+        const employment_status = mapValueFromBackend(
           data?.employment_status,
           employmentStatusValueMap,
           employmentStatusBackendAliases,
         );
-        const educationLevel = mapValueFromBackend(
+        const education_level = mapValueFromBackend(
           data?.education_level,
           educationLevelValueMap,
           educationLevelBackendAliases,
         );
-        const familyStatus = mapValueFromBackend(
+        const family_status = mapValueFromBackend(
           data?.family_status,
           familyStatusValueMap,
           familyStatusBackendAliases,
         );
-        const livingWith = mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases);
-        const incomeBracket = mapValueFromBackend(
+        const living_with = mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases);
+        const income_bracket = mapValueFromBackend(
           data?.income_bracket,
           incomeBracketValueMap,
           incomeBracketBackendAliases,
         );
         const religion = mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases);
-        const moralValues = mapArrayFromBackend(
+        const moral_values = mapArrayFromBackend(
           data?.moral_values,
           moralValuesValueMap,
           moralValuesBackendAliases,
@@ -456,13 +461,13 @@ export function OnboardingPage() {
           handle: normalizedHandle,
           preferred_send_time: normalizedPreferredTime,
           preferred_send_time_opt_out: preferredSendTimeOptOut,
-          employment_status: employmentStatus,
-          education_level: educationLevel,
-          family_status: familyStatus,
-          living_with: livingWith,
-          income_bracket: incomeBracket,
+          employment_status,
+          education_level,
+          family_status,
+          living_with,
+          income_bracket,
           religion,
-          moral_values: moralValues,
+          moral_values,
         };
 
         return {
@@ -506,11 +511,11 @@ export function OnboardingPage() {
     setStatus({ type: null, message: '' });
 
     const validationErrors = validate();
-      setErrors(validationErrors);
+    setErrors(validationErrors);
 
-      if (Object.keys(validationErrors).length > 0 || isEmailMissing) {
-        return;
-      }
+    if (Object.keys(validationErrors).length > 0 || isEmailMissing) {
+      return;
+    }
 
     const payload = buildOnboardingPayload(formState);
 
@@ -582,7 +587,7 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="py-6">
+    <div className="py-6 sm:relative">
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
         <div className="space-y-1">
           <p className="text-sm font-medium text-blue-600">Seu perfil</p>
@@ -631,7 +636,7 @@ export function OnboardingPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-5 pb-28 sm:pb-10 sm:relative">
         <section className="form-card">
           <header className="flex flex-col gap-1 mb-4">
             <p className="text-xs uppercase font-semibold text-blue-600 tracking-wide">
@@ -688,6 +693,8 @@ export function OnboardingPage() {
                 name="preferred_send_time"
                 type="time"
                 value={formState.preferred_send_time ?? ''}
+                onClick={openPreferredTimePicker}
+                onFocus={openPreferredTimePicker}
                 onChange={(e) =>
                   updateField('preferred_send_time', normalizePreferredSendTime(e.target.value))
                 }
@@ -851,20 +858,24 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <button
-            type="submit"
-            disabled={submitting || isEmailMissing}
-            className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:bg-blue-300"
-          >
-            {submitting ? 'Salvando...' : 'Salvar preferências'}
-          </button>
-          {isEmailMissing && (
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Não encontramos seu email para salvar as preferências.
-            </p>
-          )}
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 bg-white/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:static sm:inset-auto sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0 sm:sticky sm:left-0 sm:right-0 sm:bottom-0">
+          <div className="sm:flex sm:items-center sm:justify-between sm:gap-6 sm:rounded-xl sm:border sm:border-gray-200 sm:bg-white sm:p-4 sm:shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <button
+                type="submit"
+                disabled={submitting || isEmailMissing}
+                className="inline-flex w-full justify-center items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:bg-blue-300 sm:w-auto"
+              >
+                {submitting ? 'Salvando...' : 'Salvar preferências'}
+              </button>
+              {isEmailMissing && (
+                <p className="text-sm text-red-600 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" />
+                  Não encontramos seu email para salvar as preferências.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
       </form>
     </div>
