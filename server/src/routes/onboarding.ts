@@ -22,7 +22,7 @@ type SupabaseError = Error & {
 };
 
 function isSupabaseError(error: unknown): error is SupabaseError {
-  return Boolean(error) && typeof error === 'object' && 'message' in error;
+  return typeof error === 'object' && error !== null && 'message' in error;
 }
 
 function validateOnboardingPayload(payload: unknown): ValidationResult {
