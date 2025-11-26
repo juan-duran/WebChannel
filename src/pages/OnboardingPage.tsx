@@ -20,11 +20,11 @@ type OnboardingProfile = {
 };
 
 const employmentStatusValueMap: ValueMap = {
-  desempregado: 'desempregado',
-  estudante: 'estudante',
-  meio_periodo: 'meio_periodo',
-  tempo_integral: 'tempo_integral',
-  aposentado: 'aposentado',
+  desempregado: 'unemployed',
+  estudante: 'student',
+  meio_periodo: 'part_time',
+  tempo_integral: 'full_time',
+  aposentado: 'retired',
 };
 
 const employmentStatusBackendAliases: ValueMap = {
@@ -44,13 +44,13 @@ const employmentStatusOptions = [
 ];
 
 const educationLevelValueMap: ValueMap = {
-  nenhum: 'nenhum',
-  fundamental: 'fundamental',
-  medio: 'medio',
-  graduacao: 'graduacao',
-  mestrado: 'mestrado',
-  doutorado: 'doutorado',
-  outros: 'outros',
+  nenhum: 'none',
+  fundamental: 'primary',
+  medio: 'secondary',
+  graduacao: 'bachelors',
+  mestrado: 'masters',
+  doutorado: 'doctorate',
+  outros: 'other',
 };
 
 const educationLevelBackendAliases: ValueMap = {
@@ -74,11 +74,11 @@ const educationLevelOptions = [
 ];
 
 const familyStatusValueMap: ValueMap = {
-  solteiro: 'solteiro',
-  casado: 'casado',
-  divorciado: 'divorciado',
-  viuvo: 'viuvo',
-  uniao_estavel: 'uniao_estavel',
+  solteiro: 'single',
+  casado: 'married',
+  divorciado: 'divorced',
+  viuvo: 'widowed',
+  uniao_estavel: 'civil_union',
 };
 
 const familyStatusBackendAliases: ValueMap = {
@@ -98,12 +98,12 @@ const familyStatusOptions = [
 ];
 
 const livingWithValueMap: ValueMap = {
-  sozinho: 'sozinho',
-  parceiro: 'parceiro',
-  filhos: 'filhos',
-  familia_extensa: 'familia_extensa',
-  colegas_quarto: 'colegas_quarto',
-  outro: 'outro',
+  sozinho: 'alone',
+  parceiro: 'partner',
+  filhos: 'children',
+  familia_extensa: 'extended_family',
+  colegas_quarto: 'roommates',
+  outro: 'other',
 };
 
 const livingWithBackendAliases: ValueMap = {
@@ -125,11 +125,11 @@ const livingWithOptions = [
 ];
 
 const incomeBracketValueMap: ValueMap = {
-  baixa: 'baixa',
-  media_baixa: 'media_baixa',
-  media: 'media',
-  media_alta: 'media_alta',
-  alta: 'alta',
+  baixa: 'low',
+  media_baixa: 'lower_middle',
+  media: 'middle',
+  media_alta: 'upper_middle',
+  alta: 'high',
 };
 
 const incomeBracketBackendAliases: ValueMap = {
@@ -149,19 +149,19 @@ const incomeBracketOptions = [
 ];
 
 const religionValueMap: ValueMap = {
-  catolico: 'catolico',
-  protestante: 'protestante',
-  evangelico: 'evangelico',
-  espirita: 'espirita',
+  catolico: 'catholic',
+  protestante: 'protestant',
+  evangelico: 'evangelical',
+  espirita: 'spiritist',
   umbanda: 'umbanda',
   candomble: 'candomble',
-  judaico: 'judaico',
-  islamico: 'islamico',
-  budista: 'budista',
+  judaico: 'jewish',
+  islamico: 'islamic',
+  budista: 'buddhist',
   hindu: 'hindu',
-  ateu: 'ateu',
-  agnostico: 'agnostico',
-  outros: 'outros',
+  ateu: 'atheist',
+  agnostico: 'agnostic',
+  outros: 'other',
 };
 
 const religionBackendAliases: ValueMap = {
@@ -282,6 +282,23 @@ const mapValueToBackend = (value: string, map: ValueMap) => {
   return map[normalizedValue] ?? normalizedValue;
 };
 
+export const hasCompleteOnboardingData = (state: FormState) => {
+  const trimmedHandle = state.handle.trim();
+  const normalizedPreferredSendTime = normalizePreferredSendTime(state.preferred_send_time);
+  const hasPreferredSendTime =
+    state.preferred_send_time_opt_out || /^\d{2}:\d{2}$/.test(normalizedPreferredSendTime);
+  const hasAllSelections = [
+    state.employment_status,
+    state.education_level,
+    state.family_status,
+    state.living_with,
+    state.income_bracket,
+    state.religion,
+  ].every((value) => Boolean(value?.trim()));
+
+  return Boolean(trimmedHandle && hasPreferredSendTime && hasAllSelections);
+};
+
 const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap, aliases: ValueMap = {}) => {
   if (!Array.isArray(values)) return [];
   return values
@@ -346,6 +363,10 @@ export function OnboardingPage() {
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
+  const onboardingStatusComplete = useMemo(
+    () => formState.onboarding_complete && hasCompleteOnboardingData(formState),
+    [formState],
+  );
 
   const fetchUserData = useCallback(async () => {
     setIsOnboardingLoading(true);
@@ -387,20 +408,11 @@ export function OnboardingPage() {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
         const preferredSendTimeOptOut = data?.preferred_send_time === null;
-        const hasRequiredFields = Boolean(
-          normalizedHandle && (preferredSendTimeOptOut || normalizedPreferredTime),
-        );
-        const onboardingComplete =
-          typeof data?.onboarding_complete === 'boolean'
-            ? data.onboarding_complete
-            : prev.onboarding_complete || hasRequiredFields;
-
-        return {
+        const nextState = {
           ...prev,
           handle: normalizedHandle,
           preferred_send_time: normalizedPreferredTime,
           preferred_send_time_opt_out: preferredSendTimeOptOut,
-          onboarding_complete: onboardingComplete,
           employment_status: mapValueFromBackend(
             data?.employment_status,
             employmentStatusValueMap,
@@ -416,7 +428,11 @@ export function OnboardingPage() {
             familyStatusValueMap,
             familyStatusBackendAliases,
           ),
-          living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
+          living_with: mapValueFromBackend(
+            data?.living_with,
+            livingWithValueMap,
+            livingWithBackendAliases,
+          ),
           income_bracket: mapValueFromBackend(
             data?.income_bracket,
             incomeBracketValueMap,
@@ -428,6 +444,16 @@ export function OnboardingPage() {
             moralValuesValueMap,
             moralValuesBackendAliases,
           ),
+        };
+        const onboardingComplete = hasCompleteOnboardingData(nextState);
+        const completionFlag =
+          typeof data?.onboarding_complete === 'boolean'
+            ? data.onboarding_complete && onboardingComplete
+            : prev.onboarding_complete || onboardingComplete;
+
+        return {
+          ...nextState,
+          onboarding_complete: completionFlag,
         };
       });
     } catch (error) {
@@ -457,6 +483,13 @@ export function OnboardingPage() {
     if (!formState.preferred_send_time_opt_out && !/^\d{2}:\d{2}$/.test(preferredTime)) {
       newErrors.preferred_send_time = 'Informe um horário válido no formato HH:mm.';
     }
+
+    (['employment_status', 'education_level', 'family_status', 'living_with', 'income_bracket', 'religion'] as const)
+      .forEach((field) => {
+        if (!formState[field]?.trim()) {
+          newErrors[field] = 'Selecione uma opção.';
+        }
+      });
 
     return newErrors;
   };
@@ -498,7 +531,10 @@ export function OnboardingPage() {
         throw new Error(message);
       }
 
-      setFormState((prev) => ({ ...prev, onboarding_complete: true }));
+      setFormState((prev) => ({
+        ...prev,
+        onboarding_complete: hasCompleteOnboardingData(prev),
+      }));
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
@@ -552,7 +588,7 @@ export function OnboardingPage() {
               <span className="h-2 w-2 rounded-full bg-gray-400 animate-pulse" aria-hidden />
               <span>Carregando status...</span>
             </div>
-          ) : formState.onboarding_complete ? (
+          ) : onboardingStatusComplete ? (
             <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
               <CheckCircle2 className="w-4 h-4" />
               Perfil completo
