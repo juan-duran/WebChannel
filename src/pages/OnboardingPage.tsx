@@ -275,7 +275,7 @@ const mapValueFromBackend = (
   return map[value] ? value : '';
 };
 
-const mapValueToBackend = (value: string | null | undefined, map: ValueMap) => {
+const mapValueToBackend = (value: string, map: ValueMap) => {
   if (!value) return null;
   return map[value] ?? value;
 };
@@ -317,18 +317,12 @@ export const buildOnboardingPayload = (formState: FormState): OnboardingPayload 
   preferred_send_time: normalizePreferredSendTime(
     formState.preferred_send_time,
   ) as OnboardingPayload['preferred_send_time'],
-  employment_status: mapValueToBackend(
-    formState?.employment_status ?? null,
-    employmentStatusValueMap,
-  ),
-  education_level: mapValueToBackend(
-    formState?.education_level ?? null,
-    educationLevelValueMap,
-  ),
-  family_status: mapValueToBackend(formState?.family_status ?? null, familyStatusValueMap),
-  living_with: mapValueToBackend(formState?.living_with ?? null, livingWithValueMap),
-  income_bracket: mapValueToBackend(formState?.income_bracket ?? null, incomeBracketValueMap),
-  religion: mapValueToBackend(formState?.religion ?? null, religionValueMap),
+  employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
+  education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
+  family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
+  living_with: mapValueToBackend(formState.living_with, livingWithValueMap),
+  income_bracket: mapValueToBackend(formState.income_bracket, incomeBracketValueMap),
+  religion: mapValueToBackend(formState.religion, religionValueMap),
   moral_values: mapArrayToBackend(formState.moral_values, moralValuesValueMap),
 });
 
