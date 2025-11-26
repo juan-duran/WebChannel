@@ -860,7 +860,7 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-        <div className="fixed inset-x-0 bottom-0 z-20 bg-white/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] sm:sticky sm:bottom-0 sm:inset-x-auto sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0">
+        <div className="fixed inset-x-0 bottom-0 z-20 bg-white/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.08)] sm:sticky sm:bottom-0 sm:left-0 sm:right-0 sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0">
           <div className="sm:flex sm:items-center sm:justify-between sm:gap-6 sm:rounded-xl sm:border sm:border-gray-200 sm:bg-white sm:p-4 sm:shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <button
