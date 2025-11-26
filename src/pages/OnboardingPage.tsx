@@ -808,20 +808,22 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <button
-            type="submit"
-            disabled={submitting || isEmailMissing}
-            className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:bg-blue-300"
-          >
-            {submitting ? 'Salvando...' : 'Salvar preferências'}
-          </button>
-          {isEmailMissing && (
-            <p className="text-sm text-red-600 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4" />
-              Não encontramos seu email para salvar as preferências.
-            </p>
-          )}
+        <div className="md:sticky md:bottom-0 md:bg-white md:border-t md:border-gray-200 md:py-4 md:z-10">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <button
+              type="submit"
+              disabled={submitting || isEmailMissing}
+              className="inline-flex justify-center items-center gap-2 rounded-lg bg-blue-600 text-white px-4 py-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:bg-blue-300"
+            >
+              {submitting ? 'Salvando...' : 'Salvar preferências'}
+            </button>
+            {isEmailMissing && (
+              <p className="text-sm text-red-600 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                Não encontramos seu email para salvar as preferências.
+              </p>
+            )}
+          </div>
         </div>
       </form>
     </div>
