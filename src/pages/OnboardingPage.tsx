@@ -336,15 +336,20 @@ export function OnboardingPage() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
   const fetchUserData = useCallback(async () => {
+    setIsOnboardingLoading(true);
+
     if (!userEmail) {
+      setIsOnboardingLoading(false);
       return;
     }
 
     if (!session?.access_token) {
+      setIsOnboardingLoading(false);
       return;
     }
 
@@ -410,6 +415,8 @@ export function OnboardingPage() {
         type: 'error',
         message: 'Não foi possível carregar seus dados de onboarding. Tente novamente ou fale com o suporte.',
       });
+    } finally {
+      setIsOnboardingLoading(false);
     }
   }, [session?.access_token, userEmail]);
 
@@ -504,7 +511,12 @@ export function OnboardingPage() {
           <p className="text-gray-600">
             Conte um pouco sobre você para personalizarmos suas sugestões e comunicações.
           </p>
-          {formState.onboarding_complete ? (
+          {isOnboardingLoading ? (
+            <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-3 py-1 mt-2">
+              <span className="h-2 w-2 rounded-full bg-gray-400 animate-pulse" aria-hidden />
+              <span>Carregando status...</span>
+            </div>
+          ) : formState.onboarding_complete ? (
             <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
               <CheckCircle2 className="w-4 h-4" />
               Perfil completo
