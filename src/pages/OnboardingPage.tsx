@@ -316,6 +316,16 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
     ? currentValues.filter((item) => item !== value)
     : [...currentValues, value];
 
+const hasMinimumOnboardingFields = (
+  state: Pick<FormState, 'handle' | 'preferred_send_time' | 'preferred_send_time_opt_out'>,
+) => {
+  const trimmedHandle = state.handle?.trim();
+  const preferredSendTime = normalizePreferredSendTime(state.preferred_send_time);
+  const hasPreferredSendTime = state.preferred_send_time_opt_out || Boolean(preferredSendTime);
+
+  return Boolean(trimmedHandle && hasPreferredSendTime);
+};
+
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => {
   const normalizedPreferredSendTime = normalizePreferredSendTime(formState.preferred_send_time);
 
@@ -353,6 +363,10 @@ export function OnboardingPage() {
   );
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
+  const onboardingComplete = useMemo(
+    () => formState.onboarding_complete || hasMinimumOnboardingFields(formState),
+    [formState],
+  );
 
   const fetchUserData = useCallback(async () => {
     setIsOnboardingLoading(true);
@@ -394,9 +408,11 @@ export function OnboardingPage() {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
         const preferredSendTimeOptOut = data?.preferred_send_time === null;
-        const hasRequiredFields = Boolean(
-          normalizedHandle && (preferredSendTimeOptOut || normalizedPreferredTime),
-        );
+        const hasRequiredFields = hasMinimumOnboardingFields({
+          handle: normalizedHandle,
+          preferred_send_time: normalizedPreferredTime,
+          preferred_send_time_opt_out: preferredSendTimeOptOut,
+        });
         const onboardingComplete =
           typeof data?.onboarding_complete === 'boolean'
             ? data.onboarding_complete
@@ -559,7 +575,7 @@ export function OnboardingPage() {
               <span className="h-2 w-2 rounded-full bg-gray-400 animate-pulse" aria-hidden />
               <span>Carregando status...</span>
             </div>
-          ) : formState.onboarding_complete ? (
+          ) : onboardingComplete ? (
             <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
               <CheckCircle2 className="w-4 h-4" />
               Perfil completo
