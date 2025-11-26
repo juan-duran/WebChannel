@@ -1,6 +1,6 @@
 export type OnboardingPayload = {
   handle: string;
-  preferred_send_time: string;
+  preferred_send_time: string | null;
   moral_values: string[];
   employment_status: string | null;
   education_level: string | null;
