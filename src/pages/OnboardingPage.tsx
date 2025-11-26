@@ -316,40 +316,6 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
     ? currentValues.filter((item) => item !== value)
     : [...currentValues, value];
 
-export const hasCompletedOnboarding = (
-  state: Pick<
-    FormState,
-    | 'handle'
-    | 'preferred_send_time'
-    | 'preferred_send_time_opt_out'
-    | 'employment_status'
-    | 'education_level'
-    | 'family_status'
-    | 'living_with'
-    | 'income_bracket'
-    | 'religion'
-    | 'moral_values'
-  >,
-) => {
-  const trimmedHandle = state.handle?.trim();
-  const preferredSendTimeOptOut = Boolean(state.preferred_send_time_opt_out);
-  const preferredSendTime = normalizePreferredSendTime(state.preferred_send_time);
-
-  const hasPreferredSendTime = preferredSendTimeOptOut || Boolean(preferredSendTime);
-
-  return Boolean(
-    trimmedHandle &&
-      hasPreferredSendTime &&
-      state.employment_status &&
-      state.education_level &&
-      state.family_status &&
-      state.living_with &&
-      state.income_bracket &&
-      state.religion &&
-      state.moral_values?.length,
-  );
-};
-
 export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => {
   const normalizedPreferredSendTime = normalizePreferredSendTime(formState.preferred_send_time);
 
@@ -385,8 +351,6 @@ export function OnboardingPage() {
       event.currentTarget.showPicker?.(),
     [],
   );
-
-  const onboardingComplete = useMemo(() => hasCompletedOnboarding(formState), [formState]);
 
   const isEmailMissing = useMemo(() => !userEmail, [userEmail]);
 
@@ -430,51 +394,47 @@ export function OnboardingPage() {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
         const preferredSendTimeOptOut = data?.preferred_send_time === null;
-        const employmentStatus = mapValueFromBackend(
-          data?.employment_status,
-          employmentStatusValueMap,
-          employmentStatusBackendAliases,
+        const hasRequiredFields = Boolean(
+          normalizedHandle && (preferredSendTimeOptOut || normalizedPreferredTime),
         );
-        const educationLevel = mapValueFromBackend(
-          data?.education_level,
-          educationLevelValueMap,
-          educationLevelBackendAliases,
-        );
-        const familyStatus = mapValueFromBackend(
-          data?.family_status,
-          familyStatusValueMap,
-          familyStatusBackendAliases,
-        );
-        const livingWith = mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases);
-        const incomeBracket = mapValueFromBackend(
-          data?.income_bracket,
-          incomeBracketValueMap,
-          incomeBracketBackendAliases,
-        );
-        const religion = mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases);
-        const moralValues = mapArrayFromBackend(
-          data?.moral_values,
-          moralValuesValueMap,
-          moralValuesBackendAliases,
-        );
+        const onboardingComplete =
+          typeof data?.onboarding_complete === 'boolean'
+            ? data.onboarding_complete
+            : prev.onboarding_complete || hasRequiredFields;
 
-        const nextState = {
+        return {
           ...prev,
           handle: normalizedHandle,
           preferred_send_time: normalizedPreferredTime,
           preferred_send_time_opt_out: preferredSendTimeOptOut,
-          employment_status: employmentStatus,
-          education_level: educationLevel,
-          family_status: familyStatus,
-          living_with: livingWith,
-          income_bracket: incomeBracket,
-          religion,
-          moral_values: moralValues,
-        };
-
-        return {
-          ...nextState,
-          onboarding_complete: hasCompletedOnboarding(nextState),
+          onboarding_complete: onboardingComplete,
+          employment_status: mapValueFromBackend(
+            data?.employment_status,
+            employmentStatusValueMap,
+            employmentStatusBackendAliases,
+          ),
+          education_level: mapValueFromBackend(
+            data?.education_level,
+            educationLevelValueMap,
+            educationLevelBackendAliases,
+          ),
+          family_status: mapValueFromBackend(
+            data?.family_status,
+            familyStatusValueMap,
+            familyStatusBackendAliases,
+          ),
+          living_with: mapValueFromBackend(data?.living_with, livingWithValueMap, livingWithBackendAliases),
+          income_bracket: mapValueFromBackend(
+            data?.income_bracket,
+            incomeBracketValueMap,
+            incomeBracketBackendAliases,
+          ),
+          religion: mapValueFromBackend(data?.religion, religionValueMap, religionBackendAliases),
+          moral_values: mapArrayFromBackend(
+            data?.moral_values,
+            moralValuesValueMap,
+            moralValuesBackendAliases,
+          ),
         };
       });
     } catch (error) {
@@ -513,11 +473,11 @@ export function OnboardingPage() {
     setStatus({ type: null, message: '' });
 
     const validationErrors = validate();
-      setErrors(validationErrors);
+    setErrors(validationErrors);
 
-      if (Object.keys(validationErrors).length > 0 || isEmailMissing) {
-        return;
-      }
+    if (Object.keys(validationErrors).length > 0 || isEmailMissing) {
+      return;
+    }
 
     const payload = buildOnboardingPayload(formState);
 
@@ -545,10 +505,7 @@ export function OnboardingPage() {
         throw new Error(message);
       }
 
-      setFormState((prev) => ({
-        ...prev,
-        onboarding_complete: hasCompletedOnboarding(prev),
-      }));
+      setFormState((prev) => ({ ...prev, onboarding_complete: true }));
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
     } catch (error) {
@@ -602,7 +559,7 @@ export function OnboardingPage() {
               <span className="h-2 w-2 rounded-full bg-gray-400 animate-pulse" aria-hidden />
               <span>Carregando status...</span>
             </div>
-          ) : onboardingComplete ? (
+          ) : formState.onboarding_complete ? (
             <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
               <CheckCircle2 className="w-4 h-4" />
               Perfil completo
