@@ -238,6 +238,7 @@ const moralValuesOptions = [
 export type FormState = {
   handle: string;
   preferred_send_time: '' | OnboardingPayload['preferred_send_time'];
+  preferred_send_time_opt_out: boolean;
   onboarding_complete: boolean;
   employment_status: string;
   education_level: string;
@@ -298,6 +299,7 @@ const mapArrayToBackend = (values: string[], map: ValueMap) =>
 const defaultFormState: FormState = {
   handle: '',
   preferred_send_time: '',
+  preferred_send_time_opt_out: false,
   onboarding_complete: false,
   employment_status: '',
   education_level: '',
@@ -313,19 +315,23 @@ export const toggleMoralValueSelection = (currentValues: string[], value: string
     ? currentValues.filter((item) => item !== value)
     : [...currentValues, value];
 
-export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => ({
-  handle: formState.handle.trim(),
-  preferred_send_time: normalizePreferredSendTime(
-    formState.preferred_send_time,
-  ) as OnboardingPayload['preferred_send_time'],
-  employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
-  education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
-  family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
-  living_with: mapValueToBackend(formState.living_with, livingWithValueMap),
-  income_bracket: mapValueToBackend(formState.income_bracket, incomeBracketValueMap),
-  religion: mapValueToBackend(formState.religion, religionValueMap),
-  moral_values: mapArrayToBackend(formState.moral_values, moralValuesValueMap),
-});
+export const buildOnboardingPayload = (formState: FormState): OnboardingPayload => {
+  const normalizedPreferredSendTime = normalizePreferredSendTime(formState.preferred_send_time);
+
+  return {
+    handle: formState.handle.trim(),
+    preferred_send_time: formState.preferred_send_time_opt_out
+      ? null
+      : normalizedPreferredSendTime || null,
+    employment_status: mapValueToBackend(formState.employment_status, employmentStatusValueMap),
+    education_level: mapValueToBackend(formState.education_level, educationLevelValueMap),
+    family_status: mapValueToBackend(formState.family_status, familyStatusValueMap),
+    living_with: mapValueToBackend(formState.living_with, livingWithValueMap),
+    income_bracket: mapValueToBackend(formState.income_bracket, incomeBracketValueMap),
+    religion: mapValueToBackend(formState.religion, religionValueMap),
+    moral_values: mapArrayToBackend(formState.moral_values, moralValuesValueMap),
+  };
+};
 
 export function OnboardingPage() {
   const { user, session } = useAuth();
@@ -380,7 +386,10 @@ export function OnboardingPage() {
       setFormState((prev) => {
         const normalizedHandle = (data?.handle ?? '').trim();
         const normalizedPreferredTime = normalizePreferredSendTime(data?.preferred_send_time);
-        const hasRequiredFields = Boolean(normalizedHandle && normalizedPreferredTime);
+        const preferredSendTimeOptOut = data?.preferred_send_time === null;
+        const hasRequiredFields = Boolean(
+          normalizedHandle && (preferredSendTimeOptOut || normalizedPreferredTime),
+        );
         const onboardingComplete =
           typeof data?.onboarding_complete === 'boolean'
             ? data.onboarding_complete
@@ -390,6 +399,7 @@ export function OnboardingPage() {
           ...prev,
           handle: normalizedHandle,
           preferred_send_time: normalizedPreferredTime,
+          preferred_send_time_opt_out: preferredSendTimeOptOut,
           onboarding_complete: onboardingComplete,
           employment_status: mapValueFromBackend(
             data?.employment_status,
@@ -444,7 +454,7 @@ export function OnboardingPage() {
       newErrors.handle = 'Informe um apelido ou forma de tratamento.';
     }
 
-    if (!/^\d{2}:\d{2}$/.test(preferredTime)) {
+    if (!formState.preferred_send_time_opt_out && !/^\d{2}:\d{2}$/.test(preferredTime)) {
       newErrors.preferred_send_time = 'Informe um horário válido no formato HH:mm.';
     }
 
@@ -504,6 +514,21 @@ export function OnboardingPage() {
 
   const updateField = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const togglePreferredSendTimeOptOut = (optOut: boolean) => {
+    setFormState((prev) => ({
+      ...prev,
+      preferred_send_time_opt_out: optOut,
+      preferred_send_time: optOut ? '' : prev.preferred_send_time,
+    }));
+
+    if (optOut) {
+      setErrors((prev) => {
+        const { preferred_send_time, ...rest } = prev;
+        return rest;
+      });
+    }
   };
 
   const toggleMoralValue = (value: string) => {
@@ -598,27 +623,45 @@ export function OnboardingPage() {
               )}
             </label>
 
-            <label className="space-y-1" htmlFor="preferred_send_time">
-              <span className="font-medium text-gray-800">Horário preferido para receber mensagens</span>
+            <div className="space-y-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <label className="space-y-1" htmlFor="preferred_send_time">
+                  <span className="font-medium text-gray-800">Horário preferido para receber mensagens</span>
+                  <p className="text-sm text-gray-600">Selecione um horário para receber o lembrete diário.</p>
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm font-medium text-gray-800">
+                  <input
+                    type="checkbox"
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    checked={formState.preferred_send_time_opt_out}
+                    onChange={(e) => togglePreferredSendTimeOptOut(e.target.checked)}
+                  />
+                  <span>Não quero receber mensagens diárias</span>
+                </label>
+              </div>
+
               <input
                 id="preferred_send_time"
                 name="preferred_send_time"
                 type="time"
-                value={formState.preferred_send_time}
+                value={formState.preferred_send_time ?? ''}
                 onChange={(e) =>
                   updateField('preferred_send_time', normalizePreferredSendTime(e.target.value))
                 }
-                className={`w-full min-w-0 appearance-none rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                className={`w-full min-w-0 appearance-none rounded-lg border px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 ${
                   errors.preferred_send_time ? 'border-red-400' : 'border-gray-200'
                 }`}
-                required
+                disabled={formState.preferred_send_time_opt_out}
+                aria-disabled={formState.preferred_send_time_opt_out}
+                placeholder="HH:mm"
+                required={!formState.preferred_send_time_opt_out}
               />
               {errors.preferred_send_time && (
                 <p className="flex items-center gap-1 text-sm text-red-600">
                   <AlertCircle className="w-4 h-4" /> {errors.preferred_send_time}
                 </p>
               )}
-            </label>
+            </div>
           </div>
         </section>
 

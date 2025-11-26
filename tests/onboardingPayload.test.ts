@@ -9,6 +9,7 @@ const { buildOnboardingPayload, toggleMoralValueSelection } = await import('../s
 const formState: FormState = {
   handle: 'Maria',
   preferred_send_time: '12:00',
+  preferred_send_time_opt_out: false,
   onboarding_complete: false,
   employment_status: 'tempo_integral',
   education_level: 'graduacao',
@@ -44,3 +45,11 @@ assert.equal(payload.religion, 'catholic', 'religion should be mapped to backend
 assert.deepEqual(payload.moral_values, [], 'deselecting every moral value should send an empty array');
 
 console.log('Onboarding payload moral_values reset test passed.');
+
+const optOutPayload = buildOnboardingPayload({
+  ...formState,
+  preferred_send_time_opt_out: true,
+});
+
+assert.equal(optOutPayload.preferred_send_time, null, 'opt-out should send null for preferred_send_time');
+console.log('Onboarding payload preferred_send_time opt-out test passed.');
