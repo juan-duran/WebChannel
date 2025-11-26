@@ -276,8 +276,9 @@ const mapValueFromBackend = (
 };
 
 const mapValueToBackend = (value: string, map: ValueMap) => {
-  if (!value) return null;
-  return map[value] ?? value;
+  const normalizedValue = value?.trim();
+  if (!normalizedValue) return null;
+  return map[normalizedValue] ?? normalizedValue;
 };
 
 const mapArrayFromBackend = (values: string[] | null | undefined, map: ValueMap, aliases: ValueMap = {}) => {

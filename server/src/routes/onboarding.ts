@@ -37,7 +37,7 @@ function validateOnboardingPayload(payload: unknown): ValidationResult {
     errors.push('moral_values must only contain strings');
   }
 
-  const optionalStringFields: (keyof OnboardingPayload)[] = [
+  const requiredNullableStringFields: (keyof OnboardingPayload)[] = [
     'employment_status',
     'education_level',
     'family_status',
@@ -46,10 +46,12 @@ function validateOnboardingPayload(payload: unknown): ValidationResult {
     'religion',
   ];
 
-  optionalStringFields.forEach((field) => {
+  requiredNullableStringFields.forEach((field) => {
     const value = onboardingPayload[field];
-    if (value !== undefined && value !== null && typeof value !== 'string') {
-      errors.push(`${field} must be a string, null, or undefined`);
+    if (value === undefined) {
+      errors.push(`${field} is required and must be provided, even if null`);
+    } else if (value !== null && typeof value !== 'string') {
+      errors.push(`${field} must be a string or null`);
     }
   });
 
