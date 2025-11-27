@@ -3,15 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCurrentUser } from '../state/UserContext';
 
 export function ProfilePage() {
-  const { user: authUser, signOut } = useAuth();
+  const { user: authUser } = useAuth();
   const user = useCurrentUser();
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (err: unknown) {
-      console.error('Failed to sign out:', err);
-    }
+  const handleLogout = () => {
+    window.location.href = '/logout';
   };
 
   const createdDate = authUser?.created_at ? new Date(authUser.created_at) : null;
@@ -46,11 +42,11 @@ export function ProfilePage() {
                 )}
               </div>
               <button
-                onClick={handleSignOut}
+                onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
               >
                 <LogOut className="w-4 h-4" />
-                Sign Out
+                Logout
               </button>
             </div>
           </div>
