@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
-import path from 'path';
 import cookieParser from 'cookie-parser';
 
 import { config, validateConfig } from './config/index.js';
@@ -10,12 +9,14 @@ import { logger } from './utils/logger.js';
 import { WebSocketService } from './services/websocket.js';
 import { sessionManager } from './services/session.js';
 import { apiRateLimit } from './middleware/rateLimit.js';
+import { requireAuth } from './middleware/requireAuth.js';
 
 import messagesRouter from './routes/messages.js';
 import adminRouter from './routes/admin.js';
 import healthRouter from './routes/health.js';
 import onboardingRouter from './routes/onboarding.js';
 import ssoRouter from './routes/sso.js';
+import appRouter from './routes/app.js';
 
 async function startServer() {
   try {
@@ -49,23 +50,8 @@ async function startServer() {
     app.use('/admin', adminRouter);
     app.use('/sso', ssoRouter);
 
-    // --- servir FRONT (dist do Vite) ---
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath)); // isso já serve / -> index.html
-
-    // catch-all para rotas do app SPA (exceto API/Admin/WebSocket)
-    app.get(/.*/, (req, res, next) => {
-      if (
-        req.path.startsWith('/api') ||
-        req.path.startsWith('/admin') ||
-        req.path.startsWith('/health') ||
-        req.path.startsWith(config.server.path)
-      ) {
-        return next();
-      }
-
-      return res.sendFile(path.join(distPath, 'index.html'));
-    });
+    // SPA (requires auth)
+    app.use('/', requireAuth, appRouter);
 
     // WebSocket
     const wss = new WebSocketServer({
