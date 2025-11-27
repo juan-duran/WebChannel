@@ -2,6 +2,7 @@ import type { FocusEvent, FormEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../state/UserContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
 type ValueMap = Record<string, string>;
@@ -368,8 +369,8 @@ export const buildOnboardingPayload = (formState: FormState): OnboardingPayload 
 };
 
 export function OnboardingPage() {
-  const { user, session } = useAuth();
-  const userEmail = user?.email ?? '';
+  const { session } = useAuth();
+  const { email: userEmail } = useCurrentUser();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({
@@ -402,7 +403,7 @@ export function OnboardingPage() {
     }
 
     try {
-      const response = await fetch('/api/onboarding', {
+      const response = await fetch(`/api/onboarding?email=${encodeURIComponent(userEmail)}`, {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -532,7 +533,7 @@ export function OnboardingPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ payload }),
+        body: JSON.stringify({ payload, email: userEmail }),
       });
 
       if (!response.ok) {
