@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
 
     if (error) {
       logger.error({ error, email: normalizedEmail }, 'Failed to fetch subscriber');
-      return res.redirect(PLANOS_REDIRECT);
+      return res.redirect(`${PLANOS_REDIRECT}?reason=db_error`);
     }
 
     if (!data) {
@@ -68,7 +68,7 @@ router.get('/', async (req, res) => {
     return res.redirect(`${PLANOS_REDIRECT}?reason=not_subscriber`);
   } catch (error) {
     logger.error({ error, email: normalizedEmail }, 'Unhandled error in SSO route');
-    return res.redirect(PLANOS_REDIRECT);
+    return res.redirect(`${PLANOS_REDIRECT}?reason=exception`);
   }
 });
 
