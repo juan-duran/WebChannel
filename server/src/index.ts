@@ -16,6 +16,7 @@ import adminRouter from './routes/admin.js';
 import healthRouter from './routes/health.js';
 import onboardingRouter from './routes/onboarding.js';
 import ssoRouter from './routes/sso.js';
+import logoutRouter from './routes/logout.js';
 import appRouter from './routes/app.js';
 
 async function startServer() {
@@ -46,6 +47,7 @@ async function startServer() {
     // Public routes
     app.use('/health', healthRouter);
     app.use('/sso', ssoRouter);
+    app.use('/logout', logoutRouter);
 
     // Protected routes
     app.use(requireAuth);
