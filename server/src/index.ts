@@ -19,6 +19,7 @@ import ssoRouter from './routes/sso.js';
 import logoutRouter from './routes/logout.js';
 import sessionRouter from './routes/session.js';
 import appRouter from './routes/app.js';
+import trendsRouter from './routes/trends.js';
 
 async function startServer() {
   try {
@@ -54,6 +55,7 @@ async function startServer() {
     app.use('/api/session', sessionRouter);
     app.use('/api/messages', requireAuth, messagesRouter);
     app.use('/api/onboarding', requireAuth, onboardingRouter);
+    app.use('/api/trends', requireAuth, trendsRouter);
     app.use('/admin', requireAuth, adminRouter);
 
     // SPA
