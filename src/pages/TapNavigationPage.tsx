@@ -146,6 +146,7 @@ export function TapNavigationPage() {
       if (directCandidate) return directCandidate;
 
       const nestedCandidates = [
+        objectInput.summary,
         objectInput.output,
         objectInput.data,
         objectInput.payload,
