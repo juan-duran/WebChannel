@@ -7,6 +7,7 @@ import { TapNavigationPage } from './pages/TapNavigationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { useOnboardingStatus } from './state/OnboardingStatusContext';
 import { AdminToolsPage } from './pages/AdminToolsPage';
 
 type Page = 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin';
@@ -32,6 +33,7 @@ const getNavigationStateFromPath = (): { page: Page; isLegacyAuth: boolean } => 
 
 function AppContent() {
   const { loading } = useAuth();
+  const onboardingStatus = useOnboardingStatus();
   const [{ currentPage, isLegacyAuth }, setNavigationState] = useState<{
     currentPage: Page;
     isLegacyAuth: boolean;
@@ -57,9 +59,14 @@ function AppContent() {
   }, []);
 
   const handleNavigate = (page: Page) => {
-    setNavigationState({ currentPage: page, isLegacyAuth: false });
+    const targetPage =
+      !onboardingStatus.loading && !onboardingStatus.complete && page !== 'onboarding' && page !== 'profile'
+        ? 'onboarding'
+        : page;
+
+    setNavigationState({ currentPage: targetPage, isLegacyAuth: false });
     if (typeof window !== 'undefined') {
-      const path = page === 'chat' ? '/' : `/${page}`;
+      const path = targetPage === 'chat' ? '/' : `/${targetPage}`;
       window.history.pushState(null, '', path);
     }
   };
@@ -74,6 +81,12 @@ function AppContent() {
 
   if (isLegacyAuth) {
     return <AuthForm />;
+  }
+
+  if (!onboardingStatus.loading && !onboardingStatus.complete && currentPage === 'chat') {
+    // Redirect legacy root to onboarding/personalização if incomplete
+    handleNavigate('onboarding');
+    return null;
   }
 
   return (

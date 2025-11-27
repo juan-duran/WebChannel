@@ -9,6 +9,7 @@ import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
 import { extractTopicEngagement } from '../utils/topicEngagement';
 import { useCurrentUser } from '../state/UserContext';
+import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 
 const sharedSummaryCache = new Map<
   string,
@@ -53,6 +54,7 @@ export function TapNavigationPage() {
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
   const mobileListScrollPosition = useRef(0);
   const { email } = useCurrentUser();
+  const onboardingStatus = useOnboardingStatus();
 
   const formatTimestamp = useMemo(() => {
     if (!lastUpdated) return null;
@@ -827,6 +829,27 @@ export function TapNavigationPage() {
           </>
         )}
       </div>
+      {!onboardingStatus.loading && !onboardingStatus.complete && (
+        <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex items-center justify-center px-4">
+          <div className="max-w-lg w-full bg-white border border-blue-100 shadow-xl rounded-2xl p-6 space-y-3 text-center">
+            <div className="flex justify-center">
+              <AlertCircle className="w-8 h-8 text-blue-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900">Finalize sua personalização</h2>
+            <p className="text-sm text-gray-700">
+              Para explorar os Assuntos Quentes do dia, conclua primeiro a personalização do Quenty AI. Assim
+              ajustamos exemplos, linguagem e debates ao seu contexto.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.history.pushState(null, '', '/onboarding')}
+              className="mt-2 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+            >
+              Ir para Personalização
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
