@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { UserProvider } from './state/UserContext.tsx';
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch((error) => {
@@ -11,6 +12,8 @@ if ('serviceWorker' in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
-  </StrictMode>
+    <UserProvider>
+      <App />
+    </UserProvider>
+  </StrictMode>,
 );
