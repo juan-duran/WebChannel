@@ -14,6 +14,7 @@ import messagesRouter from './routes/messages.js';
 import adminRouter from './routes/admin.js';
 import healthRouter from './routes/health.js';
 import onboardingRouter from './routes/onboarding.js';
+import ssoRouter from './routes/sso.js';
 
 async function startServer() {
   try {
@@ -43,6 +44,7 @@ async function startServer() {
     app.use('/api/messages', messagesRouter);
     app.use('/api/onboarding', onboardingRouter);
     app.use('/admin', adminRouter);
+    app.use('/sso', ssoRouter);
 
     // --- servir FRONT (dist do Vite) ---
     const distPath = path.join(process.cwd(), 'dist');
