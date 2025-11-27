@@ -2,6 +2,7 @@ import type { FocusEvent, FormEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
 import { useCurrentUser } from '../state/UserContext';
+import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
 type ValueMap = Record<string, string>;
@@ -369,6 +370,7 @@ export const buildOnboardingPayload = (formState: FormState): OnboardingPayload 
 
 export function OnboardingPage() {
   const { email: userEmail } = useCurrentUser();
+  const { refresh: refreshOnboardingStatus } = useOnboardingStatus();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({
@@ -535,6 +537,7 @@ export function OnboardingPage() {
       }));
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
+      await refreshOnboardingStatus();
     } catch (error) {
       const message =
         error instanceof Error
