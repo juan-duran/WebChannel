@@ -94,6 +94,114 @@ export function TapNavigationPage() {
     return `${normalize(trendId)}::${normalize(topicId)}`;
   }, []);
 
+  const coalesceString = useCallback((...values: unknown[]): string | undefined => {
+    for (const value of values) {
+      if (typeof value === 'string' || typeof value === 'number') {
+        const normalized = String(value).trim();
+        if (normalized.length > 0) {
+          return normalized;
+        }
+      }
+    }
+
+    return undefined;
+  }, []);
+
+  const extractSummaryText = useCallback(
+    (input: unknown): string | undefined => {
+      if (input === null || input === undefined) return undefined;
+
+      if (typeof input === 'string' || typeof input === 'number') {
+        const normalized = String(input).trim();
+        return normalized.length > 0 ? normalized : undefined;
+      }
+
+      if (Array.isArray(input)) {
+        for (const item of input) {
+          const extracted = extractSummaryText(item);
+          if (extracted) return extracted;
+        }
+        return undefined;
+      }
+
+      if (typeof input !== 'object') return undefined;
+
+      const objectInput = input as Record<string, unknown>;
+
+      const directCandidate = coalesceString(
+        objectInput.summary,
+        objectInput.text,
+        objectInput.message,
+        objectInput.content,
+        objectInput.reply,
+        objectInput.headline,
+        objectInput.description,
+        objectInput.title,
+        objectInput.thesis,
+        objectInput.personalization,
+        (objectInput.body as Record<string, unknown> | undefined)?.content,
+        (objectInput.body as Record<string, unknown> | undefined)?.text,
+      );
+
+      if (directCandidate) return directCandidate;
+
+      const nestedCandidates = [
+        objectInput.output,
+        objectInput.data,
+        objectInput.payload,
+        objectInput.structuredData,
+        objectInput.structured_data,
+        (objectInput.data as Record<string, unknown> | undefined)?.structuredData,
+        (objectInput.data as Record<string, unknown> | undefined)?.structured_data,
+      ];
+
+      for (const nested of nestedCandidates) {
+        const extracted = extractSummaryText(nested);
+        if (extracted) return extracted;
+      }
+
+      return undefined;
+    },
+    [coalesceString],
+  );
+
+  const normalizeSummaryPayload = useCallback(
+    (
+      summaryPayload: unknown,
+      metadata?: Record<string, unknown> | null,
+    ): SummaryData | null => {
+      const payloadAsObject =
+        summaryPayload && typeof summaryPayload === 'object' && !Array.isArray(summaryPayload)
+          ? (summaryPayload as SummaryData)
+          : null;
+
+      const primaryText = extractSummaryText(summaryPayload);
+      const metadataText = extractSummaryText(metadata);
+      const normalizedThesis =
+        (payloadAsObject?.thesis && extractSummaryText(payloadAsObject.thesis)) ||
+        primaryText ||
+        metadataText ||
+        (payloadAsObject?.personalization && extractSummaryText(payloadAsObject.personalization));
+
+      if (payloadAsObject) {
+        if (!payloadAsObject.thesis && normalizedThesis) {
+          return { ...payloadAsObject, thesis: normalizedThesis };
+        }
+
+        if (payloadAsObject.thesis) {
+          return payloadAsObject;
+        }
+      }
+
+      if (normalizedThesis) {
+        return { thesis: normalizedThesis };
+      }
+
+      return null;
+    },
+    [extractSummaryText],
+  );
+
   const fetchSummaryForTopic = useCallback(
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
       setSummaryError(null);
@@ -159,10 +267,7 @@ export function TapNavigationPage() {
         const data: { summary?: SummaryData | string; metadata?: Record<string, unknown>; fromCache?: boolean } =
           await response.json();
 
-        const normalizedSummary: SummaryData | null =
-          typeof data?.summary === 'string'
-            ? { thesis: data.summary }
-            : data?.summary ?? null;
+        const normalizedSummary = normalizeSummaryPayload(data?.summary, data?.metadata);
 
         if (normalizedSummary) {
           setSelectedSummary(normalizedSummary);
@@ -253,7 +358,7 @@ export function TapNavigationPage() {
         setIsLoadingSummary(false);
       }
     },
-    [createCacheKey, email],
+    [createCacheKey, email, normalizeSummaryPayload],
   );
 
   const fetchLatestTrends = useCallback(async (options?: { isRefresh?: boolean }) => {
