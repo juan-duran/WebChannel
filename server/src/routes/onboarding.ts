@@ -75,6 +75,15 @@ function validateOnboardingPayload(payload: unknown): ValidationResult {
 export { validateOnboardingPayload };
 
 async function authenticateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  // Prefer user data set by cookie-based auth middleware
+  if (req.user?.email) {
+    req.authUser = {
+      userId: req.user.id,
+      email: req.user.email,
+    };
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader?.startsWith('Bearer ')) {
