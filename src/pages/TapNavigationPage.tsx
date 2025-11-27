@@ -156,11 +156,16 @@ export function TapNavigationPage() {
           return;
         }
 
-        const data: { summary?: SummaryData; metadata?: Record<string, unknown>; fromCache?: boolean } =
+        const data: { summary?: SummaryData | string; metadata?: Record<string, unknown>; fromCache?: boolean } =
           await response.json();
 
-        if (data?.summary) {
-          setSelectedSummary(data.summary);
+        const normalizedSummary: SummaryData | null =
+          typeof data?.summary === 'string'
+            ? { thesis: data.summary }
+            : data?.summary ?? null;
+
+        if (normalizedSummary) {
+          setSelectedSummary(normalizedSummary);
           setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
           setSummaryFromCache(Boolean(data.fromCache));
 
@@ -189,7 +194,7 @@ export function TapNavigationPage() {
           const fallbackCacheKey = createCacheKey(trendId, topicId);
 
           const cacheEntry = {
-            summary: data.summary as SummaryData,
+            summary: normalizedSummary,
             metadata: (data.metadata as Record<string, unknown>) ?? null,
             fromCache: Boolean(data.fromCache),
           };
