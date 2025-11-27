@@ -64,7 +64,8 @@ export function ProfilePage() {
               confiável e feito sob medida para a sua realidade.
             </p>
             <p className="pt-2 text-gray-700">
-              <span className="font-medium text-gray-900">Versão:</span> 0.0.0
+              <span className="font-medium text-gray-900">Versão:</span>{' '}
+              {import.meta.env.VITE_APP_VERSION || 'indisponível'}
             </p>
           </div>
         </div>
