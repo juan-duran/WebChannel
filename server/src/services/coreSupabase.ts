@@ -36,11 +36,17 @@ type SubscriberRecord = {
   users?: unknown;
 };
 
+export const coreSupabaseClient = createClient(
+  config.coreSupabase.url,
+  config.coreSupabase.serviceKey,
+  { auth: { persistSession: false } }
+);
+
 class CoreSupabaseService {
   private client: SupabaseClient;
 
   constructor() {
-    this.client = createClient(config.coreSupabase.url, config.coreSupabase.serviceKey);
+    this.client = coreSupabaseClient;
     logger.info('Core Supabase client initialized');
   }
 
