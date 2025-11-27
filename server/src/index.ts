@@ -17,6 +17,7 @@ import healthRouter from './routes/health.js';
 import onboardingRouter from './routes/onboarding.js';
 import ssoRouter from './routes/sso.js';
 import logoutRouter from './routes/logout.js';
+import sessionRouter from './routes/session.js';
 import appRouter from './routes/app.js';
 
 async function startServer() {
@@ -50,13 +51,13 @@ async function startServer() {
     app.use('/logout', logoutRouter);
 
     // Protected routes
-    app.use(requireAuth);
-    app.use('/api/messages', messagesRouter);
-    app.use('/api/onboarding', onboardingRouter);
-    app.use('/admin', adminRouter);
+    app.use('/api/session', sessionRouter);
+    app.use('/api/messages', requireAuth, messagesRouter);
+    app.use('/api/onboarding', requireAuth, onboardingRouter);
+    app.use('/admin', requireAuth, adminRouter);
 
     // SPA
-    app.use('/', appRouter);
+    app.use('/', requireAuth, appRouter);
 
     // WebSocket
     const wss = new WebSocketServer({
