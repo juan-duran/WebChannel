@@ -531,6 +531,21 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
+        {!isMobile && (selectedTopic || selectedSummary) && (
+          <div className="flex items-center justify-end border-b border-gray-100 px-6 py-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedTopic(null);
+                setSelectedSummary(null);
+                setSummaryError(null);
+              }}
+              className="text-xs font-medium text-gray-600 hover:text-gray-900"
+            >
+              Fechar resumo
+            </button>
+          </div>
+        )}
         <div className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
@@ -698,6 +713,7 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
+  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -800,9 +816,13 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+            <div
+              className={`hidden lg:grid lg:items-start lg:gap-6 ${
+                showDesktopSummary ? 'lg:grid-cols-2' : 'lg:grid-cols-1'
+              }`}
+            >
               <div className="space-y-3">{renderTrendList()}</div>
-              <div>{renderSummaryContent('desktop')}</div>
+              {showDesktopSummary && <div>{renderSummaryContent('desktop')}</div>}
             </div>
           </>
         )}
