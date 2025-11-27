@@ -979,14 +979,24 @@ export function parseAgentResponse(data: unknown, context?: { trendName?: string
       return null;
     }
 
+    // Unwrap nested message arrays or objects
+    if (isNonNullObject(value) && 'messages' in value && Array.isArray((value as any).messages)) {
+      return attemptStructured((value as any).messages);
+    }
+
     if (Array.isArray(value)) {
+      let lastParsed: ParsedResponse | null = null;
       for (const item of value) {
         const parsed = attemptStructured(item);
         if (parsed) {
-          return parsed;
+          // Prefer summaries when multiple items are present
+          if (parsed.type === 'summary') {
+            return parsed;
+          }
+          lastParsed = parsed;
         }
       }
-      return null;
+      return lastParsed;
     }
 
     if (!isNonNullObject(value)) {
