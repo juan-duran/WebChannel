@@ -53,12 +53,15 @@ export function ProfilePage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">About WebChannel</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Sobre o Quenty AI</h3>
           <div className="space-y-2 text-sm text-gray-600">
-            <p>WebChannel provides an intelligent chat interface for seamless conversations with AI assistants.</p>
-            <p>Send messages, receive responses, and maintain your conversation history across sessions.</p>
-            <p className="pt-2">
-              <span className="font-medium text-gray-900">Version:</span> 1.0.0
+            <p>
+              O Quenty AI é um agente de inteligência artificial que transforma os debates mais quentes da internet em
+              clareza, sem polarização. Em vez de te jogar em mais um feed infinito, ele vasculha redes sociais e
+              portais, identifica o que realmente está pegando fogo e entrega resumos personalizados no seu WhatsApp,
+              guiados pelos 3 pilares de consciência artificial: quem você é, no que você acredita e o ambiente ao seu
+              redor. Assim, você recebe notícias com profundidade, várias perspectivas e zero ruído — simples,
+              confiável e feito sob medida para a sua realidade.
             </p>
           </div>
         </div>
