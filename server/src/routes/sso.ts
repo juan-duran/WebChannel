@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyWebchannelToken } from '../auth/verifyWebchannelToken.js';
-import { coreSupabaseService } from '../services/coreSupabase.js';
+import { coreSupabaseClient } from '../services/coreSupabase.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
@@ -31,7 +31,13 @@ router.get('/', async (req, res) => {
   const normalizedEmail = payload.email.trim().toLowerCase();
 
   try {
-    const { data, error } = await coreSupabaseService.findSubscriberByEmail(normalizedEmail);
+    const { data, error } = await coreSupabaseClient
+      .from('subscribers')
+      .select('*, users(*)')
+      .ilike('email', normalizedEmail)
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
       logger.error({ error, email: normalizedEmail }, 'Failed to fetch subscriber');
