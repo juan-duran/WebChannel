@@ -17,8 +17,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const navItems = useMemo(
     () => [
       { id: 'tap' as const, icon: RefreshCw, label: 'Tendências' },
-      { id: 'profile' as const, icon: User, label: 'Perfil' },
       { id: 'onboarding' as const, icon: ClipboardList, label: 'Personalização' },
+      { id: 'profile' as const, icon: User, label: 'Perfil' },
     ],
     [],
   );
