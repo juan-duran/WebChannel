@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
 
 const router = Router();
 
-const PLANOS_REDIRECT = 'https://www.quenty.com.br/planos-e-precos';
+const PLANOS_REDIRECT = 'https://www.quenty.com.br/pricing-plans/list';
 const INVALID_TOKEN_REDIRECT = 'https://www.quenty.com.br/puente?error=invalid_token';
 
 router.get('/', async (req, res) => {
