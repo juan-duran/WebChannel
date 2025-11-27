@@ -15,8 +15,8 @@ export function ProfilePage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile</h2>
-        <p className="text-gray-600">Manage your account settings</p>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Perfil</h2>
+        <p className="text-gray-600">Gerencie sua conta</p>
       </div>
 
       <div className="space-y-6">
@@ -26,7 +26,7 @@ export function ProfilePage() {
               <UserIcon className="w-8 h-8 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Account Information</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Informações da conta</h3>
               <div className="space-y-3 mb-4">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-gray-400" />
@@ -46,7 +46,7 @@ export function ProfilePage() {
                 className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
               >
                 <LogOut className="w-4 h-4" />
-                Logout
+                Sair
               </button>
             </div>
           </div>

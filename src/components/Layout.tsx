@@ -1,5 +1,5 @@
 import { ReactNode, useMemo, useState } from 'react';
-import { MessageCircle, User, Menu, X, LogOut, ClipboardList, RefreshCw } from 'lucide-react';
+import { MessageCircle, User, Menu, X, ClipboardList, RefreshCw } from 'lucide-react';
 
 type LayoutProps = {
   children: ReactNode;
@@ -17,9 +17,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const navItems = useMemo(
     () => [
       { id: 'tap' as const, icon: RefreshCw, label: 'Tendências' },
-      { id: 'chat' as const, icon: MessageCircle, label: 'Chat' },
       { id: 'profile' as const, icon: User, label: 'Perfil' },
-      { id: 'onboarding' as const, icon: ClipboardList, label: 'Onboarding' },
+      { id: 'onboarding' as const, icon: ClipboardList, label: 'Personalização' },
     ],
     [],
   );
@@ -33,7 +32,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
                 <MessageCircle className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">WebChannel</h1>
+              <h1 className="text-xl font-bold text-gray-900">QUENTY AI</h1>
             </div>
 
             <button
@@ -45,13 +44,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
             </button>
 
             <nav className="hidden lg:flex items-center gap-1">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-600 hover:bg-gray-100"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">Logout</span>
-              </button>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -76,16 +68,6 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         {showMenu && (
           <div className="lg:hidden border-t border-gray-200 bg-white">
             <nav className="px-4 py-2 space-y-1">
-              <button
-                onClick={() => {
-                  setShowMenu(false);
-                  handleLogout();
-                }}
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-100"
-              >
-                <LogOut className="w-5 h-5" />
-                <span className="font-medium">Logout</span>
-              </button>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
