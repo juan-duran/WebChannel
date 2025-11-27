@@ -141,30 +141,13 @@ export function TapNavigationPage() {
       try {
         await websocketService.connect();
       } catch (wsError) {
-        setIsLoadingSummary(false);
-        const sessionErrorCode =
-          typeof wsError === 'object' && wsError !== null && 'code' in wsError
-            ? (wsError as { code?: unknown }).code
-            : undefined;
-        const isSessionMissing =
-          sessionErrorCode === 'SESSION_MISSING' ||
-          (wsError instanceof Error && wsError.message === 'SESSION_MISSING');
-
-        console.error('[TapNavigationPage] WebSocket connection failed', {
+        console.warn('[TapNavigationPage] WebSocket connection failed, continuing without realtime', {
           ...startLogContext,
           status: 'connection_failed',
-          isSessionMissing,
           connectionState: websocketService.getConnectionState(),
           durationMs: Math.round(performance.now() - startedAt),
           error: wsError,
         });
-
-        setSummaryError(
-          isSessionMissing
-            ? 'Sessão ausente ou expirada. Atualize a página ou faça login novamente.'
-            : 'Não foi possível conectar ao assistente para gerar o resumo.',
-        );
-        return;
       }
 
       const {
