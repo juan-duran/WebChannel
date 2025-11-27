@@ -18,6 +18,7 @@ const sharedSummaryCache = new Map<
     fromCache: boolean;
   }
 >();
+const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -46,6 +47,7 @@ export function TapNavigationPage() {
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
+  const persistedBatchRef = useRef<string | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -295,26 +297,27 @@ export function TapNavigationPage() {
           };
 
           const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
-          const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
+      const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
 
-          const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId);
-          const fallbackCacheKey = createCacheKey(trendId, topicId);
+      const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId);
+      const fallbackCacheKey = createCacheKey(trendId, topicId);
 
-          const cacheEntry = {
-            summary: normalizedSummary,
-            metadata: (data.metadata as Record<string, unknown>) ?? null,
-            fromCache: Boolean(data.fromCache),
-          };
+      const cacheEntry = {
+        summary: normalizedSummary,
+        metadata: (data.metadata as Record<string, unknown>) ?? null,
+        fromCache: Boolean(data.fromCache),
+      };
 
-          summaryCacheRef.current.set(cacheKey, cacheEntry);
-          if (cacheKey !== fallbackCacheKey) {
-            summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
-          }
+      summaryCacheRef.current.set(cacheKey, cacheEntry);
+      if (cacheKey !== fallbackCacheKey) {
+        summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
+      }
+      persistSummaryCache();
 
-          console.log('[TapNavigationPage] Summary fetched successfully', {
-            event: 'summary_fetch',
-            status: 'succeeded' as const,
-            correlationId,
+      console.log('[TapNavigationPage] Summary fetched successfully', {
+        event: 'summary_fetch',
+        status: 'succeeded' as const,
+        correlationId,
             trendId,
             topicId,
             resolvedTrendId,
@@ -395,6 +398,7 @@ export function TapNavigationPage() {
         summaryCacheRef.current.clear();
       }
       lastBatchRef.current = data.batch_ts ?? null;
+      persistedBatchRef.current = data.batch_ts ?? null;
       const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
       setTrends(nextTrends);
       setTrendsSummary(parsed.trendsSummary ?? null);
@@ -407,6 +411,47 @@ export function TapNavigationPage() {
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
+    }
+  }, []);
+
+  // Persist summary cache across full reloads keyed by batch_ts
+  useEffect(() => {
+    const stored = sessionStorage.getItem(SUMMARY_CACHE_STORAGE_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as {
+          batch_ts: string | null;
+          entries: Record<string, { summary: SummaryData; metadata: Record<string, unknown> | null; fromCache: boolean }>;
+        };
+        persistedBatchRef.current = parsed.batch_ts ?? null;
+        if (parsed.entries && typeof parsed.entries === 'object') {
+          summaryCacheRef.current.clear();
+          Object.entries(parsed.entries).forEach(([key, entry]) => {
+            summaryCacheRef.current.set(key, entry);
+          });
+        }
+      } catch {
+        sessionStorage.removeItem(SUMMARY_CACHE_STORAGE_KEY);
+      }
+    }
+  }, []);
+
+  const persistSummaryCache = useCallback(() => {
+    try {
+      const entries: Record<string, { summary: SummaryData; metadata: Record<string, unknown> | null; fromCache: boolean }> =
+        {};
+      summaryCacheRef.current.forEach((value, key) => {
+        entries[key] = value;
+      });
+      sessionStorage.setItem(
+        SUMMARY_CACHE_STORAGE_KEY,
+        JSON.stringify({
+          batch_ts: persistedBatchRef.current,
+          entries,
+        }),
+      );
+    } catch {
+      // ignore storage errors
     }
   }, []);
 
