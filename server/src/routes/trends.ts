@@ -19,9 +19,10 @@ const coalesceString = (...values: unknown[]): string | undefined => {
 };
 
 type SummaryExtraction = {
-  summary?: string;
+  summary?: unknown;
   topicId?: string;
   trendId?: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 const extractSummaryFields = (data: any): SummaryExtraction | undefined => {
@@ -55,11 +56,70 @@ const extractSummaryFields = (data: any): SummaryExtraction | undefined => {
     (data as any)?.body?.text,
   );
 
-  const trendId = coalesceString((data as any).trendId, (data as any).trend_id, (data as any).assunto);
-  const topicId = coalesceString((data as any).topicId, (data as any).topic_id, (data as any).topico);
+  const trendId = coalesceString(
+    (data as any).trendId,
+    (data as any).trend_id,
+    (data as any).assunto,
+    (data as any)?.metadata?.trendId,
+    (data as any)?.metadata?.['trend-id'],
+    (data as any)?.metadata?.trendName,
+    (data as any)?.metadata?.['trend-name'],
+  );
+  const topicId = coalesceString(
+    (data as any).topicId,
+    (data as any).topic_id,
+    (data as any).topico,
+    (data as any)?.metadata?.topicId,
+    (data as any)?.metadata?.['topic-id'],
+    (data as any)?.metadata?.topicName,
+    (data as any)?.metadata?.['topic-name'],
+  );
+
+  const structuredDataCandidates = [
+    (data as any).structuredData,
+    (data as any).structured_data,
+    (data as any).output?.structuredData,
+    (data as any).output?.structured_data,
+    (data as any).output?.data?.structuredData,
+    (data as any).output?.data?.structured_data,
+    (data as any).data?.structuredData,
+    (data as any).data?.structured_data,
+    (data as any).payload?.structuredData,
+    (data as any).payload?.structured_data,
+  ];
+
+  for (const candidate of structuredDataCandidates) {
+    if (candidate && typeof candidate === 'object' && (candidate as any).summary !== undefined) {
+      const summary = (candidate as any).summary;
+      const metadata = (candidate as any).metadata ?? null;
+      const extractedTrendId =
+        trendId ??
+        coalesceString(
+          (candidate as any).trendId,
+          (candidate as any)['trend-id'],
+          (candidate as any).trendName,
+          (candidate as any)['trend-name'],
+        );
+      const extractedTopicId =
+        topicId ??
+        coalesceString(
+          (candidate as any).topicId,
+          (candidate as any)['topic-id'],
+          (candidate as any).topicName,
+          (candidate as any)['topic-name'],
+        );
+
+      return {
+        summary,
+        trendId: extractedTrendId,
+        topicId: extractedTopicId,
+        metadata,
+      };
+    }
+  }
 
   if (summaryCandidate) {
-    return { summary: summaryCandidate, trendId, topicId };
+    return { summary: summaryCandidate, trendId, topicId, metadata: (data as any).metadata ?? null };
   }
 
   const nestedCandidates = [
@@ -79,6 +139,7 @@ const extractSummaryFields = (data: any): SummaryExtraction | undefined => {
         summary: extracted.summary,
         trendId: extracted.trendId ?? trendId,
         topicId: extracted.topicId ?? topicId,
+        metadata: extracted.metadata ?? (data as any).metadata ?? null,
       };
     }
   }
@@ -110,10 +171,29 @@ trendsRouter.post('/summarize', async (req, res) => {
     const extracted = extractSummaryFields(agentResponse);
 
     const summary = extracted?.summary ?? coalesceString(agentResponse) ?? message;
-    const resolvedTrendId = trendId ?? extracted?.trendId ?? null;
-    const resolvedTopicId = topicId ?? extracted?.topicId ?? null;
+    const resolvedTrendId =
+      trendId ??
+      extracted?.trendId ??
+      coalesceString(
+        extracted?.metadata?.trendId,
+        extracted?.metadata?.['trend-id'],
+        extracted?.metadata?.trendName,
+        extracted?.metadata?.['trend-name'],
+      ) ??
+      null;
+    const resolvedTopicId =
+      topicId ??
+      extracted?.topicId ??
+      coalesceString(
+        extracted?.metadata?.topicId,
+        extracted?.metadata?.['topic-id'],
+        extracted?.metadata?.topicName,
+        extracted?.metadata?.['topic-name'],
+      ) ??
+      null;
+    const metadata = (extracted?.metadata as Record<string, unknown> | null | undefined) ?? null;
 
-    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, correlationId });
+    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
   } catch (error) {
     logger.error({ error, topicId, trendId, correlationId }, 'Failed to summarize trend');
     return res.status(500).json({ error: 'Failed to summarize trend' });
