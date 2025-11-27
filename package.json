@@ -21,6 +21,7 @@
     "@types/node": "^24.10.0",
     "@types/ws": "^8.18.1",
     "cors": "^2.8.5",
+    "cookie-parser": "file:server/local-deps/cookie-parser",
     "crypto-js": "^4.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
