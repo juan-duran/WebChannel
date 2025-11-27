@@ -724,28 +724,6 @@ export function TapNavigationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
-      <div className="bg-white border-b border-gray-200 px-4 py-4 shadow-sm sticky top-0 z-30">
-        <div className="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Quenty</h1>
-            <p className="text-xs text-gray-500">
-              Atualizado {formatTimestamp ? `em ${formatTimestamp}` : 'recentemente'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => fetchLatestTrends({ isRefresh: true })}
-              disabled={isLoading || isRefreshing}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label="Atualizar tendências"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Atualizar
-            </button>
-          </div>
-        </div>
-      </div>
-
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 animate-fadeIn">
@@ -788,7 +766,12 @@ export function TapNavigationPage() {
           <>
             {trendsSummary && trends.length > 0 && (
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                <p className="mb-1 text-xs font-semibold text-gray-900">Panorama do Dia</p>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <p className="text-xs font-semibold text-gray-900">Panorama do Dia</p>
+                  {formatTimestamp && (
+                    <span className="text-[11px] text-gray-500">(atualizado em {formatTimestamp})</span>
+                  )}
+                </div>
                 <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{trendsSummary}</p>
               </div>
             )}
