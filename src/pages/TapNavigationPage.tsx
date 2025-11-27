@@ -5,7 +5,6 @@ import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
 import { type DailyTrendsRow, supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
-import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
 import { extractTopicEngagement } from '../utils/topicEngagement';
@@ -109,22 +108,6 @@ export function TapNavigationPage() {
       const startedAt = performance.now();
       const startedAtIso = new Date().toISOString();
 
-      const triggerTrendsAgent = async () => {
-        try {
-          await fetch('/api/trends/summarize', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ topicId, trendId, email }),
-          });
-        } catch (agentError) {
-          console.error('[TapNavigationPage] Trends agent trigger failed', agentError);
-        }
-      };
-
-      void triggerTrendsAgent();
-
       const startLogContext = {
         event: 'summary_fetch',
         status: 'started' as const,
@@ -139,40 +122,47 @@ export function TapNavigationPage() {
       console.log('[TapNavigationPage] Fetching summary for topic', startLogContext);
 
       try {
-        await websocketService.connect();
-      } catch (wsError) {
-        console.warn('[TapNavigationPage] WebSocket connection failed, continuing without realtime', {
-          ...startLogContext,
-          status: 'connection_failed',
-          connectionState: websocketService.getConnectionState(),
-          durationMs: Math.round(performance.now() - startedAt),
-          error: wsError,
-        });
-      }
+        const connectionState = websocketService.getConnectionState();
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const userId = session?.user?.id ?? 'anonymous';
+        if (connectionState !== 'connected') {
+          console.warn('[TapNavigationPage] WebSocket not connected; realtime updates disabled for summary fetch', {
+            ...startLogContext,
+            status: 'ws_not_connected',
+            connectionState,
+          });
+        }
 
-      try {
-        const result = await tapNavigationService.fetchSummary(
-          Number(topic.number) || Number(topicId) || topic.number,
-          Number(trend.position) || Number(trendId) || trend.position,
-          userId,
-          {
-            trendId,
-            topicId,
-            forceRefresh: options?.forceRefresh,
-            correlationId,
+        const response = await fetch('/api/trends/summarize', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
           },
-        );
+          body: JSON.stringify({ topicId, trendId, email, forceRefresh: options?.forceRefresh, correlationId }),
+        });
 
-        if (result.success && result.data) {
-          setSelectedSummary(result.data as SummaryData);
-          setSummaryMetadata((result.metadata as Record<string, unknown>) ?? null);
-          setSummaryFromCache(Boolean(result.fromCache));
-          setSummaryError(result.error ?? null);
+        if (!response.ok) {
+          const message = 'Não foi possível obter o resumo.';
+          setSummaryError(message);
+
+          console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
+            ...startLogContext,
+            status: 'failed',
+            connectionState,
+            durationMs: Math.round(performance.now() - startedAt),
+            httpStatus: response.status,
+            httpStatusText: response.statusText,
+          });
+
+          return;
+        }
+
+        const data: { summary?: SummaryData; metadata?: Record<string, unknown>; fromCache?: boolean } =
+          await response.json();
+
+        if (data?.summary) {
+          setSelectedSummary(data.summary);
+          setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
+          setSummaryFromCache(Boolean(data.fromCache));
 
           const resolveMetadataId = (
             metadata: Record<string, unknown> | null | undefined,
@@ -192,16 +182,16 @@ export function TapNavigationPage() {
             return fallback;
           };
 
-          const resolvedTrendId = resolveMetadataId(result.metadata, ['trendId', 'trend-id'], trendId);
-          const resolvedTopicId = resolveMetadataId(result.metadata, ['topicId', 'topic-id'], topicId);
+          const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
+          const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
 
           const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId);
           const fallbackCacheKey = createCacheKey(trendId, topicId);
 
           const cacheEntry = {
-            summary: result.data as SummaryData,
-            metadata: (result.metadata as Record<string, unknown>) ?? null,
-            fromCache: Boolean(result.fromCache),
+            summary: data.summary as SummaryData,
+            metadata: (data.metadata as Record<string, unknown>) ?? null,
+            fromCache: Boolean(data.fromCache),
           };
 
           summaryCacheRef.current.set(cacheKey, cacheEntry);
@@ -218,12 +208,13 @@ export function TapNavigationPage() {
             resolvedTrendId,
             resolvedTopicId,
             connectionState: websocketService.getConnectionState(),
-            fromCache: Boolean(result.fromCache),
+            fromCache: Boolean(data.fromCache),
             durationMs: Math.round(performance.now() - startedAt),
             timestamp: startedAtIso,
           });
         } else {
-          setSummaryError(result.error || 'Não foi possível obter o resumo.');
+          const message = 'Não foi possível obter o resumo.';
+          setSummaryError(message);
 
           console.error('[TapNavigationPage] Summary fetch failed', {
             event: 'summary_fetch',
@@ -233,7 +224,7 @@ export function TapNavigationPage() {
             topicId,
             connectionState: websocketService.getConnectionState(),
             durationMs: Math.round(performance.now() - startedAt),
-            error: result.error || 'unknown_error',
+            error: 'summary_missing',
             timestamp: startedAtIso,
           });
         }
