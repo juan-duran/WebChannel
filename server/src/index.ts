@@ -3,6 +3,7 @@ import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
 import path from 'path';
+import cookieParser from 'cookie-parser';
 
 import { config, validateConfig } from './config/index.js';
 import { logger } from './utils/logger.js';
@@ -29,6 +30,8 @@ async function startServer() {
         credentials: true,
       }),
     );
+
+    app.use(cookieParser());
 
     app.use(express.json({ limit: '10mb' }));
 
