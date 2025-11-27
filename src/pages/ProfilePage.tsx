@@ -63,6 +63,9 @@ export function ProfilePage() {
               redor. Assim, você recebe notícias com profundidade, várias perspectivas e zero ruído — simples,
               confiável e feito sob medida para a sua realidade.
             </p>
+            <p className="pt-2 text-gray-700">
+              <span className="font-medium text-gray-900">Versão:</span> 0.0.0
+            </p>
           </div>
         </div>
       </div>
