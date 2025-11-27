@@ -9,6 +9,7 @@ import { tapNavigationService } from '../lib/tapNavigationService';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
 import { extractTopicEngagement } from '../utils/topicEngagement';
+import { useCurrentUser } from '../state/UserContext';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -49,6 +50,7 @@ export function TapNavigationPage() {
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
   const mobileListScrollPosition = useRef(0);
+  const { email } = useCurrentUser();
 
   const formatTimestamp = useMemo(() => {
     if (!lastUpdated) return null;
@@ -106,6 +108,22 @@ export function TapNavigationPage() {
       const correlationId = websocketService.generateCorrelationId();
       const startedAt = performance.now();
       const startedAtIso = new Date().toISOString();
+
+      const triggerTrendsAgent = async () => {
+        try {
+          await fetch('/api/trends/summarize', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ topicId, trendId, email }),
+          });
+        } catch (agentError) {
+          console.error('[TapNavigationPage] Trends agent trigger failed', agentError);
+        }
+      };
+
+      void triggerTrendsAgent();
 
       const startLogContext = {
         event: 'summary_fetch',
@@ -256,7 +274,7 @@ export function TapNavigationPage() {
         setIsLoadingSummary(false);
       }
     },
-    [createCacheKey],
+    [createCacheKey, email],
   );
 
   const fetchLatestTrends = useCallback(async (options?: { isRefresh?: boolean }) => {
