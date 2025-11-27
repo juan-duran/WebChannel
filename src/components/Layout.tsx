@@ -1,6 +1,5 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { MessageCircle, User, Menu, X, LogOut, ClipboardList, RefreshCw } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 type LayoutProps = {
   children: ReactNode;
@@ -9,8 +8,11 @@ type LayoutProps = {
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
-  const { signOut } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+
+  const handleLogout = () => {
+    window.location.href = '/logout';
+  };
 
   const navItems = useMemo(
     () => [
@@ -44,7 +46,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
 
             <nav className="hidden lg:flex items-center gap-1">
               <button
-                onClick={signOut}
+                onClick={handleLogout}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-gray-600 hover:bg-gray-100"
               >
                 <LogOut className="w-5 h-5" />
@@ -74,6 +76,16 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         {showMenu && (
           <div className="lg:hidden border-t border-gray-200 bg-white">
             <nav className="px-4 py-2 space-y-1">
+              <button
+                onClick={() => {
+                  setShowMenu(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors text-gray-600 hover:bg-gray-100"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">Logout</span>
+              </button>
               {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
