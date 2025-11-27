@@ -59,14 +59,9 @@ function AppContent() {
   }, []);
 
   const handleNavigate = (page: Page) => {
-    const targetPage =
-      !onboardingStatus.loading && !onboardingStatus.complete && page !== 'onboarding' && page !== 'profile'
-        ? 'onboarding'
-        : page;
-
-    setNavigationState({ currentPage: targetPage, isLegacyAuth: false });
+    setNavigationState({ currentPage: page, isLegacyAuth: false });
     if (typeof window !== 'undefined') {
-      const path = targetPage === 'chat' ? '/' : `/${targetPage}`;
+      const path = page === 'chat' ? '/' : `/${page}`;
       window.history.pushState(null, '', path);
     }
   };
