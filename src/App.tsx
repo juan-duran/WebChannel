@@ -7,8 +7,9 @@ import { TapNavigationPage } from './pages/TapNavigationPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { Loader2 } from 'lucide-react';
 import { OnboardingPage } from './pages/OnboardingPage';
+import { AdminToolsPage } from './pages/AdminToolsPage';
 
-type Page = 'chat' | 'profile' | 'onboarding' | 'tap';
+type Page = 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin';
 
 const CHANNEL_UI = import.meta.env.VITE_CHANNEL_UI || 'chat';
 const DEFAULT_PAGE: Page = CHANNEL_UI === 'tap' ? 'tap' : 'chat';
@@ -25,6 +26,7 @@ const getNavigationStateFromPath = (): { page: Page; isLegacyAuth: boolean } => 
   if (path.startsWith('profile')) return { page: 'profile', isLegacyAuth: false };
   if (path.startsWith('onboarding')) return { page: 'onboarding', isLegacyAuth: false };
   if (path.startsWith('chat')) return { page: 'chat', isLegacyAuth: false };
+  if (path.startsWith('admin-tools')) return { page: 'admin', isLegacyAuth: false };
   return { page: DEFAULT_PAGE, isLegacyAuth: false };
 };
 
@@ -80,6 +82,7 @@ function AppContent() {
       {currentPage === 'chat' && <ChatPageWebSocket />}
       {currentPage === 'profile' && <ProfilePage />}
       {currentPage === 'onboarding' && <OnboardingPage />}
+      {currentPage === 'admin' && <AdminToolsPage />}
     </Layout>
   );
 }
