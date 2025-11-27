@@ -43,15 +43,18 @@ async function startServer() {
 
     app.use(apiRateLimit);
 
-    // rotas de API/health/admin
+    // Public routes
     app.use('/health', healthRouter);
+    app.use('/sso', ssoRouter);
+
+    // Protected routes
+    app.use(requireAuth);
     app.use('/api/messages', messagesRouter);
     app.use('/api/onboarding', onboardingRouter);
     app.use('/admin', adminRouter);
-    app.use('/sso', ssoRouter);
 
-    // SPA (requires auth)
-    app.use('/', requireAuth, appRouter);
+    // SPA
+    app.use('/', appRouter);
 
     // WebSocket
     const wss = new WebSocketServer({
