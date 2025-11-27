@@ -577,9 +577,13 @@ export function OnboardingPage() {
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
         <div className="space-y-1">
           <p className="text-sm font-medium text-blue-600">Seu perfil</p>
-          <h2 className="text-2xl font-bold text-gray-900">Onboarding</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Personalização do Quenty AI</h2>
           <p className="text-gray-600">
-            Conte um pouco sobre você para personalizarmos suas sugestões e comunicações.
+            Conte um pouco sobre você para que o Quenty adapte os resumos ao seu mundo. Usamos essas informações para
+            calibrar os 3 pilares de consciência artificial — quem você é, no que você acredita e o ambiente ao seu
+            redor — e assim escolher exemplos, linguagem e debates que façam sentido para a sua rotina. Nada de feed
+            genérico: quanto melhor você se descreve aqui, mais precisas e úteis ficam as sugestões e conversas que o
+            Quenty prepara para você.
           </p>
           {isOnboardingLoading ? (
             <div className="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-3 py-1 mt-2">
