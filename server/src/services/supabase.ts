@@ -175,6 +175,22 @@ class SupabaseService {
       logger.error({ error, keyPrefix }, 'Failed to log cache invalidation');
     }
   }
+
+  async fetchCacheInvalidations(limit = 50) {
+    try {
+      const { data, error } = await this.client
+        .from('cache_invalidations')
+        .select('*')
+        .order('invalidated_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      logger.error({ error }, 'Failed to fetch cache invalidations');
+      throw error;
+    }
+  }
 }
 
 export const supabaseService = new SupabaseService();

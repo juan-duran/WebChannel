@@ -62,6 +62,10 @@ export const config = {
 
   security: {
     adminApiKey: requireEnv('ADMIN_API_KEY'),
+    adminEmails: optionalEnv('ADMIN_EMAILS', '')
+      .split(',')
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean),
     userRateLimit: parseInt(optionalEnv('USER_RATE_LIMIT', '10'), 10),
     apiRateLimit: parseInt(optionalEnv('API_RATE_LIMIT', '100'), 10),
   },

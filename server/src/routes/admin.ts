@@ -68,4 +68,14 @@ router.get('/sessions', authenticateAdminKey, (req: Request, res: Response) => {
   }
 });
 
+router.get('/cache/invalidations', authenticateAdminKey, async (_req: Request, res: Response) => {
+  try {
+    const data = await supabaseService.fetchCacheInvalidations(50);
+    res.json({ data });
+  } catch (error: any) {
+    logger.error({ error }, 'Error fetching cache invalidations');
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
 export default router;

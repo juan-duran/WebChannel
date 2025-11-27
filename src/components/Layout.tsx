@@ -3,8 +3,8 @@ import { MessageCircle, User, Menu, X, LogOut, ClipboardList, RefreshCw } from '
 
 type LayoutProps = {
   children: ReactNode;
-  currentPage: 'chat' | 'profile' | 'onboarding' | 'tap';
-  onNavigate: (page: 'chat' | 'profile' | 'onboarding' | 'tap') => void;
+  currentPage: 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin';
+  onNavigate: (page: 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin') => void;
 };
 
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
