@@ -1,6 +1,20 @@
-import type { Session } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { createClient, type RealtimeChannel } from '@supabase/supabase-js';
 import { TapNavigationStructuredData } from '../types/tapNavigation';
+
+const envSource =
+  (typeof import.meta !== 'undefined' && (import.meta as any)?.env) ||
+  (typeof process !== 'undefined' ? process.env : undefined);
+
+const coreSupabaseUrl = envSource?.VITE_CORE_SUPABASE_URL;
+const coreSupabaseAnonKey = envSource?.VITE_CORE_SUPABASE_ANON_KEY;
+
+if (!coreSupabaseUrl || !coreSupabaseAnonKey) {
+  throw new Error('Missing Supabase realtime environment variables');
+}
+
+const realtimeClient = createClient(coreSupabaseUrl, coreSupabaseAnonKey, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
 export type WebSocketButton = {
   label: string;
@@ -55,8 +69,7 @@ type QueuedRequest = {
 type ReplayFailureHandler = (correlationId: string) => void;
 
 export class WebSocketService {
-  private ws: WebSocket | null = null;
-  private sessionId: string | null = null;
+  private realtimeChannel: RealtimeChannel | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
@@ -67,44 +80,44 @@ export class WebSocketService {
   private isIntentionallyClosed = false;
   private heartbeatInterval: number | null = null;
   private connectionPromise: Promise<void> | null = null;
-  private sessionReadyPromise: Promise<void> | null = null;
-  private resolveSessionReady: (() => void) | null = null;
-  private sessionReadyPromiseVersion = 0;
+  private channelReadyPromise: Promise<void> | null = null;
+  private resolveChannelReady: (() => void) | null = null;
+  private channelReadyPromiseVersion = 0;
   private isReconnecting = false;
   private readonly defaultMaxRequestRetries = 3;
   private requestTimeoutMs = 120000;
-  private sessionReadyTimeoutMs = 10000;
+  private channelReadyTimeoutMs = 10000;
 
-  constructor(private wsUrl: string) {}
+  constructor(private channelTopic: string) {}
 
   private clearConnectionPromise() {
     this.connectionPromise = null;
   }
 
-  private resetSessionReadyPromise() {
-    this.resolveSessionReady = null;
+  private resetChannelReadyPromise() {
+    this.resolveChannelReady = null;
 
-    const version = ++this.sessionReadyPromiseVersion;
-    const handshakePromise = new Promise<void>((resolve) => {
-      this.resolveSessionReady = () => {
-        if (this.sessionReadyPromiseVersion === version) {
+    const version = ++this.channelReadyPromiseVersion;
+    const readyPromise = new Promise<void>((resolve) => {
+      this.resolveChannelReady = () => {
+        if (this.channelReadyPromiseVersion === version) {
           resolve();
-          this.resolveSessionReady = null;
+          this.resolveChannelReady = null;
         }
       };
     });
 
-    this.sessionReadyPromise = handshakePromise;
+    this.channelReadyPromise = readyPromise;
   }
 
-  private resolveSessionReadyPromise() {
-    if (this.resolveSessionReady) {
-      this.resolveSessionReady();
-      this.resolveSessionReady = null;
+  private resolveChannelReadyPromise() {
+    if (this.resolveChannelReady) {
+      this.resolveChannelReady();
+      this.resolveChannelReady = null;
     }
 
-    if (!this.sessionReadyPromise) {
-      this.resetSessionReadyPromise();
+    if (!this.channelReadyPromise) {
+      this.resetChannelReadyPromise();
     }
   }
 
@@ -114,7 +127,6 @@ export class WebSocketService {
       event: 'websocket_connection_failure',
       reason,
       reconnectAttempts: this.reconnectAttempts,
-      sessionId: this.sessionId,
       timestamp: new Date().toISOString(),
       ...baseError,
     });
@@ -124,55 +136,13 @@ export class WebSocketService {
     console.log('[WebSocketService]', {
       event,
       timestamp: new Date().toISOString(),
-      sessionId: this.sessionId,
       ...(payload ?? {}),
     });
   }
 
-  private async ensureActiveSession(): Promise<Session> {
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError) {
-      this.logConnectionFailure('session_lookup_failed', sessionError);
-    }
-
-    if (sessionData?.session) {
-      return sessionData.session;
-    }
-
-    const { data: refreshedData, error: refreshError } = await supabase.auth.refreshSession();
-    if (refreshError) {
-      this.logConnectionFailure('session_refresh_failed', refreshError);
-    }
-
-    if (refreshedData?.session) {
-      this.logConnectionBreadcrumb('session_refreshed');
-      return refreshedData.session;
-    }
-
-    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously();
-    if (anonError) {
-      this.logConnectionFailure('anonymous_sign_in_failed', anonError);
-    }
-
-    if (anonData?.session) {
-      this.logConnectionBreadcrumb('anonymous_session_created');
-      return anonData.session;
-    }
-
-    const sessionMissingError = Object.assign(new Error('SESSION_MISSING'), { code: 'SESSION_MISSING' });
-    this.logConnectionFailure('session_missing', sessionMissingError);
-    throw sessionMissingError;
-  }
-
   async connect(): Promise<void> {
-    if (this.ws) {
-      if (this.ws.readyState === WebSocket.OPEN) {
-        return;
-      }
-
-      if (this.ws.readyState === WebSocket.CONNECTING && this.connectionPromise) {
-        return this.connectionPromise;
-      }
+    if (this.realtimeChannel?.state === 'joined') {
+      return;
     }
 
     if (this.connectionPromise) {
@@ -180,109 +150,53 @@ export class WebSocketService {
     }
 
     this.isIntentionallyClosed = false;
-    this.sessionId = null;
-    this.resetSessionReadyPromise();
+    this.resetChannelReadyPromise();
 
     const connectionPromise = (async () => {
-      let session: Session;
-
-      try {
-        session = await this.ensureActiveSession();
-      } catch (error) {
-        this.logConnectionFailure('session_bootstrap_failed', error);
-        throw error;
+      if (this.realtimeChannel) {
+        await this.realtimeChannel.unsubscribe();
       }
 
-      const token = session.access_token;
-      const url = `${this.wsUrl}?token=${encodeURIComponent(token)}`;
+      const channel = realtimeClient.channel(this.channelTopic);
+      this.realtimeChannel = channel;
+
+      channel.on('broadcast', {}, (payload) => {
+        try {
+          this.handleMessage(payload.payload as WebSocketMessage);
+        } catch (error) {
+          console.error('Error parsing realtime payload:', error);
+        }
+      });
 
       await new Promise<void>((resolve, reject) => {
-        this.sessionId = null;
-        this.resetSessionReadyPromise();
-
-        const ws = new WebSocket(url);
-        this.ws = ws;
-        let isOpen = false;
-
-        ws.onopen = () => {
-          isOpen = true;
-          console.log('WebSocket connected');
-          const wasReconnecting = this.isReconnecting || this.reconnectAttempts > 0;
-          this.reconnectAttempts = 0;
-          this.reconnectDelay = 1000;
-          this.isReconnecting = false;
-          this.startHeartbeat();
-          if (wasReconnecting) {
-            this.replayPendingRequests();
-          }
-          resolve();
-        };
-
-        ws.onmessage = (event) => {
-          try {
-            const message: WebSocketMessage = JSON.parse(event.data);
-            this.handleMessage(message);
-          } catch (error) {
-            console.error('Error parsing WebSocket message:', error);
-          }
-        };
-
-        ws.onerror = (event) => {
-          console.error('WebSocket error:', event);
-
-          const error =
-            event instanceof ErrorEvent
-              ? event.error || new Error(event.message)
-              : new Error('WebSocket connection error');
-
-          this.logConnectionFailure('websocket_error', error);
-
-          if (!isOpen) {
-            if (!this.isReconnecting) {
-              this.notifyHandlers('error', {
-                type: 'error',
-                error: event instanceof ErrorEvent ? event.message : 'Connection error',
-              });
+        channel.subscribe((status, error) => {
+          if (status === 'SUBSCRIBED') {
+            const wasReconnecting = this.isReconnecting || this.reconnectAttempts > 0;
+            this.reconnectAttempts = 0;
+            this.reconnectDelay = 1000;
+            this.isReconnecting = false;
+            this.startHeartbeat();
+            this.resolveChannelReadyPromise();
+            if (wasReconnecting) {
+              this.replayPendingRequests();
             }
-
-            reject(error);
-          }
-        };
-
-        ws.onclose = () => {
-          console.log('WebSocket closed');
-          const isCurrentSocket = this.ws === ws;
-
-          if (isCurrentSocket) {
+            resolve();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            this.logConnectionFailure('realtime_connect_failed', error);
+            reject(error ?? new Error('Realtime connection failed'));
+          } else if (status === 'CLOSED') {
             this.stopHeartbeat();
-            this.ws = null;
-
-            this.sessionId = null;
-            this.resetSessionReadyPromise();
-
-            if (this.isIntentionallyClosed) {
-              this.notifyHandlers('error', { type: 'error', error: 'Connection closed' });
+            if (!this.isIntentionallyClosed) {
+              this.attemptReconnect();
             }
           }
-
-          if (!isOpen) {
-            const error = this.isIntentionallyClosed
-              ? new Error('WebSocket connection intentionally closed')
-              : new Error('WebSocket connection closed before opening');
-            this.logConnectionFailure('websocket_closed_before_open', error);
-            reject(error);
-          }
-
-          if (isCurrentSocket && !this.isIntentionallyClosed) {
-            this.attemptReconnect();
-          }
-        };
+        });
       });
     })();
 
     const guardedPromise = connectionPromise
       .catch((error) => {
-        this.logConnectionFailure('connect_attempt_failed', error);
+        this.logConnectionFailure('realtime_connect_failed', error);
         throw error;
       })
       .finally(() => {
@@ -295,12 +209,6 @@ export class WebSocketService {
   }
 
   private handleMessage(message: WebSocketMessage) {
-    if (message.type === 'connected' && message.sessionId) {
-      this.sessionId = message.sessionId;
-      console.log('Session established:', this.sessionId);
-      this.resolveSessionReadyPromise();
-    }
-
     if (message.correlationId) {
       const isTerminal = this.isTerminalCorrelationMessage(message);
 
@@ -444,57 +352,57 @@ export class WebSocketService {
   }
 
   private async ensureConnected(context: string) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
+    if (this.realtimeChannel && this.realtimeChannel.state === 'joined') {
+      await this.waitForChannelReady(context, this.channelReadyTimeoutMs);
       return;
     }
 
     if (this.connectionPromise) {
       await this.connectionPromise;
-      await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
+      await this.waitForChannelReady(context, this.channelReadyTimeoutMs);
       return;
     }
 
     await this.connect();
-    await this.waitForSessionReady(context, this.sessionReadyTimeoutMs);
+    await this.waitForChannelReady(context, this.channelReadyTimeoutMs);
   }
 
-  private getOrCreateSessionReadyPromise() {
-    if (!this.sessionReadyPromise) {
-      this.resetSessionReadyPromise();
+  private getOrCreateChannelReadyPromise() {
+    if (!this.channelReadyPromise) {
+      this.resetChannelReadyPromise();
     }
 
     return {
-      promise: this.sessionReadyPromise!,
-      version: this.sessionReadyPromiseVersion,
+      promise: this.channelReadyPromise!,
+      version: this.channelReadyPromiseVersion,
     };
   }
 
-  private async waitForSessionReady(context: string, timeoutMs = 5000) {
-    if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+  private async waitForChannelReady(context: string, timeoutMs = 5000) {
+    if (this.realtimeChannel && this.realtimeChannel.state === 'joined') {
       return;
     }
 
     const deadline = Date.now() + timeoutMs;
 
     while (true) {
-      const { promise: sessionReadyPromise, version } = this.getOrCreateSessionReadyPromise();
+      const { promise: channelReadyPromise, version } = this.getOrCreateChannelReadyPromise();
       const remaining = deadline - Date.now();
 
       try {
         if (remaining > 0) {
           await Promise.race([
-            sessionReadyPromise,
+            channelReadyPromise,
             new Promise<void>((_, reject) => {
-              setTimeout(() => reject(new Error('Session handshake timeout')), remaining);
+              setTimeout(() => reject(new Error('Realtime channel timeout')), remaining);
             }),
           ]);
         } else {
-          await sessionReadyPromise;
+          await channelReadyPromise;
         }
       } catch (error) {
-        const isStalePromise = this.sessionReadyPromiseVersion !== version;
-        const isReady = this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN;
+        const isStalePromise = this.channelReadyPromiseVersion !== version;
+        const isReady = this.realtimeChannel && this.realtimeChannel.state === 'joined';
 
         if (isReady) {
           return;
@@ -504,31 +412,29 @@ export class WebSocketService {
           continue;
         }
 
-        console.warn('[WebSocketService] Session not ready; aborting send', {
+        console.warn('[WebSocketService] Realtime channel not ready; aborting send', {
           context,
-          sessionId: this.sessionId,
-          wsState: this.ws?.readyState,
+          channelState: this.realtimeChannel?.state,
           timestamp: new Date().toISOString(),
           error: error instanceof Error ? error.message : 'Unknown error',
         });
         throw error;
       }
 
-      if (this.sessionId && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      if (this.realtimeChannel && this.realtimeChannel.state === 'joined') {
         return;
       }
 
-      if (this.sessionReadyPromiseVersion !== version && deadline - Date.now() > 0) {
+      if (this.channelReadyPromiseVersion !== version && deadline - Date.now() > 0) {
         continue;
       }
 
-      console.warn('[WebSocketService] Session handshake timeout', {
+      console.warn('[WebSocketService] Realtime channel timeout', {
         context,
-        sessionId: this.sessionId,
-        wsState: this.ws?.readyState,
+        channelState: this.realtimeChannel?.state,
         timestamp: new Date().toISOString(),
       });
-      throw new Error('Session handshake timeout');
+      throw new Error('Realtime channel timeout');
     }
   }
 
@@ -578,40 +484,47 @@ export class WebSocketService {
 
     await this.ensureConnected('send_message');
 
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
-      throw new Error('Unable to establish WebSocket connection');
+    if (!this.realtimeChannel || this.realtimeChannel.state !== 'joined') {
+      throw new Error('Unable to establish realtime connection');
     }
 
-    this.ws.send(JSON.stringify(message));
+    const sent = await this.realtimeChannel.send({
+      type: 'broadcast',
+      event: 'message',
+      payload: message,
+    });
+
+    if (!sent) {
+      throw new Error('Failed to send message over realtime channel');
+    }
   }
 
   sendTypingStart() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.realtimeChannel || this.realtimeChannel.state !== 'joined') return;
 
-    this.ws.send(JSON.stringify({ type: 'typing_start' }));
+    this.realtimeChannel.send({ type: 'broadcast', event: 'typing_start', payload: { type: 'typing_start' } });
   }
 
   sendTypingStop() {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.realtimeChannel || this.realtimeChannel.state !== 'joined') return;
 
-    this.ws.send(JSON.stringify({ type: 'typing_stop' }));
+    this.realtimeChannel.send({ type: 'broadcast', event: 'typing_stop', payload: { type: 'typing_stop' } });
   }
 
   sendReadReceipt(messageId: string) {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.realtimeChannel || this.realtimeChannel.state !== 'joined') return;
 
-    this.ws.send(
-      JSON.stringify({
-        type: 'read_receipt',
-        messageId,
-      }),
-    );
+    this.realtimeChannel.send({
+      type: 'broadcast',
+      event: 'read_receipt',
+      payload: { type: 'read_receipt', messageId },
+    });
   }
 
   private startHeartbeat() {
     this.heartbeatInterval = window.setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(JSON.stringify({ type: 'ping' }));
+      if (this.realtimeChannel && this.realtimeChannel.state === 'joined') {
+        this.realtimeChannel.send({ type: 'broadcast', event: 'ping', payload: { type: 'ping' } });
       }
     }, 30000);
   }
@@ -655,39 +568,35 @@ export class WebSocketService {
     this.isReconnecting = false;
     this.stopHeartbeat();
 
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.realtimeChannel) {
+      this.realtimeChannel.unsubscribe();
+      this.realtimeChannel = null;
     }
 
     this.clearConnectionPromise();
-
-    this.sessionId = null;
-    this.resetSessionReadyPromise();
+    this.resetChannelReadyPromise();
   }
 
   getConnectionState(): 'connecting' | 'connected' | 'disconnected' | 'error' {
-    if (!this.ws) return 'disconnected';
+    if (!this.realtimeChannel) return 'disconnected';
 
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING:
+    switch (this.realtimeChannel.state) {
+      case 'joining':
         return 'connecting';
-      case WebSocket.OPEN:
+      case 'joined':
         return 'connected';
-      case WebSocket.CLOSING:
-      case WebSocket.CLOSED:
+      case 'closed':
+      case 'leaving':
         return 'disconnected';
-      default:
+      case 'errored':
         return 'error';
+      default:
+        return 'connecting';
     }
   }
 
   isReconnectingInProgress(): boolean {
     return this.isReconnecting;
-  }
-
-  getSessionId(): string | null {
-    return this.sessionId;
   }
 
   setRequestTimeout(ms: number) {
@@ -783,13 +692,21 @@ export class WebSocketService {
 
     try {
       await this.ensureConnected('send_queued_request');
-      await this.waitForSessionReady('send_queued_request', this.sessionReadyTimeoutMs);
+      await this.waitForChannelReady('send_queued_request', this.channelReadyTimeoutMs);
 
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.sessionId) {
-        throw new Error('Unable to establish WebSocket connection');
+      if (!this.realtimeChannel || this.realtimeChannel.state !== 'joined') {
+        throw new Error('Unable to establish realtime connection');
       }
 
-      this.ws.send(JSON.stringify(updatedEntry.message));
+      const sent = await this.realtimeChannel.send({
+        type: 'broadcast',
+        event: 'message',
+        payload: updatedEntry.message,
+      });
+
+      if (!sent) {
+        throw new Error('Failed to send message over realtime channel');
+      }
 
       const refreshedEntry = this.requestQueue.get(correlationId);
       if (refreshedEntry && refreshedEntry.status === 'pending') {
@@ -830,7 +747,7 @@ export class WebSocketService {
   private async replayPendingRequests() {
     if (this.requestQueue.size === 0) return;
 
-    await this.waitForSessionReady('replay_pending_requests', this.sessionReadyTimeoutMs);
+    await this.waitForChannelReady('replay_pending_requests', this.channelReadyTimeoutMs);
 
     for (const correlationId of this.requestQueue.keys()) {
       const entry = this.requestQueue.get(correlationId);
@@ -894,20 +811,6 @@ export class WebSocketService {
     this.failQueuedRequest(correlationId);
   }
 }
+const channelTopic = envSource?.VITE_REALTIME_CHANNEL ?? 'websocket';
 
-const runtimeEnv =
-  (typeof import.meta !== 'undefined' && (import.meta as any)?.env) ||
-  (typeof process !== 'undefined' ? process.env : undefined);
-
-const isDev =
-  runtimeEnv?.DEV === true ||
-  runtimeEnv?.DEV === 'true' ||
-  runtimeEnv?.NODE_ENV === 'development';
-
-const wsUrl = isDev
-  ? 'ws://localhost:8080/ws'
-  : typeof window !== 'undefined'
-    ? `wss://${window.location.host}/ws`
-    : 'wss://localhost/ws';
-
-export const websocketService = new WebSocketService(wsUrl);
+export const websocketService = new WebSocketService(channelTopic);
