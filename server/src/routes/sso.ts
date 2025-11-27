@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { verifyWebchannelToken } from '../../src/auth/verifyWebchannelToken.js';
+import { verifyWebchannelToken } from '../auth/verifyWebchannelToken.js';
 import { supabaseService } from '../services/supabase.js';
 import { logger } from '../utils/logger.js';
 
