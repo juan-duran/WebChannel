@@ -28,12 +28,37 @@ export type OnboardingPayload = {
   religion: string | null;
 };
 
+type SubscriberRecord = {
+  id: number;
+  email: string;
+  active: boolean;
+  user_id: string | null;
+  users?: unknown;
+};
+
 class CoreSupabaseService {
   private client: SupabaseClient;
 
   constructor() {
     this.client = createClient(config.coreSupabase.url, config.coreSupabase.serviceKey);
     logger.info('Core Supabase client initialized');
+  }
+
+  async findSubscriberByEmail(
+    email: string
+  ): Promise<PostgrestMaybeSingleResponse<SubscriberRecord>> {
+    try {
+      return await this.client
+        .from('subscribers')
+        .select('*, users(*)')
+        .ilike('email', email)
+        .order('id', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    } catch (error) {
+      logger.error({ error, email }, 'Failed to fetch subscriber from core');
+      throw error;
+    }
   }
 
   async getOnboardingProfile(email: string): Promise<OnboardingProfile | null> {
