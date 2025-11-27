@@ -10,6 +10,15 @@ import { websocketService } from '../lib/websocket';
 import { extractTopicEngagement } from '../utils/topicEngagement';
 import { useCurrentUser } from '../state/UserContext';
 
+const sharedSummaryCache = new Map<
+  string,
+  {
+    summary: SummaryData;
+    metadata: Record<string, unknown> | null;
+    fromCache: boolean;
+  }
+>();
+
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
 
@@ -35,16 +44,8 @@ export function TapNavigationPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const summaryCacheRef = useRef<
-    Map<
-      string,
-      {
-        summary: SummaryData;
-        metadata: Record<string, unknown> | null;
-        fromCache: boolean;
-      }
-    >
-  >(new Map());
+  const summaryCacheRef = useRef(sharedSummaryCache);
+  const lastBatchRef = useRef<string | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -390,7 +391,10 @@ export function TapNavigationPage() {
         throw new Error('Não foi possível interpretar os dados de tendências.');
       }
 
-      summaryCacheRef.current.clear();
+      if (lastBatchRef.current && lastBatchRef.current !== data.batch_ts) {
+        summaryCacheRef.current.clear();
+      }
+      lastBatchRef.current = data.batch_ts ?? null;
       const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
       setTrends(nextTrends);
       setTrendsSummary(parsed.trendsSummary ?? null);
