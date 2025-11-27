@@ -1,7 +1,6 @@
 import type { FocusEvent, FormEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, AlertCircle } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 import { useCurrentUser } from '../state/UserContext';
 import type { OnboardingPayload } from '../types/onboarding';
 
@@ -369,7 +368,6 @@ export const buildOnboardingPayload = (formState: FormState): OnboardingPayload 
 };
 
 export function OnboardingPage() {
-  const { session } = useAuth();
   const { email: userEmail } = useCurrentUser();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
@@ -397,17 +395,8 @@ export function OnboardingPage() {
       return;
     }
 
-    if (!session?.access_token) {
-      setIsOnboardingLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch(`/api/onboarding?email=${encodeURIComponent(userEmail)}`, {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
+      const response = await fetch('/api/onboarding', { credentials: 'include' });
 
       if (!response.ok) {
         const errorMessage = await response.text().catch(() => '');
@@ -485,7 +474,7 @@ export function OnboardingPage() {
     } finally {
       setIsOnboardingLoading(false);
     }
-  }, [session?.access_token, userEmail]);
+  }, [userEmail]);
 
   useEffect(() => {
     fetchUserData();
@@ -523,17 +512,13 @@ export function OnboardingPage() {
     setSubmitting(true);
 
     try {
-      if (!session?.access_token) {
-        throw new Error('Sessão expirada. Faça login novamente.');
-      }
-
       const response = await fetch('/api/onboarding', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ payload, email: userEmail }),
+        credentials: 'include',
+        body: JSON.stringify({ payload }),
       });
 
       if (!response.ok) {
