@@ -13,23 +13,41 @@ type Page = 'chat' | 'profile' | 'onboarding' | 'tap';
 const CHANNEL_UI = import.meta.env.VITE_CHANNEL_UI || 'chat';
 const DEFAULT_PAGE: Page = CHANNEL_UI === 'tap' ? 'tap' : 'chat';
 
-const getPageFromPath = (): Page => {
-  if (typeof window === 'undefined') return DEFAULT_PAGE;
+const LEGACY_AUTH_PATH = 'legacy-auth';
+
+const getNavigationStateFromPath = (): { page: Page; isLegacyAuth: boolean } => {
+  if (typeof window === 'undefined') return { page: DEFAULT_PAGE, isLegacyAuth: false };
   const path = window.location.pathname.replace(/^\/+/, '');
-  if (path.startsWith('tap')) return 'tap';
-  if (path.startsWith('profile')) return 'profile';
-  if (path.startsWith('onboarding')) return 'onboarding';
-  if (path.startsWith('chat')) return 'chat';
-  return DEFAULT_PAGE;
+  if (path.startsWith(LEGACY_AUTH_PATH)) {
+    return { page: DEFAULT_PAGE, isLegacyAuth: true };
+  }
+  if (path.startsWith('tap')) return { page: 'tap', isLegacyAuth: false };
+  if (path.startsWith('profile')) return { page: 'profile', isLegacyAuth: false };
+  if (path.startsWith('onboarding')) return { page: 'onboarding', isLegacyAuth: false };
+  if (path.startsWith('chat')) return { page: 'chat', isLegacyAuth: false };
+  return { page: DEFAULT_PAGE, isLegacyAuth: false };
 };
 
 function AppContent() {
-  const { user, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<Page>(() => getPageFromPath());
+  const { loading } = useAuth();
+  const [{ currentPage, isLegacyAuth }, setNavigationState] = useState<{
+    currentPage: Page;
+    isLegacyAuth: boolean;
+  }>(() => {
+    const state = getNavigationStateFromPath();
+    return {
+      currentPage: state.page,
+      isLegacyAuth: state.isLegacyAuth,
+    };
+  });
 
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentPage(getPageFromPath());
+      const state = getNavigationStateFromPath();
+      setNavigationState({
+        currentPage: state.page,
+        isLegacyAuth: state.isLegacyAuth,
+      });
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -37,7 +55,7 @@ function AppContent() {
   }, []);
 
   const handleNavigate = (page: Page) => {
-    setCurrentPage(page);
+    setNavigationState({ currentPage: page, isLegacyAuth: false });
     if (typeof window !== 'undefined') {
       const path = page === 'chat' ? '/' : `/${page}`;
       window.history.pushState(null, '', path);
@@ -52,7 +70,7 @@ function AppContent() {
     );
   }
 
-  if (!user) {
+  if (isLegacyAuth) {
     return <AuthForm />;
   }
 
