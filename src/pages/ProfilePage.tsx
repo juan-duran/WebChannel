@@ -1,8 +1,10 @@
 import { User as UserIcon, LogOut, Mail, Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrentUser } from '../state/UserContext';
 
 export function ProfilePage() {
-  const { user, signOut } = useAuth();
+  const { user: authUser, signOut } = useAuth();
+  const user = useCurrentUser();
 
   const handleSignOut = async () => {
     try {
@@ -12,7 +14,7 @@ export function ProfilePage() {
     }
   };
 
-  const createdDate = user?.created_at ? new Date(user.created_at) : null;
+  const createdDate = authUser?.created_at ? new Date(authUser.created_at) : null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
@@ -32,7 +34,7 @@ export function ProfilePage() {
               <div className="space-y-3 mb-4">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-gray-400" />
-                  <p className="text-gray-600 text-sm">{user?.email}</p>
+                  <p className="text-gray-600 text-sm">{user.email}</p>
                 </div>
                 {createdDate && (
                   <div className="flex items-center gap-2">
