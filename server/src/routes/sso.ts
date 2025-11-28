@@ -45,6 +45,7 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
   }
 
   let subscriber = existingSub ?? null;
+  const isNewSubscriber = !subscriber;
 
   if (!subscriber) {
     const { data: newSub, error: subError } = await coreSupabaseClient
@@ -65,22 +66,27 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
     subscriber = newSub ?? null;
   }
 
+  // Do not reactivate here. Let caller decide redirect for inactive.
+  if (subscriber && subscriber.active === false) {
+    return { subscriber, coreUserId, webUser: null, blocked: true as const };
+  }
+
   const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: webUser, error: webUserError } = await supabaseService.client
     .from('web_users')
     .upsert(
-      subscriber?.active
+      isNewSubscriber
         ? {
-            email: normalizedEmail,
-            core_user_id: coreUserId,
-          }
-        : {
             email: normalizedEmail,
             core_user_id: coreUserId,
             subscription_status: 'trial',
             trial_status: 'active',
             trial_expires_at: threeDaysFromNow,
+          }
+        : {
+            email: normalizedEmail,
+            core_user_id: coreUserId,
           },
       { onConflict: 'email' },
     )
@@ -91,7 +97,7 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
     throw webUserError;
   }
 
-  return { subscriber, coreUserId, webUser };
+  return { subscriber, coreUserId, webUser, blocked: false as const };
 }
 
 router.get('/', async (req, res) => {
@@ -117,9 +123,9 @@ router.get('/', async (req, res) => {
   const normalizedEmail = payload.email.trim().toLowerCase();
 
   try {
-    const { coreUserId, subscriber } = await ensureCoreSubscriberAndWebUser(normalizedEmail);
+    const { coreUserId, subscriber, blocked } = await ensureCoreSubscriberAndWebUser(normalizedEmail);
 
-    if (subscriber && subscriber.active === false) {
+    if (blocked || (subscriber && subscriber.active === false)) {
       return res.redirect(`${PLANOS_REDIRECT}?reason=inactive`);
     }
 
