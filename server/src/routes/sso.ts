@@ -1,12 +1,104 @@
 import { Router } from 'express';
 import { verifyWebchannelToken } from '../auth/verifyWebchannelToken.js';
 import { coreSupabaseClient } from '../services/coreSupabase.js';
+import { supabaseService } from '../services/supabase.js';
 import { logger } from '../utils/logger.js';
 
 const router = Router();
 
 const PLANOS_REDIRECT = 'https://www.quenty.com.br/pricing-plans/list';
 const INVALID_TOKEN_REDIRECT = 'https://www.quenty.com.br/puente?error=invalid_token';
+
+async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
+  const { data: existingSub, error: findSubError } = await coreSupabaseClient
+    .from('subscribers')
+    .select('id, user_id, active, email')
+    .ilike('email', normalizedEmail)
+    .order('id', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (findSubError) {
+    throw findSubError;
+  }
+
+  let coreUserId = existingSub?.user_id ?? null;
+
+  if (!coreUserId) {
+    const { data: newUser, error: userError } = await coreSupabaseClient
+      .from('users')
+      .insert({
+        profile_json: { email: normalizedEmail, source: 'web' },
+      })
+      .select('id')
+      .single();
+
+    if (userError) {
+      throw userError;
+    }
+
+    coreUserId = newUser?.id ?? null;
+  }
+
+  if (!coreUserId) {
+    throw new Error('Failed to resolve core user id');
+  }
+
+  let subscriber = existingSub ?? null;
+
+  if (!subscriber) {
+    const { data: newSub, error: subError } = await coreSupabaseClient
+      .from('subscribers')
+      .insert({
+        user_id: coreUserId,
+        phone_jid: '-',
+        active: true,
+        email: normalizedEmail,
+      })
+      .select('id, user_id, active, email')
+      .single();
+
+    if (subError) {
+      throw subError;
+    }
+
+    subscriber = newSub ?? null;
+  } else if (!subscriber.active) {
+    const { error: reactivateError } = await coreSupabaseClient
+      .from('subscribers')
+      .update({ active: true })
+      .eq('id', subscriber.id);
+
+    if (reactivateError) {
+      throw reactivateError;
+    }
+
+    subscriber = { ...subscriber, active: true };
+  }
+
+  const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: webUser, error: webUserError } = await supabaseService.client
+    .from('web_users')
+    .upsert(
+      {
+        email: normalizedEmail,
+        core_user_id: coreUserId,
+        subscription_status: 'trial',
+        trial_status: 'active',
+        trial_expires_at: threeDaysFromNow,
+      },
+      { onConflict: 'email' },
+    )
+    .select('*')
+    .single();
+
+  if (webUserError) {
+    throw webUserError;
+  }
+
+  return { subscriber, coreUserId, webUser };
+}
 
 router.get('/', async (req, res) => {
   const { token } = req.query;
@@ -31,41 +123,18 @@ router.get('/', async (req, res) => {
   const normalizedEmail = payload.email.trim().toLowerCase();
 
   try {
-    const { data, error } = await coreSupabaseClient
-      .from('subscribers')
-      .select('*, users(*)')
-      .ilike('email', normalizedEmail)
-      .order('id', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { coreUserId } = await ensureCoreSubscriberAndWebUser(normalizedEmail);
 
-    if (error) {
-      logger.error({ error, email: normalizedEmail }, 'Failed to fetch subscriber');
-      return res.redirect(`${PLANOS_REDIRECT}?reason=db_error`);
-    }
+    const sessionPayload = { userId: coreUserId, email: normalizedEmail };
 
-    if (!data) {
-      return res.redirect(`${PLANOS_REDIRECT}?reason=not_subscriber`);
-    }
+    res.cookie('wc_session', JSON.stringify(sessionPayload), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
 
-    if (!data.active) {
-      return res.redirect(`${PLANOS_REDIRECT}?reason=inactive`);
-    }
-
-    if (data.user_id) {
-      const sessionPayload = { userId: data.user_id, email: normalizedEmail };
-
-      res.cookie('wc_session', JSON.stringify(sessionPayload), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-      });
-
-      return res.redirect('/');
-    }
-
-    return res.redirect(`${PLANOS_REDIRECT}?reason=not_subscriber`);
+    return res.redirect('/');
   } catch (error) {
     logger.error({ error, email: normalizedEmail }, 'Unhandled error in SSO route');
     return res.redirect(`${PLANOS_REDIRECT}?reason=exception`);
