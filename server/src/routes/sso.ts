@@ -63,17 +63,6 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
     }
 
     subscriber = newSub ?? null;
-  } else if (!subscriber.active) {
-    const { error: reactivateError } = await coreSupabaseClient
-      .from('subscribers')
-      .update({ active: true })
-      .eq('id', subscriber.id);
-
-    if (reactivateError) {
-      throw reactivateError;
-    }
-
-    subscriber = { ...subscriber, active: true };
   }
 
   const threeDaysFromNow = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
@@ -81,13 +70,18 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
   const { data: webUser, error: webUserError } = await supabaseService.client
     .from('web_users')
     .upsert(
-      {
-        email: normalizedEmail,
-        core_user_id: coreUserId,
-        subscription_status: 'trial',
-        trial_status: 'active',
-        trial_expires_at: threeDaysFromNow,
-      },
+      subscriber?.active
+        ? {
+            email: normalizedEmail,
+            core_user_id: coreUserId,
+          }
+        : {
+            email: normalizedEmail,
+            core_user_id: coreUserId,
+            subscription_status: 'trial',
+            trial_status: 'active',
+            trial_expires_at: threeDaysFromNow,
+          },
       { onConflict: 'email' },
     )
     .select('*')
@@ -123,7 +117,11 @@ router.get('/', async (req, res) => {
   const normalizedEmail = payload.email.trim().toLowerCase();
 
   try {
-    const { coreUserId } = await ensureCoreSubscriberAndWebUser(normalizedEmail);
+    const { coreUserId, subscriber } = await ensureCoreSubscriberAndWebUser(normalizedEmail);
+
+    if (subscriber && subscriber.active === false) {
+      return res.redirect(`${PLANOS_REDIRECT}?reason=inactive`);
+    }
 
     const sessionPayload = { userId: coreUserId, email: normalizedEmail };
 
