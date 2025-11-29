@@ -52,6 +52,7 @@ export function TapNavigationPage() {
   const persistedBatchRef = useRef<string | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
+  const lastTopicPageYRef = useRef<number | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -504,10 +505,8 @@ export function TapNavigationPage() {
                 setSummaryFromCache(false);
               }
 
-              if (typeof window !== 'undefined' && window.innerWidth >= 1024 && desktopListRef.current) {
-                const listTop = desktopListRef.current.getBoundingClientRect().top;
-                const targetTop = event.currentTarget.getBoundingClientRect().top;
-                setDesktopSummaryOffset(Math.max(0, targetTop - listTop));
+              if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                lastTopicPageYRef.current = event.currentTarget.getBoundingClientRect().top + window.scrollY;
               }
             }}
             disabled={isLoading || isRefreshing}
@@ -749,6 +748,14 @@ export function TapNavigationPage() {
     if (!selectedTopic) {
       setDesktopSummaryOffset(0);
       return;
+    }
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      window.requestAnimationFrame(() => {
+        if (!desktopListRef.current) return;
+        const listTop = desktopListRef.current.getBoundingClientRect().top + window.scrollY;
+        const lastY = lastTopicPageYRef.current ?? listTop;
+        setDesktopSummaryOffset(Math.max(0, lastY - listTop));
+      });
     }
   }, [selectedTopic]);
 
