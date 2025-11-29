@@ -17,7 +17,7 @@ router.post('/expire', async (req, res) => {
     .from('web_users')
     .select('core_user_id')
     .eq('trial_status', 'active')
-    .neq('subscription_status', 'paid')
+    .neq('subscription_status', 'active')
     .lt('trial_expires_at', nowIso);
 
   if (fetchErr) {
