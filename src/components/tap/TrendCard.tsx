@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent } from 'react';
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { extractTopicEngagement } from '../../utils/topicEngagement';
@@ -13,7 +13,7 @@ interface TrendCardProps {
   topicsError?: string | null;
   onExpand: () => void;
   onCollapse: () => void;
-  onTopicSelect: (topic: DailyTrendTopic, event: React.MouseEvent<HTMLButtonElement>) => void;
+  onTopicSelect: (topic: DailyTrendTopic, event: MouseEvent<HTMLButtonElement>) => void;
   onRetryTopics?: () => void;
   disabled?: boolean;
 }
