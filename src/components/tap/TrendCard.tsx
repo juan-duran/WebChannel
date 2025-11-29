@@ -148,10 +148,10 @@ export function TrendCard({
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 <Link2 className="w-4 h-4" aria-hidden="true" />
-                Ver matéria completa
+                Ver conteúdo do assunto
               </a>
             )}
             {uniqueTopics.length > 0 && (
