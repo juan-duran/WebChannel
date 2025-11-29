@@ -52,7 +52,7 @@ async function ensureCoreSubscriberAndWebUser(normalizedEmail: string) {
       .from('subscribers')
       .insert({
         user_id: coreUserId,
-        phone_jid: '-',
+        phone_jid: 'web:' + normalizedEmail,
         active: true,
         email: normalizedEmail,
       })
