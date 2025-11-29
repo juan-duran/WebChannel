@@ -3,6 +3,9 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 export type CurrentUser = {
   userId: string;
   email: string;
+  subscriptionStatus: string | null;
+  trialStatus: string | null;
+  trialExpiresAt: string | null;
 };
 
 const UserContext = createContext<CurrentUser | null>(null);
@@ -26,7 +29,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         if (data?.userId && data?.email) {
           if (isMounted) {
-            setCurrentUser({ userId: data.userId, email: data.email });
+            setCurrentUser({
+              userId: data.userId,
+              email: data.email,
+              subscriptionStatus: data.subscription_status ?? null,
+              trialStatus: data.trial_status ?? null,
+              trialExpiresAt: data.trial_expires_at ?? null,
+            });
           }
         } else {
           window.location.href = 'https://www.quenty.com.br/puente';
@@ -54,7 +63,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   return <UserContext.Provider value={currentUser}>{children}</UserContext.Provider>;
 }
 
-export function useCurrentUser() {
+export function useCurrentUser(): CurrentUser {
   const context = useContext(UserContext);
 
   if (context === null) {
