@@ -20,6 +20,7 @@ import logoutRouter from './routes/logout.js';
 import sessionRouter from './routes/session.js';
 import appRouter from './routes/app.js';
 import trendsRouter from './routes/trends.js';
+import trialCronRouter from './routes/trialCron.js';
 
 async function startServer() {
   try {
@@ -57,6 +58,7 @@ async function startServer() {
     app.use('/api/onboarding', requireAuth, onboardingRouter);
     app.use('/api/trends', requireAuth, trendsRouter);
     app.use('/admin', requireAuth, adminRouter);
+    app.use('/internal/trials', trialCronRouter);
 
     // SPA
     app.use('/', requireAuth, appRouter);
