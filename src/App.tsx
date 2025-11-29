@@ -9,6 +9,10 @@ import { Loader2 } from 'lucide-react';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { useOnboardingStatus } from './state/OnboardingStatusContext';
 import { AdminToolsPage } from './pages/AdminToolsPage';
+import { useCurrentUser } from './state/UserContext';
+import { getTrialState } from './utils/trial';
+import { TrialBanner } from './components/TrialBanner';
+import { TrialExpiredOverlay } from './components/TrialExpiredOverlay';
 
 type Page = 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin';
 
@@ -34,6 +38,8 @@ const getNavigationStateFromPath = (): { page: Page; isLegacyAuth: boolean } => 
 function AppContent() {
   const { loading } = useAuth();
   const onboardingStatus = useOnboardingStatus();
+  const user = useCurrentUser();
+  const trialState = getTrialState(user);
   const [{ currentPage, isLegacyAuth }, setNavigationState] = useState<{
     currentPage: Page;
     isLegacyAuth: boolean;
@@ -85,13 +91,17 @@ function AppContent() {
   }
 
   return (
-    <Layout currentPage={currentPage} onNavigate={handleNavigate}>
-      {currentPage === 'tap' && <TapNavigationPage />}
-      {currentPage === 'chat' && <ChatPageWebSocket />}
-      {currentPage === 'profile' && <ProfilePage />}
-      {currentPage === 'onboarding' && <OnboardingPage />}
-      {currentPage === 'admin' && <AdminToolsPage />}
-    </Layout>
+    <>
+      <TrialBanner trialState={trialState} />
+      <TrialExpiredOverlay trialState={trialState} />
+      <Layout currentPage={currentPage} onNavigate={handleNavigate}>
+        {currentPage === 'tap' && <TapNavigationPage />}
+        {currentPage === 'chat' && <ChatPageWebSocket />}
+        {currentPage === 'profile' && <ProfilePage />}
+        {currentPage === 'onboarding' && <OnboardingPage />}
+        {currentPage === 'admin' && <AdminToolsPage />}
+      </Layout>
+    </>
   );
 }
 
