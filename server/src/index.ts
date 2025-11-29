@@ -52,13 +52,15 @@ async function startServer() {
     app.use('/sso', ssoRouter);
     app.use('/logout', logoutRouter);
 
+    // Internal cron (token header)
+    app.use('/internal/trials', trialCronRouter);
+
     // Protected routes
     app.use('/api/session', sessionRouter);
     app.use('/api/messages', requireAuth, messagesRouter);
     app.use('/api/onboarding', requireAuth, onboardingRouter);
     app.use('/api/trends', requireAuth, trendsRouter);
     app.use('/admin', requireAuth, adminRouter);
-    app.use('/internal/trials', trialCronRouter);
 
     // SPA
     app.use('/', requireAuth, appRouter);
