@@ -142,6 +142,18 @@ export function TrendCard({
           className="px-4 pb-4 pt-2 border-t border-gray-100 bg-gradient-to-b from-blue-50/30 to-transparent animate-fadeIn"
         >
           <div className="space-y-3">
+            {trend.asset_short_url && (
+              <a
+                href={trend.asset_short_url}
+                onClick={(e) => e.stopPropagation()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-100"
+              >
+                <Link2 className="w-4 h-4" aria-hidden="true" />
+                Ver matéria completa
+              </a>
+            )}
             {uniqueTopics.length > 0 && (
               <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tópicos</h4>
             )}
