@@ -13,7 +13,7 @@ interface TrendCardProps {
   topicsError?: string | null;
   onExpand: () => void;
   onCollapse: () => void;
-  onTopicSelect: (topic: DailyTrendTopic) => void;
+  onTopicSelect: (topic: DailyTrendTopic, event: React.MouseEvent<HTMLButtonElement>) => void;
   onRetryTopics?: () => void;
   disabled?: boolean;
 }
@@ -180,7 +180,7 @@ export function TrendCard({
                   return (
                     <button
                       key={`topic-${topic.number}`}
-                      onClick={() => onTopicSelect(topic)}
+                      onClick={(event) => onTopicSelect(topic, event)}
                       disabled={disabled}
                       type="button"
                       className="w-full flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
