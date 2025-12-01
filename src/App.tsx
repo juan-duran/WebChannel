@@ -13,6 +13,7 @@ import { useCurrentUser } from './state/UserContext';
 import { getTrialState } from './utils/trial';
 import { TrialBanner } from './components/TrialBanner';
 import { TrialExpiredOverlay } from './components/TrialExpiredOverlay';
+import { trackPageView } from './lib/analytics';
 
 type Page = 'chat' | 'profile' | 'onboarding' | 'tap' | 'admin';
 
@@ -34,6 +35,8 @@ const getNavigationStateFromPath = (): { page: Page; isLegacyAuth: boolean } => 
   if (path.startsWith('admin-tools')) return { page: 'admin', isLegacyAuth: false };
   return { page: DEFAULT_PAGE, isLegacyAuth: false };
 };
+
+const pageToPath = (page: Page) => (page === 'chat' ? '/' : `/${page}`);
 
 function AppContent() {
   const { loading } = useAuth();
@@ -64,10 +67,15 @@ function AppContent() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    trackPageView(pageToPath(currentPage));
+  }, [currentPage]);
+
   const handleNavigate = (page: Page) => {
     setNavigationState({ currentPage: page, isLegacyAuth: false });
     if (typeof window !== 'undefined') {
-      const path = page === 'chat' ? '/' : `/${page}`;
+      const path = pageToPath(page);
       window.history.pushState(null, '', path);
     }
   };
