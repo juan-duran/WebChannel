@@ -4,20 +4,14 @@ import { supabaseService } from '../services/supabase.js';
 import { coreSupabaseClient } from '../services/coreSupabase.js';
 
 const router = Router();
-const INTERNAL_AUTH_SECRET = process.env.INTERNAL_AUTH_SECRET;
 
-const getWindowBounds = () => {
-  const now = new Date();
-  const hour = now.getUTCHours();
-  const minute = Math.floor(now.getUTCMinutes() / 10) * 10;
-  const start = `${hour}:${minute.toString().padStart(2, '0')}:00`;
-  const end = `${hour}:${(minute + 9).toString().padStart(2, '0')}:59`;
-  return { start, end };
-};
+type RpcRow = { email: string | null; preferred_send_time: string | null };
+type WebUser = { id: string; email: string | null };
+type WebPushToken = { id: string; user_id: string; subscription: any };
 
 router.post('/send-daily', async (req, res) => {
-  const headerToken = req.header('X-Internal-Auth') || req.header('x-internal-auth');
-  if (!INTERNAL_AUTH_SECRET || headerToken !== INTERNAL_AUTH_SECRET) {
+  const token = req.header('X-Internal-Auth');
+  if (!token || token !== process.env.INTERNAL_AUTH_SECRET) {
     return res.status(403).json({ ok: false, error: 'forbidden' });
   }
 
@@ -27,13 +21,25 @@ router.post('/send-daily', async (req, res) => {
     return res.status(500).json({ ok: false, error: 'missing_vapid_keys' });
   }
 
-  const { start: start_time, end: end_time } = getWindowBounds();
-  const nowIso = new Date().toISOString();
+  const now = new Date();
+  const hour = now.getUTCHours();
+  const minuteBlock = Math.floor(now.getUTCMinutes() / 10) * 10;
+
+  const startTime = `${hour.toString().padStart(2, '0')}:${minuteBlock
+    .toString()
+    .padStart(2, '0')}:00`;
+
+  const endMinute = minuteBlock + 9;
+  const endTime = `${hour.toString().padStart(2, '0')}:${endMinute
+    .toString()
+    .padStart(2, '0')}:59`;
+
+  console.log('[webpush send-daily] window', { startTime, endTime });
 
   try {
-    const { data: targets, error: rpcError } = await coreSupabaseClient.rpc(
-      'get_web_push_targets_in_window',
-      { start_time, end_time },
+    const { data: rows, error: rpcError } = await coreSupabaseClient.rpc<RpcRow>(
+      'get_push_user_emails_in_window',
+      { start_time: startTime, end_time: endTime },
     );
 
     if (rpcError) {
@@ -41,71 +47,157 @@ router.post('/send-daily', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'rpc_error' });
     }
 
-    if (!targets || targets.length === 0) {
+    const emails = Array.from(
+      new Set(
+        (rows || [])
+          .map((r) => r.email?.toLowerCase())
+          .filter((email): email is string => Boolean(email)),
+      ),
+    );
+
+    if (emails.length === 0) {
+      console.log('[webpush send-daily] no emails in window');
       return res.json({ ok: true, sent: 0, failed: 0, skipped: 0, removed: 0 });
     }
 
-    webpush.setVapidDetails('mailto:push@quenty.com.br', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+    const { data: webUsers, error: wuErr } = await supabaseService.client
+      .from('web_users')
+      .select('id, email')
+      .in('email', emails);
+
+    if (wuErr) {
+      console.error('[webpush send-daily] web_users error', wuErr);
+      return res.status(500).json({ ok: false, error: 'web_users_error' });
+    }
+
+    const emailToUserIds = new Map<string, string[]>();
+    const allUserIds = new Set<string>();
+
+    for (const user of (webUsers || []) as WebUser[]) {
+      const key = (user.email || '').toLowerCase();
+      if (!key) continue;
+      if (!emailToUserIds.has(key)) {
+        emailToUserIds.set(key, []);
+      }
+      emailToUserIds.get(key)!.push(user.id);
+      allUserIds.add(user.id);
+    }
+
+    const allUserIdsArray = Array.from(allUserIds);
+
+    const userIdToTokens = new Map<string, WebPushToken[]>();
+    if (allUserIdsArray.length > 0) {
+      const { data: tokens, error: tokErr } = await supabaseService.client
+        .from('web_push_tokens')
+        .select('id, user_id, subscription')
+        .in('user_id', allUserIdsArray);
+
+      if (tokErr) {
+        console.error('[webpush send-daily] tokens error', tokErr);
+        return res.status(500).json({ ok: false, error: 'tokens_error' });
+      }
+
+      for (const token of (tokens || []) as WebPushToken[]) {
+        if (!userIdToTokens.has(token.user_id)) {
+          userIdToTokens.set(token.user_id, []);
+        }
+        userIdToTokens.get(token.user_id)!.push(token);
+      }
+    }
+
+    webpush.setVapidDetails('mailto:suporte@quenty.com.br', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
     let sent = 0;
     let failed = 0;
     let skipped = 0;
     let removed = 0;
 
-    const today = new Date().toISOString().slice(0, 10);
-
-    for (const target of targets) {
-      const subscription = target.subscription;
-      if (!subscription || !subscription.endpoint) {
+    for (const row of rows || []) {
+      const emailRaw = row.email;
+      const email = emailRaw?.toLowerCase();
+      if (!email) {
         skipped += 1;
         continue;
       }
 
-      if (target.last_daily_sent_date === today) {
+      const userIds = emailToUserIds.get(email);
+      if (!userIds || userIds.length === 0) {
+        console.log('[webpush send-daily] no web_user for email', emailRaw);
         skipped += 1;
         continue;
       }
 
-      try {
-        await webpush.sendNotification(
-          subscription,
-          JSON.stringify({
-            title: '🔥 Suas 15 notícias mais quentes',
-            body: 'Resumo personalizado de hoje está disponível!',
-            data: { url: 'https://app.quenty.com.br/tap' },
-            tag: 'daily-digest',
-          }),
-        );
-        sent += 1;
+      const userTokens: WebPushToken[] = [];
+      for (const uid of userIds) {
+        const list = userIdToTokens.get(uid);
+        if (list?.length) {
+          userTokens.push(...list);
+        }
+      }
 
-        await supabaseService.client
-          .from('web_push_tokens')
-          .update({ last_daily_sent_date: today, last_seen_at: nowIso })
-          .eq('subscription->>endpoint', subscription.endpoint);
-      } catch (err: any) {
-        failed += 1;
-        const status = err?.statusCode;
-        if (status === 404 || status === 410) {
-          removed += 1;
+      if (userTokens.length === 0) {
+        console.log('[webpush send-daily] no tokens for email', emailRaw);
+        skipped += 1;
+        continue;
+      }
+
+      let anySuccessForThisEmail = false;
+
+      for (const tok of userTokens) {
+        try {
+          await webpush.sendNotification(
+            tok.subscription,
+            JSON.stringify({
+              title: '🔥 Seu resumo de hoje chegou!',
+              body: 'Veja as 15 notícias mais quentes do seu dia.',
+              url: 'https://app.quenty.com.br/tap',
+            }),
+          );
+
+          sent += 1;
+          anySuccessForThisEmail = true;
+
           await supabaseService.client
             .from('web_push_tokens')
-            .delete()
-            .eq('subscription->>endpoint', subscription.endpoint);
+            .update({ last_seen_at: new Date().toISOString() })
+            .eq('id', tok.id);
+        } catch (err: any) {
+          failed += 1;
+          const status = err?.statusCode || err?.status;
+          console.error('[webpush send-daily] push error', {
+            tokenId: tok.id,
+            status,
+            msg: String(err),
+          });
+
+          if (status === 404 || status === 410) {
+            removed += 1;
+            await supabaseService.client.from('web_push_tokens').delete().eq('id', tok.id);
+          }
         }
-        console.error('[webpush send-daily] push failed', {
-          status,
-          error: err?.message,
-        });
+      }
+
+      if (anySuccessForThisEmail) {
+        const today = new Date().toISOString().slice(0, 10);
+        const { error: updErr } = await coreSupabaseClient
+          .from('subscribers')
+          .update({ last_daily_sent_date: today })
+          .eq('email', emailRaw);
+
+        if (updErr) {
+          console.error('[webpush send-daily] update last_daily_sent_date error', {
+            email: emailRaw,
+            error: updErr,
+          });
+        }
       }
     }
 
     console.log('[webpush send-daily] summary', {
-      utcWindow: { start_time, end_time },
       sent,
       failed,
       skipped,
       removed,
-      timestamp: nowIso,
     });
 
     return res.json({ ok: true, sent, failed, skipped, removed });
