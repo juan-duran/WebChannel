@@ -21,6 +21,7 @@ import sessionRouter from './routes/session.js';
 import appRouter from './routes/app.js';
 import trendsRouter from './routes/trends.js';
 import trialCronRouter from './routes/trialCron.js';
+import webpushRouter from './routes/webpush.js';
 
 async function startServer() {
   try {
@@ -60,6 +61,7 @@ async function startServer() {
     app.use('/api/messages', requireAuth, messagesRouter);
     app.use('/api/onboarding', requireAuth, onboardingRouter);
     app.use('/api/trends', requireAuth, trendsRouter);
+    app.use('/api/webpush', requireAuth, webpushRouter);
     app.use('/admin', requireAuth, adminRouter);
 
     // SPA
