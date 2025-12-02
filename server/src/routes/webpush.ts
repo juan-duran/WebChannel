@@ -36,7 +36,11 @@ router.post('/subscribe', async (req, res) => {
 
     return res.json({ ok: true });
   } catch (error) {
-    console.error('[webpush] subscribe error', error);
+    console.error('Failed to save subscription:', {
+      error,
+      userId: user?.id,
+      subscription,
+    });
     return res.status(500).json({ ok: false, error: 'internal_error' });
   }
 });
