@@ -1,6 +1,7 @@
-import { User as UserIcon, LogOut, Mail, Calendar } from 'lucide-react';
+import { User as UserIcon, LogOut, Mail, Calendar, BellRing, BellOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrentUser } from '../state/UserContext';
+import { enableNotifications, disableNotifications } from '../lib/pushNotifications';
 
 export function ProfilePage() {
   const { user: authUser } = useAuth();
@@ -8,6 +9,26 @@ export function ProfilePage() {
 
   const handleLogout = () => {
     window.location.href = '/logout';
+  };
+
+  const handleEnablePush = async () => {
+    try {
+      await enableNotifications();
+      alert('Notificações ativadas!');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível ativar notificações.';
+      alert(message);
+    }
+  };
+
+  const handleDisablePush = async () => {
+    try {
+      await disableNotifications();
+      alert('Notificações desativadas.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Não foi possível desativar notificações.';
+      alert(message);
+    }
   };
 
   const createdDate = authUser?.created_at ? new Date(authUser.created_at) : null;
@@ -48,6 +69,24 @@ export function ProfilePage() {
                 <LogOut className="w-4 h-4" />
                 Sair
               </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <BellRing className="w-4 h-4" />
+                  Ativar notificações
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDisablePush}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-100"
+                >
+                  <BellOff className="w-4 h-4" />
+                  Desativar notificações
+                </button>
+              </div>
             </div>
           </div>
         </div>
