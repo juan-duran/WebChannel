@@ -4,6 +4,21 @@
 
 Successfully implemented a production-ready, real-time omnichannel messaging platform with n8n integration, intelligent caching, and rich media support. The system is designed to handle 2,000-3,000 concurrent WebSocket connections with 70-90% cache hit rates.
 
+## Recent Additions (Trials, SSO, GA4, UX)
+
+- **SSO + Trial auto-provision** (`server/src/routes/sso.ts`): creates core `users` + `subscribers` (`phone_jid=web:<email>`, `active=true`) and upserts `web_users` with trial (`trial_status=active`, `trial_expires_at=+3d`) on first login; reuses active subscribers; inactive subscribers redirect to pricing with `reason=inactive`.
+- **Session API** (`server/src/routes/session.ts`): `GET /api/session` returns `{ userId, email, subscription_status, trial_status, trial_expires_at }`; falls back to cookie if no `web_users` row.
+- **Trial UI** (`src/utils/trial.ts`, `src/components/TrialBanner.tsx`, `src/components/TrialExpiredOverlay.tsx`): banner for active trials, blocking overlay for expired trials; wired in `App.tsx`.
+- **Onboarding gating**: shared status via `OnboardingStatusContext`; Tendências shows overlay until personalização is complete; personalization save refreshes status.
+- **TAP UX**: summary aligned to clicked topic on desktop; summary header “Assunto #X · Tópico #Y”; prominent CTA “Ver conteúdo do assunto” in trend card.
+- **GA4**: snippet in `index.html` using `VITE_GA_APP_ID` (GA4 Measurement ID `G-...`); SPA page views via `trackPageView` in `App.tsx`.
+- **Trial expiration cron** (`server/src/routes/trialCron.ts`): `POST /internal/trials/expire` with `x-cron-token` and `TRIAL_CRON_TOKEN`; expires active trials (non-paid) and sets `subscribers.active=false` in CORE. Cron command example:
+  ```
+  curl --http1.1 --fail --silent --show-error -X POST \
+    -H "x-cron-token:${TRIAL_CRON_TOKEN}" \
+    --data '' https://app.quenty.com.br/internal/trials/expire
+  ```
+
 ## Completed Features
 
 ### ✅ Backend Server Foundation
