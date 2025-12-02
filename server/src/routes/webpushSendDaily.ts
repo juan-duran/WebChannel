@@ -183,11 +183,11 @@ router.post('/send-daily', async (req, res) => {
         const today = new Date().toISOString().slice(0, 10);
         const { error: updErr } = await coreSupabaseClient
           .from('subscribers')
-          .update({ last_daily_sent_date: today })
+          .update({ last_webpush_sent_date: today })
           .eq('email', emailRaw);
 
         if (updErr) {
-          console.error('[webpush send-daily] update last_daily_sent_date error', {
+          console.error('[webpush send-daily] update last_webpush_sent_date error', {
             email: emailRaw,
             error: updErr,
           });
