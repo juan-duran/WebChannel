@@ -22,6 +22,7 @@ import appRouter from './routes/app.js';
 import trendsRouter from './routes/trends.js';
 import trialCronRouter from './routes/trialCron.js';
 import webpushRouter from './routes/webpush.js';
+import webpushSendDailyRouter from './routes/webpushSendDaily.js';
 
 async function startServer() {
   try {
@@ -55,6 +56,7 @@ async function startServer() {
 
     // Internal cron (token header)
     app.use('/internal/trials', trialCronRouter);
+    app.use('/api/webpush', webpushSendDailyRouter);
 
     // Protected routes
     app.use('/api/session', sessionRouter);
