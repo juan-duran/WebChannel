@@ -10,6 +10,7 @@ import { websocketService } from '../lib/websocket';
 import { extractTopicEngagement } from '../utils/topicEngagement';
 import { useCurrentUser } from '../state/UserContext';
 import { useOnboardingStatus } from '../state/OnboardingStatusContext';
+import { trackEvent } from '../lib/analytics';
 
 const sharedSummaryCache = new Map<
   string,
@@ -250,6 +251,11 @@ export function TapNavigationPage() {
           });
         }
 
+        trackEvent('summary_request', {
+          trend_id: trendId,
+          topic_id: topicId,
+        });
+
         const response = await fetch('/api/trends/summarize', {
           method: 'POST',
           headers: {
@@ -466,7 +472,16 @@ export function TapNavigationPage() {
   }, [fetchLatestTrends]);
 
   const handleTrendExpand = (trend: DailyTrend) => {
-    setExpandedTrendId((current) => (current === trend.position ? null : trend.position));
+    setExpandedTrendId((current) => {
+      const next = current === trend.position ? null : trend.position;
+      if (next !== null && next !== current) {
+        trackEvent('trend_expand', {
+          trend_position: trend.position,
+          trend_id: trend.id ?? trend.position,
+        });
+      }
+      return next;
+    });
     setSelectedTopic(null);
     setSelectedSummary(null);
     setSummaryError(null);
