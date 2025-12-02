@@ -17,6 +17,16 @@ router.post('/subscribe', async (req, res) => {
   }
 
   try {
+    const { data: webUser, error: userErr } = await supabaseService.client
+      .from('web_users')
+      .select('id')
+      .ilike('email', user.email)
+      .single();
+
+    if (userErr || !webUser?.id) {
+      return res.status(404).json({ ok: false, error: 'user_not_found_in_web_users' });
+    }
+
     await supabaseService.client
       .from('web_push_tokens')
       .delete()
@@ -25,7 +35,7 @@ router.post('/subscribe', async (req, res) => {
     const { error } = await supabaseService.client
       .from('web_push_tokens')
       .insert({
-        user_id: user.id,
+        user_id: webUser.id,
         subscription,
         last_seen_at: new Date().toISOString(),
       });
