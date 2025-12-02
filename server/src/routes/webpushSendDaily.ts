@@ -37,7 +37,7 @@ router.post('/send-daily', async (req, res) => {
   console.log('[webpush send-daily] window', { startTime, endTime });
 
   try {
-    const { data: rows, error: rpcError } = await coreSupabaseClient.rpc<RpcRow>(
+    const { data: rows, error: rpcError } = await coreSupabaseClient.rpc(
       'get_push_user_emails_in_window',
       { start_time: startTime, end_time: endTime },
     );
@@ -47,11 +47,13 @@ router.post('/send-daily', async (req, res) => {
       return res.status(500).json({ ok: false, error: 'rpc_error' });
     }
 
+    const rpcRows: RpcRow[] = (rows || []) as RpcRow[];
+
     const emails = Array.from(
       new Set(
-        (rows || [])
-          .map((r) => r.email?.toLowerCase())
-          .filter((email): email is string => Boolean(email)),
+        rpcRows
+          .map((r: RpcRow) => r.email?.toLowerCase())
+          .filter((email: string | null | undefined): email is string => Boolean(email)),
       ),
     );
 
