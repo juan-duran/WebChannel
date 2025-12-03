@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, AlertCircle, ArrowLeft, BellRing } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
@@ -840,17 +840,17 @@ export function TapNavigationPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {showTapPushCta && (
-          <div className="rounded-xl border border-blue-200 bg-white px-4 py-4 shadow-sm">
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-                <BellRing className="w-5 h-5" />
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+                <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="flex-1 space-y-2">
                 <p className="text-sm font-semibold text-gray-900">
-                  Receber notificação quando seu resumo diário estiver pronto?
+                  Ative as notificações para receber seu resumo diário.
                 </p>
                 <p className="text-xs text-gray-700">
-                  Ative para ser avisado assim que o resumo do dia ficar disponível.
+                  Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que o resumo ficar pronto.
                 </p>
                 {tapPushError && <p className="text-xs text-red-700">{tapPushError}</p>}
                 <div className="flex flex-wrap gap-2">
@@ -858,14 +858,14 @@ export function TapNavigationPage() {
                     type="button"
                     onClick={handleTapEnablePush}
                     disabled={tapPushLoading}
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {tapPushLoading ? 'Ativando...' : 'Ativar notificações'}
                   </button>
                   <button
                     type="button"
                     onClick={dismissTapPush}
-                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+                    className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
                   >
                     Agora não
                   </button>
