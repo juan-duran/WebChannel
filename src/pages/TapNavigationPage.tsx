@@ -261,18 +261,22 @@ export function TapNavigationPage() {
 
   const fetchSummaryForTopic = useCallback(
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
-      if (
-        !options?.forceRefresh &&
-        summaryFromCache &&
-        selectedSummary &&
-        selectedTopic?.number === topic.number &&
-        expandedTrendId === trend.position
-      ) {
+      setSummaryError(null);
+
+      const cacheKey = createCacheKey(
+        trend.id ?? trend.position ?? trend.title ?? '',
+        topic.id ?? topic.number ?? topic.description ?? '',
+      );
+      const cachedSummary = summaryCacheRef.current.get(cacheKey);
+
+      if (!options?.forceRefresh && cachedSummary) {
+        setSelectedSummary(cachedSummary.summary);
+        setSummaryMetadata(cachedSummary.metadata);
+        setSummaryFromCache(Boolean(cachedSummary.fromCache));
         setSummaryBubbleState('ready');
         return;
       }
 
-      setSummaryError(null);
       setSelectedSummary(null);
       setSummaryMetadata(null);
       setSummaryFromCache(false);
