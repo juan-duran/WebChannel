@@ -57,6 +57,17 @@ export function TapNavigationPage() {
     topicNumber?: number | null;
     topicId?: string | number | null;
   }>({});
+  const [pendingSummary, setPendingSummary] = useState<{
+    summary: SummaryData;
+    metadata: Record<string, unknown> | null;
+    fromCache: boolean;
+    context: {
+      trendPosition?: number | null;
+      trendId?: string | number | null;
+      topicNumber?: number | null;
+      topicId?: string | number | null;
+    };
+  } | null>(null);
   const summarySteps = [
     'QUENTY-IA coletando fontes quentes',
     'Filtrando ruído e lixo',
@@ -249,6 +260,7 @@ export function TapNavigationPage() {
       setIsLoadingSummary(true);
       setSummaryStepIndex(0);
       setSummaryBubbleState('progress');
+      setPendingSummary(null);
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -297,6 +309,7 @@ export function TapNavigationPage() {
           const message = 'Não foi possível obter o resumo.';
           setSummaryError(message);
           setSummaryBubbleState('idle');
+          setPendingSummary(null);
 
           console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
             ...startLogContext,
@@ -316,16 +329,35 @@ export function TapNavigationPage() {
         const normalizedSummary = normalizeSummaryPayload(data?.summary, data?.metadata);
 
         if (normalizedSummary) {
-          setSelectedSummary(normalizedSummary);
-          setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
-          setSummaryFromCache(Boolean(data.fromCache));
-          setSummaryBubbleState('ready');
-          setLastSummaryContext({
+          const summaryPayload = {
+            summary: normalizedSummary,
+            metadata: (data.metadata as Record<string, unknown>) ?? null,
+            fromCache: Boolean(data.fromCache),
+          };
+          const context = {
             trendPosition: trend.position ?? null,
             trendId: trend.id ?? trend.position ?? trend.title ?? null,
             topicNumber: topic.number ?? null,
             topicId: topic.id ?? topic.number ?? topic.description ?? null,
-          });
+          };
+          const isSameSelection =
+            selectedTopic &&
+            (selectedTopic.number === topic.number ||
+              selectedTopic.id === topic.id ||
+              selectedTopic.description === topic.description) &&
+            (expandedTrendId === trend.position ||
+              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
+
+          if (isSameSelection) {
+            setSelectedSummary(summaryPayload.summary);
+            setSummaryMetadata(summaryPayload.metadata);
+            setSummaryFromCache(summaryPayload.fromCache);
+          } else {
+            setPendingSummary({ ...summaryPayload, context });
+          }
+
+          setSummaryBubbleState('ready');
+          setLastSummaryContext(context);
 
           const resolveMetadataId = (
             metadata: Record<string, unknown> | null | undefined,
@@ -397,6 +429,7 @@ export function TapNavigationPage() {
       setSummaryError(message);
       setSummaryMetadata(null);
       setSummaryBubbleState('idle');
+      setPendingSummary(null);
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
           event: 'summary_fetch',
@@ -715,6 +748,18 @@ export function TapNavigationPage() {
             ) || targetTrend.topics?.[0] || null;
 
           setSelectedTopic(matchTopic ?? null);
+          if (
+            pendingSummary &&
+            pendingSummary.context.trendPosition === targetTrend.position &&
+            (pendingSummary.context.topicNumber === matchTopic?.number ||
+              pendingSummary.context.topicId === matchTopic?.id ||
+              pendingSummary.context.topicId === matchTopic?.description)
+          ) {
+            setSelectedSummary(pendingSummary.summary);
+            setSummaryMetadata(pendingSummary.metadata);
+            setSummaryFromCache(pendingSummary.fromCache);
+            setPendingSummary(null);
+          }
           setTimeout(() => scrollToSummary(), 100);
           return;
         }
