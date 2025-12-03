@@ -673,8 +673,21 @@ export function TapNavigationPage() {
   );
 
   const scrollToSummary = () => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop) {
+      const target = summaryContainerRef.current || desktopListRef.current;
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const offsetTop = window.scrollY + rect.top - 80; // keep header margin
+        window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+        return;
+      }
+    }
+
     if (summaryContainerRef.current) {
       summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (mobileSummaryWrapperRef.current) {
+      mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
