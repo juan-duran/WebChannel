@@ -90,7 +90,6 @@ export function TapNavigationPage() {
   const persistedBatchRef = useRef<string | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
-  const lastTopicPageYRef = useRef<number | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -355,8 +354,7 @@ export function TapNavigationPage() {
             (selectedTopic.number === topic.number ||
               selectedTopic.id === topic.id ||
               selectedTopic.description === topic.description) &&
-            (expandedTrendId === trend.position ||
-              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
+            expandedTrendId === trend.position;
 
           setLastSummaryData({ ...summaryPayload, context });
           setLastSummaryContext(context);
@@ -654,7 +652,7 @@ export function TapNavigationPage() {
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
-            onTopicSelect={(topic, event) => {
+            onTopicSelect={(topic) => {
               setSelectedTopic(topic);
               setSummaryError(null);
 
@@ -675,9 +673,6 @@ export function TapNavigationPage() {
                 setSummaryFromCache(false);
               }
 
-              if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-                lastTopicPageYRef.current = event.currentTarget.getBoundingClientRect().top + window.scrollY;
-              }
             }}
             disabled={isLoading || isRefreshing}
           />
@@ -762,7 +757,7 @@ export function TapNavigationPage() {
 
           setSelectedTopic(matchTopic ?? null);
           const matchesContext = (
-            ctx:
+            ctx?:
               | {
                   trendPosition?: number | null;
                   trendId?: string | number | null;
@@ -805,7 +800,7 @@ export function TapNavigationPage() {
       <button
         type="button"
         onClick={handleClick}
-        className={`fixed right-4 bottom-20 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+        className={`fixed right-4 bottom-16 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
             ? 'bg-green-600 text-white hover:bg-green-700'
             : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -863,12 +858,16 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
-        <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
+        <div
+          ref={!isMobile ? desktopSummaryRef : undefined}
+          className={`flex-1 ${isMobile ? 'overflow-y-auto' : ''} ${contentPadding}`}
+        >
           {selectedTopic ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="font-semibold text-gray-700">
-                  Assunto #{currentTrend?.position ?? '?'} · Tópico #{selectedTopic.number}
+                  Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
+                  {selectedTopic.number}
                 </span>
               </div>
               <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
