@@ -51,6 +51,34 @@ export function TapNavigationPage() {
   const [desktopSummaryOffset, setDesktopSummaryOffset] = useState(0);
   const [summaryStepIndex, setSummaryStepIndex] = useState(0);
   const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
+  const [lastSummaryContext, setLastSummaryContext] = useState<{
+    trendPosition?: number | null;
+    trendId?: string | number | null;
+    topicNumber?: number | null;
+    topicId?: string | number | null;
+  }>({});
+  const [lastSummaryData, setLastSummaryData] = useState<{
+    summary: SummaryData;
+    metadata: Record<string, unknown> | null;
+    fromCache: boolean;
+    context: {
+      trendPosition?: number | null;
+      trendId?: string | number | null;
+      topicNumber?: number | null;
+      topicId?: string | number | null;
+    };
+  } | null>(null);
+  const [pendingSummary, setPendingSummary] = useState<{
+    summary: SummaryData;
+    metadata: Record<string, unknown> | null;
+    fromCache: boolean;
+    context: {
+      trendPosition?: number | null;
+      trendId?: string | number | null;
+      topicNumber?: number | null;
+      topicId?: string | number | null;
+    };
+  } | null>(null);
   const summarySteps = [
     'QUENTY-IA coletando fontes quentes',
     'Filtrando ruído e lixo',
@@ -243,6 +271,7 @@ export function TapNavigationPage() {
       setIsLoadingSummary(true);
       setSummaryStepIndex(0);
       setSummaryBubbleState('progress');
+      setPendingSummary(null);
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -291,6 +320,7 @@ export function TapNavigationPage() {
           const message = 'Não foi possível obter o resumo.';
           setSummaryError(message);
           setSummaryBubbleState('idle');
+          setPendingSummary(null);
 
           console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
             ...startLogContext,
@@ -310,9 +340,37 @@ export function TapNavigationPage() {
         const normalizedSummary = normalizeSummaryPayload(data?.summary, data?.metadata);
 
         if (normalizedSummary) {
-          setSelectedSummary(normalizedSummary);
-          setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
-          setSummaryFromCache(Boolean(data.fromCache));
+          const summaryPayload = {
+            summary: normalizedSummary,
+            metadata: (data.metadata as Record<string, unknown>) ?? null,
+            fromCache: Boolean(data.fromCache),
+          };
+          const context = {
+            trendPosition: trend.position ?? null,
+            trendId: trend.id ?? trend.position ?? trend.title ?? null,
+            topicNumber: topic.number ?? null,
+            topicId: topic.id ?? topic.number ?? topic.description ?? null,
+          };
+          const isSameSelection =
+            selectedTopic &&
+            (selectedTopic.number === topic.number ||
+              selectedTopic.id === topic.id ||
+              selectedTopic.description === topic.description) &&
+            (expandedTrendId === trend.position ||
+              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
+
+          setLastSummaryData({ ...summaryPayload, context });
+          setLastSummaryContext(context);
+
+          if (isSameSelection) {
+            setSelectedSummary(summaryPayload.summary);
+            setSummaryMetadata(summaryPayload.metadata);
+            setSummaryFromCache(summaryPayload.fromCache);
+            setPendingSummary(null);
+          } else {
+            setPendingSummary({ ...summaryPayload, context });
+          }
+
           setSummaryBubbleState('ready');
 
           const resolveMetadataId = (
@@ -385,6 +443,7 @@ export function TapNavigationPage() {
       setSummaryError(message);
       setSummaryMetadata(null);
       setSummaryBubbleState('idle');
+      setPendingSummary(null);
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
           event: 'summary_fetch',
@@ -661,8 +720,21 @@ export function TapNavigationPage() {
   );
 
   const scrollToSummary = () => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop) {
+      const target = summaryContainerRef.current || desktopListRef.current;
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const offsetTop = window.scrollY + rect.top - 80; // keep header margin
+        window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+        return;
+      }
+    }
+
     if (summaryContainerRef.current) {
       summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (mobileSummaryWrapperRef.current) {
+      mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -670,10 +742,70 @@ export function TapNavigationPage() {
     if (summaryBubbleState === 'idle') return null;
 
     const isReady = summaryBubbleState === 'ready';
+    const handleClick = () => {
+      if (isReady && (lastSummaryContext.trendPosition || lastSummaryContext.trendId)) {
+        const targetTrend =
+          trends.find((t) => t.position === lastSummaryContext.trendPosition) ||
+          trends.find((t) => (t.id ?? t.title) === lastSummaryContext.trendId) ||
+          trends.find((t) => t.position === expandedTrendId) ||
+          null;
+
+        if (targetTrend) {
+          setExpandedTrendId(targetTrend.position ?? null);
+
+          const matchTopic =
+            targetTrend.topics?.find(
+              (topic) =>
+                topic.number === lastSummaryContext.topicNumber ||
+                topic.id === lastSummaryContext.topicId ||
+                topic.description === lastSummaryContext.topicId,
+            ) || targetTrend.topics?.[0] || null;
+
+          setSelectedTopic(matchTopic ?? null);
+          const matchesContext = (
+            ctx:
+              | {
+                  trendPosition?: number | null;
+                  trendId?: string | number | null;
+                  topicNumber?: number | null;
+                  topicId?: string | number | null;
+                }
+              | null
+          ) =>
+            Boolean(
+              ctx &&
+                (ctx.trendPosition === targetTrend.position ||
+                  (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
+                (ctx.topicNumber === matchTopic?.number ||
+                  ctx.topicId === matchTopic?.id ||
+                  ctx.topicId === matchTopic?.description ||
+                  matchTopic === null), // tolerate missing topic match and still apply summary
+            );
+
+          const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
+            if (!payload) return false;
+            setSelectedSummary(payload.summary);
+            setSummaryMetadata(payload.metadata);
+            setSummaryFromCache(payload.fromCache);
+            return true;
+          };
+
+          if (matchesContext(pendingSummary?.context) && applySummary(pendingSummary)) {
+            setPendingSummary(null);
+          } else if (matchesContext(lastSummaryData?.context) && applySummary(lastSummaryData)) {
+            // keep lastSummaryData for future clicks
+          }
+          setTimeout(() => scrollToSummary(), 100);
+          return;
+        }
+      }
+
+      scrollToSummary();
+    };
     return (
       <button
         type="button"
-        onClick={scrollToSummary}
+        onClick={handleClick}
         className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
             ? 'bg-green-600 text-white hover:bg-green-700'
