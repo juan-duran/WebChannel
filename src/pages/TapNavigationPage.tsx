@@ -675,8 +675,8 @@ export function TapNavigationPage() {
             disabled={isLoading || isRefreshing}
           />
           {/* Desktop: render summary inline below the expanded trend */}
-          {!showMobileSummary && expandedTrendId === trend.position && (
-            <div className="mt-2">
+          {expandedTrendId === trend.position && (selectedTopic || selectedSummary) && (
+            <div className="mt-2 hidden lg:block">
               {renderSummaryContent('desktop', trend)}
             </div>
           )}
