@@ -57,6 +57,17 @@ export function TapNavigationPage() {
     topicNumber?: number | null;
     topicId?: string | number | null;
   }>({});
+  const [lastSummaryData, setLastSummaryData] = useState<{
+    summary: SummaryData;
+    metadata: Record<string, unknown> | null;
+    fromCache: boolean;
+    context: {
+      trendPosition?: number | null;
+      trendId?: string | number | null;
+      topicNumber?: number | null;
+      topicId?: string | number | null;
+    };
+  } | null>(null);
   const [pendingSummary, setPendingSummary] = useState<{
     summary: SummaryData;
     metadata: Record<string, unknown> | null;
@@ -348,16 +359,19 @@ export function TapNavigationPage() {
             (expandedTrendId === trend.position ||
               (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
 
+          setLastSummaryData({ ...summaryPayload, context });
+          setLastSummaryContext(context);
+
           if (isSameSelection) {
             setSelectedSummary(summaryPayload.summary);
             setSummaryMetadata(summaryPayload.metadata);
             setSummaryFromCache(summaryPayload.fromCache);
+            setPendingSummary(null);
           } else {
             setPendingSummary({ ...summaryPayload, context });
           }
 
           setSummaryBubbleState('ready');
-          setLastSummaryContext(context);
 
           const resolveMetadataId = (
             metadata: Record<string, unknown> | null | undefined,
@@ -748,17 +762,34 @@ export function TapNavigationPage() {
             ) || targetTrend.topics?.[0] || null;
 
           setSelectedTopic(matchTopic ?? null);
-          if (
-            pendingSummary &&
-            pendingSummary.context.trendPosition === targetTrend.position &&
-            (pendingSummary.context.topicNumber === matchTopic?.number ||
-              pendingSummary.context.topicId === matchTopic?.id ||
-              pendingSummary.context.topicId === matchTopic?.description)
-          ) {
-            setSelectedSummary(pendingSummary.summary);
-            setSummaryMetadata(pendingSummary.metadata);
-            setSummaryFromCache(pendingSummary.fromCache);
+          const matchesContext = (
+            ctx:
+              | {
+                  trendPosition?: number | null;
+                  trendId?: string | number | null;
+                  topicNumber?: number | null;
+                  topicId?: string | number | null;
+                }
+              | null
+          ) =>
+            Boolean(
+              ctx &&
+                (ctx.trendPosition === targetTrend.position ||
+                  (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
+                (ctx.topicNumber === matchTopic?.number ||
+                  ctx.topicId === matchTopic?.id ||
+                  ctx.topicId === matchTopic?.description),
+            );
+
+          if (matchesContext(pendingSummary?.context)) {
+            setSelectedSummary(pendingSummary!.summary);
+            setSummaryMetadata(pendingSummary!.metadata);
+            setSummaryFromCache(pendingSummary!.fromCache);
             setPendingSummary(null);
+          } else if (matchesContext(lastSummaryData?.context) && lastSummaryData) {
+            setSelectedSummary(lastSummaryData.summary);
+            setSummaryMetadata(lastSummaryData.metadata);
+            setSummaryFromCache(lastSummaryData.fromCache);
           }
           setTimeout(() => scrollToSummary(), 100);
           return;
