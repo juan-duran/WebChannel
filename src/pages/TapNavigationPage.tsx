@@ -88,6 +88,7 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
+  const desktopListRef = useRef<HTMLDivElement | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -352,7 +353,8 @@ export function TapNavigationPage() {
             (selectedTopic.number === topic.number ||
               selectedTopic.id === topic.id ||
               selectedTopic.description === topic.description) &&
-            expandedTrendId === trend.position;
+            (expandedTrendId === trend.position ||
+              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
 
           setLastSummaryData({ ...summaryPayload, context });
           setLastSummaryContext(context);
@@ -650,7 +652,7 @@ export function TapNavigationPage() {
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
-            onTopicSelect={(topic) => {
+            onTopicSelect={(topic, event) => {
               setSelectedTopic(topic);
               setSummaryError(null);
 
@@ -671,6 +673,9 @@ export function TapNavigationPage() {
                 setSummaryFromCache(false);
               }
 
+              if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                lastTopicPageYRef.current = event.currentTarget.getBoundingClientRect().top + window.scrollY;
+              }
             }}
             disabled={isLoading || isRefreshing}
           />
@@ -712,6 +717,17 @@ export function TapNavigationPage() {
   );
 
   const scrollToSummary = () => {
+    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
+    if (isDesktop) {
+      const target = summaryContainerRef.current || desktopListRef.current;
+      if (target) {
+        const rect = target.getBoundingClientRect();
+        const offsetTop = window.scrollY + rect.top - 80; // keep header margin
+        window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
+        return;
+      }
+    }
+
     if (summaryContainerRef.current) {
       summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (mobileSummaryWrapperRef.current) {
@@ -744,7 +760,7 @@ export function TapNavigationPage() {
 
           setSelectedTopic(matchTopic ?? null);
           const matchesContext = (
-            ctx?:
+            ctx:
               | {
                   trendPosition?: number | null;
                   trendId?: string | number | null;
@@ -787,7 +803,7 @@ export function TapNavigationPage() {
       <button
         type="button"
         onClick={handleClick}
-        className={`fixed right-4 bottom-16 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+        className={`fixed right-4 bottom-24 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
             ? 'bg-green-600 text-white hover:bg-green-700'
             : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -805,12 +821,11 @@ export function TapNavigationPage() {
     );
   };
 
-  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop', currentTrendOverride?: DailyTrend | null) => {
+  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop') => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
-    const currentTrend =
-      (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
+    const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
     const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
@@ -846,13 +861,12 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
-        <div className={`flex-1 ${isMobile ? 'overflow-y-auto' : ''} ${contentPadding}`}>
+        <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <span className="font-semibold text-gray-700">
-                  Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
-                  {selectedTopic.number}
+                  Assunto #{currentTrend?.position ?? '?'} · Tópico #{selectedTopic.number}
                 </span>
               </div>
               <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
@@ -1021,7 +1035,6 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
-  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -1160,8 +1173,13 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div className="hidden lg:block">
-              {renderTrendList()}
+            <div className="hidden lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+              <div className="space-y-3" ref={desktopListRef}>
+                {renderTrendList()}
+              </div>
+              <div className="space-y-3 sticky top-20">
+                {renderSummaryContent('desktop')}
+              </div>
             </div>
           </>
         )}
