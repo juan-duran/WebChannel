@@ -84,6 +84,7 @@ export function TapNavigationPage() {
     'Despolarizando o conteúdo',
   ];
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
+  const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
