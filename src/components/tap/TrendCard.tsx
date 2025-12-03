@@ -17,6 +17,7 @@ interface TrendCardProps {
   onRetryTopics?: () => void;
   disabled?: boolean;
   afterContent?: ReactNode;
+  renderTopicExtras?: (topic: DailyTrendTopic) => ReactNode;
 }
 
 const formatDate = (value?: string | null) => {
@@ -55,6 +56,7 @@ export function TrendCard({
   onRetryTopics,
   disabled = false,
   afterContent,
+  renderTopicExtras,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
   const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
@@ -231,6 +233,7 @@ export function TrendCard({
                       {topic.posted_at && (
                         <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
                       )}
+                      {renderTopicExtras && <div className="pt-2">{renderTopicExtras(topic)}</div>}
                     </button>
                   );
                 })}

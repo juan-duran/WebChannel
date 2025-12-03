@@ -88,7 +88,6 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
-  const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -672,13 +671,21 @@ export function TapNavigationPage() {
                 setSummaryFromCache(false);
               }
             }}
-            afterContent={
-              expandedTrendId === trend.position && (selectedTopic || selectedSummary) ? (
+            renderTopicExtras={(topic) => {
+              const isSelectedTopic =
+                selectedTopic &&
+                (selectedTopic.number === topic.number ||
+                  selectedTopic.id === topic.id ||
+                  selectedTopic.description === topic.description);
+
+              if (!isSelectedTopic || expandedTrendId !== trend.position) return null;
+
+              return (
                 <div className="mt-3 hidden lg:block" ref={summaryContainerRef}>
-                  {renderSummaryContent('desktop')}
+                  {renderSummaryContent('desktop', trend)}
                 </div>
-              ) : null
-            }
+              );
+            }}
             disabled={isLoading || isRefreshing}
           />
         </div>
@@ -812,11 +819,11 @@ export function TapNavigationPage() {
     );
   };
 
-  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop') => {
+  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop', currentTrendOverride?: DailyTrend | null) => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
-    const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
+    const currentTrend = currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId) || null;
     const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
