@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
@@ -49,6 +49,14 @@ export function TapNavigationPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [desktopSummaryOffset, setDesktopSummaryOffset] = useState(0);
+  const [summaryStepIndex, setSummaryStepIndex] = useState(0);
+  const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
+  const summarySteps = [
+    'QUENTY-IA coletando fontes quentes',
+    'Filtrando ruído e lixo',
+    'Despolarizando o conteúdo',
+  ];
+  const summaryContainerRef = useRef<HTMLDivElement | null>(null);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
@@ -233,6 +241,8 @@ export function TapNavigationPage() {
       setSummaryMetadata(null);
       setSummaryFromCache(false);
       setIsLoadingSummary(true);
+      setSummaryStepIndex(0);
+      setSummaryBubbleState('progress');
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -280,6 +290,7 @@ export function TapNavigationPage() {
         if (!response.ok) {
           const message = 'Não foi possível obter o resumo.';
           setSummaryError(message);
+          setSummaryBubbleState('idle');
 
           console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
             ...startLogContext,
@@ -302,6 +313,7 @@ export function TapNavigationPage() {
           setSelectedSummary(normalizedSummary);
           setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
           setSummaryFromCache(Boolean(data.fromCache));
+          setSummaryBubbleState('ready');
 
           const resolveMetadataId = (
             metadata: Record<string, unknown> | null | undefined,
@@ -370,8 +382,9 @@ export function TapNavigationPage() {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
-        setSummaryError(message);
-        setSummaryMetadata(null);
+      setSummaryError(message);
+      setSummaryMetadata(null);
+      setSummaryBubbleState('idle');
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
           event: 'summary_fetch',
@@ -485,6 +498,34 @@ export function TapNavigationPage() {
   }, [fetchLatestTrends]);
 
   useEffect(() => {
+    let interval: number | undefined;
+
+    if (isLoadingSummary) {
+      interval = window.setInterval(() => {
+        setSummaryStepIndex((prev) => {
+          const next = prev + 1;
+          return next >= summarySteps.length ? summarySteps.length - 1 : next;
+        });
+      }, 9000);
+    }
+
+    return () => {
+      if (interval !== undefined) {
+        window.clearInterval(interval);
+      }
+    };
+  }, [isLoadingSummary, summarySteps.length]);
+
+  useEffect(() => {
+    if (!isLoadingSummary && summaryBubbleState === 'progress' && selectedSummary) {
+      setSummaryBubbleState('ready');
+    }
+    if (!isLoadingSummary && summaryError) {
+      setSummaryBubbleState('idle');
+    }
+  }, [isLoadingSummary, summaryError, selectedSummary, summaryBubbleState]);
+
+  useEffect(() => {
     if (!tapPushDismissed) {
       refreshPushStatus();
     }
@@ -587,6 +628,70 @@ export function TapNavigationPage() {
     </div>
   );
 
+  const renderSummaryProgress = () => (
+    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-900 space-y-2">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-800">
+        <Loader2 className="w-4 h-4 animate-spin" />
+        QUENTY-IA em ação (pode levar ~1–2 minutos)
+      </div>
+      <ul className="space-y-1.5">
+        {summarySteps.map((step, idx) => {
+          const active = idx === summaryStepIndex;
+          const done = idx < summaryStepIndex;
+          return (
+            <li
+              key={step}
+              className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
+                active ? 'bg-white border border-blue-200' : done ? 'text-blue-700' : 'text-blue-900/80'
+              }`}
+            >
+              {done ? (
+                <CheckCircle className="w-4 h-4 text-blue-600" />
+              ) : active ? (
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+              ) : (
+                <span className="w-4 h-4 rounded-full border border-blue-200" />
+              )}
+              <span className="text-[12px]">{step}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+
+  const scrollToSummary = () => {
+    if (summaryContainerRef.current) {
+      summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const renderSummaryBubble = () => {
+    if (summaryBubbleState === 'idle') return null;
+
+    const isReady = summaryBubbleState === 'ready';
+    return (
+      <button
+        type="button"
+        onClick={scrollToSummary}
+        className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+          isReady
+            ? 'bg-green-600 text-white hover:bg-green-700'
+            : 'bg-amber-500 text-white hover:bg-amber-600'
+        }`}
+      >
+        {isReady ? (
+          <CheckCircle className="w-4 h-4" />
+        ) : (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        )}
+        <span className="text-sm font-semibold">
+          {isReady ? 'Resumo pronto — abrir' : 'Resumo em preparo (QUENTY-IA)'}
+        </span>
+      </button>
+    );
+  };
+
   const renderSummaryContent = (breakpoint: 'mobile' | 'desktop') => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
@@ -669,34 +774,33 @@ export function TapNavigationPage() {
                 )}
               </div>
 
-              {isLoadingSummary && (
-                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
-                  Gerando resumo... (pode levar ~45 segundos)
-                </div>
-              )}
+              {isLoadingSummary && renderSummaryProgress()}
               {summaryError && !isLoadingSummary && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                   {summaryError}
                 </div>
               )}
-                {selectedSummary && !isLoadingSummary && !summaryError && (
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        {summaryTopicName && (
-                          <span className="font-semibold text-gray-900">{summaryTopicName}</span>
-                        )}
-                        {summaryTrendName && (
-                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
-                            {summaryTrendName}
-                          </span>
-                        )}
-                        {summaryLikesData && (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
-                            {summaryLikesData}
-                          </span>
-                        )}
-                      </div>
+              {selectedSummary && !isLoadingSummary && !summaryError && (
+                <div
+                  ref={summaryContainerRef}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3"
+                >
+                  <div className="flex flex-col gap-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                      {summaryTopicName && (
+                        <span className="font-semibold text-gray-900">{summaryTopicName}</span>
+                      )}
+                      {summaryTrendName && (
+                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                          {summaryTrendName}
+                        </span>
+                      )}
+                      {summaryLikesData && (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                          {summaryLikesData}
+                        </span>
+                      )}
+                    </div>
 
                   </div>
 
@@ -965,6 +1069,7 @@ export function TapNavigationPage() {
           </>
         )}
       </div>
+      {renderSummaryBubble()}
       {!onboardingStatus.loading && !onboardingStatus.complete && (
         <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white border border-blue-100 shadow-xl rounded-2xl p-6 space-y-3 text-center">
