@@ -1,6 +1,6 @@
 import type { FocusEvent, FormEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, AlertCircle, BellRing } from 'lucide-react';
+import { CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { useCurrentUser } from '../state/UserContext';
 import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 import type { OnboardingPayload } from '../types/onboarding';
@@ -686,17 +686,17 @@ export function OnboardingPage() {
       )}
 
       {showPushCta && (
-        <div className="mb-5 rounded-xl border border-blue-200 bg-white px-4 py-4 shadow-sm">
+        <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <BellRing className="w-5 h-5" />
+            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+              <AlertTriangle className="w-5 h-5" />
             </div>
             <div className="flex-1 space-y-2">
               <p className="text-sm font-semibold text-gray-900">
-                Último passo: quer um alerta diário quando seu resumo estiver pronto?
+                Último passo: ative as notificações para receber seu resumo diário.
               </p>
               <p className="text-xs text-gray-700">
-                Ative as notificações do navegador para receber o resumo sem precisar abrir o app.
+                Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que o resumo ficar pronto.
               </p>
               {pushCtaError && <p className="text-xs text-red-700">{pushCtaError}</p>}
               <div className="flex flex-wrap gap-2">
@@ -704,14 +704,14 @@ export function OnboardingPage() {
                   type="button"
                   onClick={handlePushEnable}
                   disabled={pushCtaLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {pushCtaLoading ? 'Ativando...' : 'Ativar notificações'}
                 </button>
                 <button
                   type="button"
                   onClick={handlePushDismiss}
-                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
                 >
                   Pular agora
                 </button>
