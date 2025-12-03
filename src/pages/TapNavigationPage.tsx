@@ -88,6 +88,7 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
+  const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
