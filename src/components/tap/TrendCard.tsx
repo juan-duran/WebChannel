@@ -93,7 +93,13 @@ export function TrendCard({
               )}
             </div>
             <h3 className="font-bold text-gray-900 text-base leading-tight">{trend.title}</h3>
-            {trend.snippet && <p className="text-sm text-gray-700 line-clamp-2">{trend.snippet}</p>}
+            {trend.snippet && (
+              <p
+                className={`text-sm text-gray-700 ${isExpanded ? 'line-clamp-6' : 'line-clamp-3'}`}
+              >
+                {trend.snippet}
+              </p>
+            )}
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
               <span className="font-semibold text-gray-800">Engajamento: {engagementValue}</span>
