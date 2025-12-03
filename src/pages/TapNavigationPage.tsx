@@ -1175,16 +1175,19 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
-              <div
-                className="space-y-3 lg:max-h-[calc(100vh-160px)] lg:overflow-auto pr-1"
-                ref={desktopListRef}
-              >
+            <div
+              className={`hidden lg:grid lg:items-start lg:gap-6 ${
+                showDesktopSummary ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-1'
+              }`}
+            >
+              <div className="space-y-3" ref={desktopListRef}>
                 {renderTrendList()}
               </div>
-              <div className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-160px)] lg:overflow-auto">
-                {renderSummaryContent('desktop')}
-              </div>
+              {showDesktopSummary && (
+                <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
+                  {renderSummaryContent('desktop')}
+                </div>
+              )}
             </div>
           </>
         )}
