@@ -804,7 +804,7 @@ export function TapNavigationPage() {
       <button
         type="button"
         onClick={handleClick}
-        className={`fixed right-4 bottom-24 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+        className={`fixed right-4 bottom-20 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
             ? 'bg-green-600 text-white hover:bg-green-700'
             : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -1174,11 +1174,14 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div className="hidden lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
-              <div className="space-y-3" ref={desktopListRef}>
+            <div className="hidden lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start lg:gap-6">
+              <div
+                className="space-y-3 lg:max-h-[calc(100vh-160px)] lg:overflow-auto pr-1"
+                ref={desktopListRef}
+              >
                 {renderTrendList()}
               </div>
-              <div className="space-y-3 sticky top-20">
+              <div className="space-y-3 lg:sticky lg:top-20 lg:max-h-[calc(100vh-160px)] lg:overflow-auto">
                 {renderSummaryContent('desktop')}
               </div>
             </div>
