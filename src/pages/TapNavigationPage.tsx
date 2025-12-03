@@ -652,6 +652,22 @@ export function TapNavigationPage() {
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
+              const isSameTopic =
+                expandedTrendId === trend.position &&
+                selectedTopic &&
+                (selectedTopic.number === topic.number ||
+                  selectedTopic.id === topic.id ||
+                  selectedTopic.description === topic.description);
+
+              if (isSameTopic && typeof window !== 'undefined' && window.innerWidth >= 1024) {
+                setSelectedTopic(null);
+                setSelectedSummary(null);
+                setSummaryMetadata(null);
+                setSummaryFromCache(false);
+                setSummaryError(null);
+                return;
+              }
+
               setSelectedTopic(topic);
               setSummaryError(null);
 
@@ -846,48 +862,41 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
-        {!isMobile && (selectedTopic || selectedSummary) && (
-          <div className="flex items-center justify-end border-b border-gray-100 px-6 py-3">
-            <button
-              type="button"
-              onClick={() => {
-                setSelectedTopic(null);
-                setSelectedSummary(null);
-                setSummaryError(null);
-              }}
-              className="text-xs font-medium text-gray-600 hover:text-gray-900"
-            >
-              Fechar resumo
-            </button>
-          </div>
-        )}
         <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span className="font-semibold text-gray-700">
-              Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
-              {selectedTopic.number}
-            </span>
-          </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
-                <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
-              </div>
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                  <span className="font-semibold text-gray-900">👍 {topicEngagement?.likesLabel ?? 'Não informado'}</span>
-                  <span className="text-gray-500">(Likes)</span>
-                  <span className="text-gray-400">·</span>
-                  <span className="font-semibold text-gray-900">💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}</span>
-                  <span className="text-gray-500">(Debates do comentário)</span>
-                </div>
-                {selectedTopic.posted_at && (
-                  <p className="text-xs text-gray-600">
-                    <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
-                  </p>
-                )}
-              </div>
+              {isMobile && (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="font-semibold text-gray-700">
+                      Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
+                      {selectedTopic.number}
+                    </span>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
+                    <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
+                  </div>
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                      <span className="font-semibold text-gray-900">
+                        👍 {topicEngagement?.likesLabel ?? 'Não informado'}
+                      </span>
+                      <span className="text-gray-500">(Likes)</span>
+                      <span className="text-gray-400">·</span>
+                      <span className="font-semibold text-gray-900">
+                        💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}
+                      </span>
+                      <span className="text-gray-500">(Debates do comentário)</span>
+                    </div>
+                    {selectedTopic.posted_at && (
+                      <p className="text-xs text-gray-600">
+                        <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
+                      </p>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -897,7 +906,7 @@ export function TapNavigationPage() {
                   className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
-                  {selectedSummary ? 'Atualizar resumo' : 'Gerar resumo'}
+                  Gerar resumo
                 </button>
                 {summaryFromCache && !isLoadingSummary && (
                   <span className="text-[11px] text-amber-700">Exibindo versão em cache</span>
@@ -1022,9 +1031,11 @@ export function TapNavigationPage() {
             </div>
           )}
         </div>
-        <div className={`border-t border-gray-200 bg-gray-50 ${footerPadding} text-xs text-gray-500`}>
-          {formatTimestamp ? `Atualizado em ${formatTimestamp}` : 'Aguardando dados recentes...'}
-        </div>
+        {isMobile && (
+          <div className={`border-t border-gray-200 bg-gray-50 ${footerPadding} text-xs text-gray-500`}>
+            {formatTimestamp ? `Atualizado em ${formatTimestamp}` : 'Aguardando dados recentes...'}
+          </div>
+        )}
       </div>
     );
   };
