@@ -48,7 +48,6 @@ export function TapNavigationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [desktopSummaryOffset, setDesktopSummaryOffset] = useState(0);
   const [summaryStepIndex, setSummaryStepIndex] = useState(0);
   const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
   const [lastSummaryContext, setLastSummaryContext] = useState<{
@@ -90,8 +89,6 @@ export function TapNavigationPage() {
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
-  const desktopListRef = useRef<HTMLDivElement | null>(null);
-  const lastTopicPageYRef = useRef<number | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -356,8 +353,7 @@ export function TapNavigationPage() {
             (selectedTopic.number === topic.number ||
               selectedTopic.id === topic.id ||
               selectedTopic.description === topic.description) &&
-            (expandedTrendId === trend.position ||
-              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
+            expandedTrendId === trend.position;
 
           setLastSummaryData({ ...summaryPayload, context });
           setLastSummaryContext(context);
@@ -655,7 +651,7 @@ export function TapNavigationPage() {
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
-            onTopicSelect={(topic, event) => {
+            onTopicSelect={(topic) => {
               setSelectedTopic(topic);
               setSummaryError(null);
 
@@ -675,13 +671,15 @@ export function TapNavigationPage() {
                 setSummaryMetadata(null);
                 setSummaryFromCache(false);
               }
-
-              if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-                lastTopicPageYRef.current = event.currentTarget.getBoundingClientRect().top + window.scrollY;
-              }
             }}
             disabled={isLoading || isRefreshing}
           />
+          {/* Desktop: summary inline below expanded trend */}
+          {expandedTrendId === trend.position && (selectedTopic || selectedSummary) && (
+            <div className="mt-3 hidden lg:block">
+              {renderSummaryContent('desktop')}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -720,17 +718,6 @@ export function TapNavigationPage() {
   );
 
   const scrollToSummary = () => {
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    if (isDesktop) {
-      const target = summaryContainerRef.current || desktopListRef.current;
-      if (target) {
-        const rect = target.getBoundingClientRect();
-        const offsetTop = window.scrollY + rect.top - 80; // keep header margin
-        window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
-        return;
-      }
-    }
-
     if (summaryContainerRef.current) {
       summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (mobileSummaryWrapperRef.current) {
@@ -1033,7 +1020,6 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
-  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -1051,21 +1037,6 @@ export function TapNavigationPage() {
       });
     }
   }, [showMobileSummary]);
-
-  useEffect(() => {
-    if (!selectedTopic) {
-      setDesktopSummaryOffset(0);
-      return;
-    }
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      window.requestAnimationFrame(() => {
-        if (!desktopListRef.current) return;
-        const listTop = desktopListRef.current.getBoundingClientRect().top + window.scrollY;
-        const lastY = lastTopicPageYRef.current ?? listTop;
-        setDesktopSummaryOffset(Math.max(0, lastY - listTop));
-      });
-    }
-  }, [selectedTopic]);
 
   const handleMobileListScroll = useCallback(() => {
     if (mobileListContainerRef.current) {
@@ -1187,18 +1158,7 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div
-              className={`hidden lg:grid lg:items-start lg:gap-6 ${
-                showDesktopSummary ? 'lg:grid-cols-2' : 'lg:grid-cols-1'
-              }`}
-            >
-              <div className="space-y-3" ref={desktopListRef}>
-                {renderTrendList()}
-              </div>
-              {showDesktopSummary && (
-                <div style={{ marginTop: desktopSummaryOffset }}>{renderSummaryContent('desktop')}</div>
-              )}
-            </div>
+            <div className="hidden lg:block">{renderTrendList()}</div>
           </>
         )}
       </div>
