@@ -827,7 +827,8 @@ export function TapNavigationPage() {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
-    const currentTrend = currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId) || null;
+    const currentTrend =
+      (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
     const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
