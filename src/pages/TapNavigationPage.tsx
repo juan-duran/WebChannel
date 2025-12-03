@@ -48,7 +48,6 @@ export function TapNavigationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [desktopSummaryOffset, setDesktopSummaryOffset] = useState(0);
   const [summaryStepIndex, setSummaryStepIndex] = useState(0);
   const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
   const [lastSummaryContext, setLastSummaryContext] = useState<{
@@ -89,9 +88,7 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
-  const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
-  const lastTopicPageYRef = useRef<number | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -806,7 +803,7 @@ export function TapNavigationPage() {
       <button
         type="button"
         onClick={handleClick}
-        className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+        className={`fixed right-4 bottom-24 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
             ? 'bg-green-600 text-white hover:bg-green-700'
             : 'bg-amber-500 text-white hover:bg-amber-600'
@@ -917,6 +914,12 @@ export function TapNavigationPage() {
                   ref={summaryContainerRef}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3"
                 >
+                  {currentTrend && (
+                    <p className="text-sm font-semibold text-gray-900">
+                      Assunto #{currentTrend.position ?? '?'} — {currentTrend.title ?? 'Assunto'} — Tópico #
+                      {selectedTopic?.number ?? '?'}
+                    </p>
+                  )}
                   <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
                       {summaryTopicName && (
@@ -1032,7 +1035,6 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
-  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -1050,21 +1052,6 @@ export function TapNavigationPage() {
       });
     }
   }, [showMobileSummary]);
-
-  useEffect(() => {
-    if (!selectedTopic) {
-      setDesktopSummaryOffset(0);
-      return;
-    }
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-      window.requestAnimationFrame(() => {
-        if (!desktopListRef.current) return;
-        const listTop = desktopListRef.current.getBoundingClientRect().top + window.scrollY;
-        const lastY = lastTopicPageYRef.current ?? listTop;
-        setDesktopSummaryOffset(Math.max(0, lastY - listTop));
-      });
-    }
-  }, [selectedTopic]);
 
   const handleMobileListScroll = useCallback(() => {
     if (mobileListContainerRef.current) {
@@ -1186,17 +1173,13 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div
-              className={`hidden lg:grid lg:items-start lg:gap-6 ${
-                showDesktopSummary ? 'lg:grid-cols-2' : 'lg:grid-cols-1'
-              }`}
-            >
+            <div className="hidden lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
               <div className="space-y-3" ref={desktopListRef}>
                 {renderTrendList()}
               </div>
-              {showDesktopSummary && (
-                <div style={{ marginTop: desktopSummaryOffset }}>{renderSummaryContent('desktop')}</div>
-              )}
+              <div className="space-y-3 sticky top-20">
+                {renderSummaryContent('desktop')}
+              </div>
             </div>
           </>
         )}
