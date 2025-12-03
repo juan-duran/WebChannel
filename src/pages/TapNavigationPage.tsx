@@ -672,14 +672,15 @@ export function TapNavigationPage() {
                 setSummaryFromCache(false);
               }
             }}
+            afterContent={
+              expandedTrendId === trend.position && (selectedTopic || selectedSummary) ? (
+                <div className="mt-3 hidden lg:block" ref={summaryContainerRef}>
+                  {renderSummaryContent('desktop')}
+                </div>
+              ) : null
+            }
             disabled={isLoading || isRefreshing}
           />
-          {/* Desktop: summary inline below expanded trend */}
-          {expandedTrendId === trend.position && (selectedTopic || selectedSummary) && (
-            <div className="mt-3 hidden lg:block">
-              {renderSummaryContent('desktop')}
-            </div>
-          )}
         </div>
       ))}
     </div>

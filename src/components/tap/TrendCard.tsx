@@ -1,4 +1,4 @@
-import { useMemo, type MouseEvent } from 'react';
+import { useMemo, type MouseEvent, type ReactNode } from 'react';
 import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { extractTopicEngagement } from '../../utils/topicEngagement';
@@ -16,6 +16,7 @@ interface TrendCardProps {
   onTopicSelect: (topic: DailyTrendTopic, event: MouseEvent<HTMLButtonElement>) => void;
   onRetryTopics?: () => void;
   disabled?: boolean;
+  afterContent?: ReactNode;
 }
 
 const formatDate = (value?: string | null) => {
@@ -53,6 +54,7 @@ export function TrendCard({
   onTopicSelect,
   onRetryTopics,
   disabled = false,
+  afterContent,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
   const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
@@ -236,6 +238,7 @@ export function TrendCard({
             ) : (
               <p className="text-sm text-gray-500 text-center py-4">Nenhum tópico disponível</p>
             )}
+            {afterContent}
           </div>
         </div>
       )}
