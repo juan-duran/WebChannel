@@ -864,10 +864,7 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
-        <div
-          ref={!isMobile ? desktopSummaryRef : undefined}
-          className={`flex-1 ${isMobile ? 'overflow-y-auto' : ''} ${contentPadding}`}
-        >
+        <div className={`flex-1 ${isMobile ? 'overflow-y-auto' : ''} ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2 text-xs text-gray-500">
