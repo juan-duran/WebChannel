@@ -4,6 +4,45 @@ import webpush from 'web-push';
 
 const router = Router();
 
+router.get('/status', async (req, res) => {
+  const user = (req as any).user;
+  if (!user?.email) {
+    return res.status(401).json({ ok: false, error: 'unauthenticated' });
+  }
+
+  try {
+    const { data: webUser, error: userErr } = await supabaseService.client
+      .from('web_users')
+      .select('id')
+      .ilike('email', user.email)
+      .single();
+
+    if (userErr) {
+      console.error('[webpush status] user lookup error', { error: userErr, email: user.email });
+      return res.status(500).json({ ok: false, error: 'user_lookup_failed' });
+    }
+
+    if (!webUser?.id) {
+      return res.json({ ok: true, enabled: false });
+    }
+
+    const { count, error: tokensErr } = await supabaseService.client
+      .from('web_push_tokens')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', webUser.id);
+
+    if (tokensErr) {
+      console.error('[webpush status] tokens count error', { error: tokensErr, userId: webUser.id });
+      return res.status(500).json({ ok: false, error: 'tokens_error' });
+    }
+
+    return res.json({ ok: true, enabled: Boolean((count ?? 0) > 0) });
+  } catch (error) {
+    console.error('[webpush status] unexpected error', { error, email: user.email });
+    return res.status(500).json({ ok: false, error: 'internal_error' });
+  }
+});
+
 router.post('/subscribe', async (req, res) => {
   const user = (req as any).user;
   if (!user?.id || !user?.email) {

@@ -1,9 +1,11 @@
 import type { FocusEvent, FormEvent, MouseEvent } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, BellRing } from 'lucide-react';
 import { useCurrentUser } from '../state/UserContext';
 import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 import type { OnboardingPayload } from '../types/onboarding';
+import { enableNotifications } from '../lib/pushNotifications';
+import { useWebpushStatus } from '../hooks/useWebpushStatus';
 
 type ValueMap = Record<string, string>;
 
@@ -379,6 +381,34 @@ export function OnboardingPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [isOnboardingLoading, setIsOnboardingLoading] = useState(true);
+  const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
+  const [pushDismissed, setPushDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('webpush_asked_after_onboarding') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [pushCtaLoading, setPushCtaLoading] = useState(false);
+  const [pushCtaError, setPushCtaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pushDismissed) {
+      refreshPushStatus();
+    }
+  }, [pushDismissed, refreshPushStatus]);
+
+  useEffect(() => {
+    if (pushEnabled) {
+      setPushDismissed(true);
+      try {
+        localStorage.setItem('webpush_asked_after_onboarding', 'true');
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [pushEnabled]);
 
   const openPreferredTimePicker = useCallback(
     (event: MouseEvent<HTMLInputElement> | FocusEvent<HTMLInputElement>) =>
@@ -575,6 +605,32 @@ export function OnboardingPage() {
     }));
   };
 
+  const handlePushDismiss = useCallback(() => {
+    setPushDismissed(true);
+    try {
+      localStorage.setItem('webpush_asked_after_onboarding', 'true');
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  const handlePushEnable = useCallback(async () => {
+    setPushCtaLoading(true);
+    setPushCtaError(null);
+    try {
+      await enableNotifications();
+      await refreshPushStatus();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível ativar notificações.';
+      setPushCtaError(message);
+    } finally {
+      setPushCtaLoading(false);
+    }
+  }, [refreshPushStatus]);
+
+  const showPushCta = !pushDismissed && pushEnabled === false;
+
   return (
     <div className="py-6 sm:relative">
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
@@ -625,6 +681,42 @@ export function OnboardingPage() {
               {status.type === 'success' ? 'Tudo certo!' : 'Ops, algo deu errado'}
             </p>
             <p>{status.message}</p>
+          </div>
+        </div>
+      )}
+
+      {showPushCta && (
+        <div className="mb-5 rounded-xl border border-blue-200 bg-white px-4 py-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <BellRing className="w-5 h-5" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-semibold text-gray-900">
+                Último passo: quer um alerta diário quando seu resumo estiver pronto?
+              </p>
+              <p className="text-xs text-gray-700">
+                Ative as notificações do navegador para receber o resumo sem precisar abrir o app.
+              </p>
+              {pushCtaError && <p className="text-xs text-red-700">{pushCtaError}</p>}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handlePushEnable}
+                  disabled={pushCtaLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {pushCtaLoading ? 'Ativando...' : 'Ativar notificações'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePushDismiss}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+                >
+                  Pular agora
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
