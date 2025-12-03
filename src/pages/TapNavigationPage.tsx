@@ -88,7 +88,6 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
-  const desktopListRef = useRef<HTMLDivElement | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -1039,7 +1038,6 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
-  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -1178,19 +1176,8 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div
-              className={`hidden lg:grid lg:items-start lg:gap-6 ${
-                showDesktopSummary ? 'lg:grid-cols-[minmax(0,1fr)_360px]' : 'lg:grid-cols-1'
-              }`}
-            >
-              <div className="space-y-3" ref={desktopListRef}>
-                {renderTrendList()}
-              </div>
-              {showDesktopSummary && (
-                <div className="space-y-3 lg:sticky lg:top-20 lg:self-start">
-                  {renderSummaryContent('desktop')}
-                </div>
-              )}
+            <div className="hidden lg:block">
+              {renderTrendList()}
             </div>
           </>
         )}
