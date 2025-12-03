@@ -88,7 +88,6 @@ export function TapNavigationPage() {
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
-  const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
@@ -676,6 +675,12 @@ export function TapNavigationPage() {
             }}
             disabled={isLoading || isRefreshing}
           />
+          {/* Desktop: render summary inline below the expanded trend */}
+          {!showMobileSummary && expandedTrendId === trend.position && (
+            <div className="mt-2">
+              {renderSummaryContent('desktop', trend)}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -818,11 +823,11 @@ export function TapNavigationPage() {
     );
   };
 
-  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop') => {
+  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop', currentTrendOverride?: DailyTrend | null) => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
-    const currentTrend = trends.find((trend) => trend.position === expandedTrendId) || null;
+    const currentTrend = currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId) || null;
     const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
 
     return (
