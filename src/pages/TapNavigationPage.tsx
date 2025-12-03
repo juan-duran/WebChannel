@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
@@ -48,48 +48,14 @@ export function TapNavigationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [summaryStepIndex, setSummaryStepIndex] = useState(0);
-  const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
-  const [lastSummaryContext, setLastSummaryContext] = useState<{
-    trendPosition?: number | null;
-    trendId?: string | number | null;
-    topicNumber?: number | null;
-    topicId?: string | number | null;
-  }>({});
-  const [lastSummaryData, setLastSummaryData] = useState<{
-    summary: SummaryData;
-    metadata: Record<string, unknown> | null;
-    fromCache: boolean;
-    context: {
-      trendPosition?: number | null;
-      trendId?: string | number | null;
-      topicNumber?: number | null;
-      topicId?: string | number | null;
-    };
-  } | null>(null);
-  const [pendingSummary, setPendingSummary] = useState<{
-    summary: SummaryData;
-    metadata: Record<string, unknown> | null;
-    fromCache: boolean;
-    context: {
-      trendPosition?: number | null;
-      trendId?: string | number | null;
-      topicNumber?: number | null;
-      topicId?: string | number | null;
-    };
-  } | null>(null);
-  const summarySteps = [
-    'QUENTY-IA coletando fontes quentes',
-    'Filtrando ruído e lixo',
-    'Despolarizando o conteúdo',
-  ];
-  const summaryContainerRef = useRef<HTMLDivElement | null>(null);
+  const [desktopSummaryOffset, setDesktopSummaryOffset] = useState(0);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
   const persistedBatchRef = useRef<string | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const desktopListRef = useRef<HTMLDivElement | null>(null);
+  const lastTopicPageYRef = useRef<number | null>(null);
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -267,9 +233,6 @@ export function TapNavigationPage() {
       setSummaryMetadata(null);
       setSummaryFromCache(false);
       setIsLoadingSummary(true);
-      setSummaryStepIndex(0);
-      setSummaryBubbleState('progress');
-      setPendingSummary(null);
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -317,8 +280,6 @@ export function TapNavigationPage() {
         if (!response.ok) {
           const message = 'Não foi possível obter o resumo.';
           setSummaryError(message);
-          setSummaryBubbleState('idle');
-          setPendingSummary(null);
 
           console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
             ...startLogContext,
@@ -338,38 +299,9 @@ export function TapNavigationPage() {
         const normalizedSummary = normalizeSummaryPayload(data?.summary, data?.metadata);
 
         if (normalizedSummary) {
-          const summaryPayload = {
-            summary: normalizedSummary,
-            metadata: (data.metadata as Record<string, unknown>) ?? null,
-            fromCache: Boolean(data.fromCache),
-          };
-          const context = {
-            trendPosition: trend.position ?? null,
-            trendId: trend.id ?? trend.position ?? trend.title ?? null,
-            topicNumber: topic.number ?? null,
-            topicId: topic.id ?? topic.number ?? topic.description ?? null,
-          };
-          const isSameSelection =
-            selectedTopic &&
-            (selectedTopic.number === topic.number ||
-              selectedTopic.id === topic.id ||
-              selectedTopic.description === topic.description) &&
-            (expandedTrendId === trend.position ||
-              (trend.id && expandedTrendId === trend.id && typeof trend.id === 'number'));
-
-          setLastSummaryData({ ...summaryPayload, context });
-          setLastSummaryContext(context);
-
-          if (isSameSelection) {
-            setSelectedSummary(summaryPayload.summary);
-            setSummaryMetadata(summaryPayload.metadata);
-            setSummaryFromCache(summaryPayload.fromCache);
-            setPendingSummary(null);
-          } else {
-            setPendingSummary({ ...summaryPayload, context });
-          }
-
-          setSummaryBubbleState('ready');
+          setSelectedSummary(normalizedSummary);
+          setSummaryMetadata((data.metadata as Record<string, unknown>) ?? null);
+          setSummaryFromCache(Boolean(data.fromCache));
 
           const resolveMetadataId = (
             metadata: Record<string, unknown> | null | undefined,
@@ -438,10 +370,8 @@ export function TapNavigationPage() {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
-      setSummaryError(message);
-      setSummaryMetadata(null);
-      setSummaryBubbleState('idle');
-      setPendingSummary(null);
+        setSummaryError(message);
+        setSummaryMetadata(null);
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
           event: 'summary_fetch',
@@ -555,34 +485,6 @@ export function TapNavigationPage() {
   }, [fetchLatestTrends]);
 
   useEffect(() => {
-    let interval: number | undefined;
-
-    if (isLoadingSummary) {
-      interval = window.setInterval(() => {
-        setSummaryStepIndex((prev) => {
-          const next = prev + 1;
-          return next >= summarySteps.length ? summarySteps.length - 1 : next;
-        });
-      }, 9000);
-    }
-
-    return () => {
-      if (interval !== undefined) {
-        window.clearInterval(interval);
-      }
-    };
-  }, [isLoadingSummary, summarySteps.length]);
-
-  useEffect(() => {
-    if (!isLoadingSummary && summaryBubbleState === 'progress' && selectedSummary) {
-      setSummaryBubbleState('ready');
-    }
-    if (!isLoadingSummary && summaryError) {
-      setSummaryBubbleState('idle');
-    }
-  }, [isLoadingSummary, summaryError, selectedSummary, summaryBubbleState]);
-
-  useEffect(() => {
     if (!tapPushDismissed) {
       refreshPushStatus();
     }
@@ -685,143 +587,6 @@ export function TapNavigationPage() {
     </div>
   );
 
-  const renderSummaryProgress = () => (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-900 space-y-2">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-800">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        QUENTY-IA em ação (pode levar ~1–2 minutos)
-      </div>
-      <ul className="space-y-1.5">
-        {summarySteps.map((step, idx) => {
-          const active = idx === summaryStepIndex;
-          const done = idx < summaryStepIndex;
-          return (
-            <li
-              key={step}
-              className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
-                active ? 'bg-white border border-blue-200' : done ? 'text-blue-700' : 'text-blue-900/80'
-              }`}
-            >
-              {done ? (
-                <CheckCircle className="w-4 h-4 text-blue-600" />
-              ) : active ? (
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              ) : (
-                <span className="w-4 h-4 rounded-full border border-blue-200" />
-              )}
-              <span className="text-[12px]">{step}</span>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
-
-  const scrollToSummary = () => {
-    const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 1024;
-    if (isDesktop) {
-      const target = summaryContainerRef.current || desktopListRef.current;
-      if (target) {
-        const rect = target.getBoundingClientRect();
-        const offsetTop = window.scrollY + rect.top - 80; // keep header margin
-        window.scrollTo({ top: Math.max(0, offsetTop), behavior: 'smooth' });
-        return;
-      }
-    }
-
-    if (summaryContainerRef.current) {
-      summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (mobileSummaryWrapperRef.current) {
-      mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  };
-
-  const renderSummaryBubble = () => {
-    if (summaryBubbleState === 'idle') return null;
-
-    const isReady = summaryBubbleState === 'ready';
-    const handleClick = () => {
-      if (isReady && (lastSummaryContext.trendPosition || lastSummaryContext.trendId)) {
-        const targetTrend =
-          trends.find((t) => t.position === lastSummaryContext.trendPosition) ||
-          trends.find((t) => (t.id ?? t.title) === lastSummaryContext.trendId) ||
-          trends.find((t) => t.position === expandedTrendId) ||
-          null;
-
-        if (targetTrend) {
-          setExpandedTrendId(targetTrend.position ?? null);
-
-          const matchTopic =
-            targetTrend.topics?.find(
-              (topic) =>
-                topic.number === lastSummaryContext.topicNumber ||
-                topic.id === lastSummaryContext.topicId ||
-                topic.description === lastSummaryContext.topicId,
-            ) || targetTrend.topics?.[0] || null;
-
-          setSelectedTopic(matchTopic ?? null);
-          const matchesContext = (
-            ctx:
-              | {
-                  trendPosition?: number | null;
-                  trendId?: string | number | null;
-                  topicNumber?: number | null;
-                  topicId?: string | number | null;
-                }
-              | null
-          ) =>
-            Boolean(
-              ctx &&
-                (ctx.trendPosition === targetTrend.position ||
-                  (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
-                (ctx.topicNumber === matchTopic?.number ||
-                  ctx.topicId === matchTopic?.id ||
-                  ctx.topicId === matchTopic?.description ||
-                  matchTopic === null), // tolerate missing topic match and still apply summary
-            );
-
-          const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
-            if (!payload) return false;
-            setSelectedSummary(payload.summary);
-            setSummaryMetadata(payload.metadata);
-            setSummaryFromCache(payload.fromCache);
-            return true;
-          };
-
-          if (matchesContext(pendingSummary?.context) && applySummary(pendingSummary)) {
-            setPendingSummary(null);
-          } else if (matchesContext(lastSummaryData?.context) && applySummary(lastSummaryData)) {
-            // keep lastSummaryData for future clicks
-          }
-          setTimeout(() => scrollToSummary(), 100);
-          return;
-        }
-      }
-
-      scrollToSummary();
-    };
-    return (
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`fixed right-4 bottom-24 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
-          isReady
-            ? 'bg-green-600 text-white hover:bg-green-700'
-            : 'bg-amber-500 text-white hover:bg-amber-600'
-        }`}
-      >
-        {isReady ? (
-          <CheckCircle className="w-4 h-4" />
-        ) : (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        )}
-        <span className="text-sm font-semibold">
-          {isReady ? 'Resumo pronto — abrir' : 'Resumo em preparo (QUENTY-IA)'}
-        </span>
-      </button>
-    );
-  };
-
   const renderSummaryContent = (breakpoint: 'mobile' | 'desktop') => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
@@ -904,39 +669,34 @@ export function TapNavigationPage() {
                 )}
               </div>
 
-              {isLoadingSummary && renderSummaryProgress()}
+              {isLoadingSummary && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                  Gerando resumo... (pode levar ~45 segundos)
+                </div>
+              )}
               {summaryError && !isLoadingSummary && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                   {summaryError}
                 </div>
               )}
-              {selectedSummary && !isLoadingSummary && !summaryError && (
-                <div
-                  ref={summaryContainerRef}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3"
-                >
-                  {currentTrend && (
-                    <p className="text-sm font-semibold text-gray-900">
-                      Assunto #{currentTrend.position ?? '?'} — {currentTrend.title ?? 'Assunto'} — Tópico #
-                      {selectedTopic?.number ?? '?'}
-                    </p>
-                  )}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                      {summaryTopicName && (
-                        <span className="font-semibold text-gray-900">{summaryTopicName}</span>
-                      )}
-                      {summaryTrendName && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
-                          {summaryTrendName}
-                        </span>
-                      )}
-                      {summaryLikesData && (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
-                          {summaryLikesData}
-                        </span>
-                      )}
-                    </div>
+                {selectedSummary && !isLoadingSummary && !summaryError && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        {summaryTopicName && (
+                          <span className="font-semibold text-gray-900">{summaryTopicName}</span>
+                        )}
+                        {summaryTrendName && (
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                            {summaryTrendName}
+                          </span>
+                        )}
+                        {summaryLikesData && (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                            {summaryLikesData}
+                          </span>
+                        )}
+                      </div>
 
                   </div>
 
@@ -1036,6 +796,7 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
+  const showDesktopSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
     if (showMobileSummary) {
@@ -1053,6 +814,21 @@ export function TapNavigationPage() {
       });
     }
   }, [showMobileSummary]);
+
+  useEffect(() => {
+    if (!selectedTopic) {
+      setDesktopSummaryOffset(0);
+      return;
+    }
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      window.requestAnimationFrame(() => {
+        if (!desktopListRef.current) return;
+        const listTop = desktopListRef.current.getBoundingClientRect().top + window.scrollY;
+        const lastY = lastTopicPageYRef.current ?? listTop;
+        setDesktopSummaryOffset(Math.max(0, lastY - listTop));
+      });
+    }
+  }, [selectedTopic]);
 
   const handleMobileListScroll = useCallback(() => {
     if (mobileListContainerRef.current) {
@@ -1174,18 +950,21 @@ export function TapNavigationPage() {
               )}
             </div>
 
-            <div className="hidden lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+            <div
+              className={`hidden lg:grid lg:items-start lg:gap-6 ${
+                showDesktopSummary ? 'lg:grid-cols-2' : 'lg:grid-cols-1'
+              }`}
+            >
               <div className="space-y-3" ref={desktopListRef}>
                 {renderTrendList()}
               </div>
-              <div className="space-y-3 sticky top-20">
-                {renderSummaryContent('desktop')}
-              </div>
+              {showDesktopSummary && (
+                <div style={{ marginTop: desktopSummaryOffset }}>{renderSummaryContent('desktop')}</div>
+              )}
             </div>
           </>
         )}
       </div>
-      {renderSummaryBubble()}
       {!onboardingStatus.loading && !onboardingStatus.complete && (
         <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex items-center justify-center px-4">
           <div className="max-w-lg w-full bg-white border border-blue-100 shadow-xl rounded-2xl p-6 space-y-3 text-center">
