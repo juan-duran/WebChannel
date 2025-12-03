@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft, BellRing } from 'lucide-react';
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
@@ -11,6 +11,8 @@ import { extractTopicEngagement } from '../utils/topicEngagement';
 import { useCurrentUser } from '../state/UserContext';
 import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 import { trackEvent } from '../lib/analytics';
+import { useWebpushStatus } from '../hooks/useWebpushStatus';
+import { enableNotifications } from '../lib/pushNotifications';
 
 const sharedSummaryCache = new Map<
   string,
@@ -60,6 +62,17 @@ export function TapNavigationPage() {
   const mobileListScrollPosition = useRef(0);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
+  const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
+  const [tapPushDismissed, setTapPushDismissed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('webpush_asked_on_tap_once') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const [tapPushError, setTapPushError] = useState<string | null>(null);
+  const [tapPushLoading, setTapPushLoading] = useState(false);
 
   const formatTimestamp = useMemo(() => {
     if (!lastUpdated) return null;
@@ -471,6 +484,49 @@ export function TapNavigationPage() {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
 
+  useEffect(() => {
+    if (!tapPushDismissed) {
+      refreshPushStatus();
+    }
+  }, [tapPushDismissed, refreshPushStatus]);
+
+  useEffect(() => {
+    if (pushEnabled) {
+      setTapPushDismissed(true);
+      try {
+        localStorage.setItem('webpush_asked_on_tap_once', 'true');
+      } catch {
+        // ignore
+      }
+    }
+  }, [pushEnabled]);
+
+  const dismissTapPush = useCallback(() => {
+    setTapPushDismissed(true);
+    try {
+      localStorage.setItem('webpush_asked_on_tap_once', 'true');
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const handleTapEnablePush = useCallback(async () => {
+    setTapPushLoading(true);
+    setTapPushError(null);
+    try {
+      await enableNotifications();
+      await refreshPushStatus();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Não foi possível ativar notificações.';
+      setTapPushError(message);
+    } finally {
+      setTapPushLoading(false);
+    }
+  }, [refreshPushStatus]);
+
+  const showTapPushCta = !tapPushDismissed && pushEnabled === false;
+
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
       const next = current === trend.position ? null : trend.position;
@@ -783,6 +839,42 @@ export function TapNavigationPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {showTapPushCta && (
+          <div className="rounded-xl border border-blue-200 bg-white px-4 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+                <BellRing className="w-5 h-5" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <p className="text-sm font-semibold text-gray-900">
+                  Receber notificação quando seu resumo diário estiver pronto?
+                </p>
+                <p className="text-xs text-gray-700">
+                  Ative para ser avisado assim que o resumo do dia ficar disponível.
+                </p>
+                {tapPushError && <p className="text-xs text-red-700">{tapPushError}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTapEnablePush}
+                    disabled={tapPushLoading}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {tapPushLoading ? 'Ativando...' : 'Ativar notificações'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dismissTapPush}
+                    className="inline-flex items-center gap-2 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800 transition-colors hover:bg-blue-50"
+                  >
+                    Agora não
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 animate-fadeIn">
             <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
