@@ -778,18 +778,22 @@ export function TapNavigationPage() {
                   (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
                 (ctx.topicNumber === matchTopic?.number ||
                   ctx.topicId === matchTopic?.id ||
-                  ctx.topicId === matchTopic?.description),
+                  ctx.topicId === matchTopic?.description ||
+                  matchTopic === null), // tolerate missing topic match and still apply summary
             );
 
-          if (matchesContext(pendingSummary?.context)) {
-            setSelectedSummary(pendingSummary!.summary);
-            setSummaryMetadata(pendingSummary!.metadata);
-            setSummaryFromCache(pendingSummary!.fromCache);
+          const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
+            if (!payload) return false;
+            setSelectedSummary(payload.summary);
+            setSummaryMetadata(payload.metadata);
+            setSummaryFromCache(payload.fromCache);
+            return true;
+          };
+
+          if (matchesContext(pendingSummary?.context) && applySummary(pendingSummary)) {
             setPendingSummary(null);
-          } else if (matchesContext(lastSummaryData?.context) && lastSummaryData) {
-            setSelectedSummary(lastSummaryData.summary);
-            setSummaryMetadata(lastSummaryData.metadata);
-            setSummaryFromCache(lastSummaryData.fromCache);
+          } else if (matchesContext(lastSummaryData?.context) && applySummary(lastSummaryData)) {
+            // keep lastSummaryData for future clicks
           }
           setTimeout(() => scrollToSummary(), 100);
           return;
