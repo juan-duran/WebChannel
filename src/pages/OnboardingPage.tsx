@@ -399,17 +399,6 @@ export function OnboardingPage() {
     }
   }, [pushDismissed, refreshPushStatus]);
 
-  useEffect(() => {
-    if (pushEnabled) {
-      setPushDismissed(true);
-      try {
-        localStorage.setItem('webpush_asked_after_onboarding', 'true');
-      } catch {
-        // ignore storage errors
-      }
-    }
-  }, [pushEnabled]);
-
   const openPreferredTimePicker = useCallback(
     (event: MouseEvent<HTMLInputElement> | FocusEvent<HTMLInputElement>) =>
       event.currentTarget.showPicker?.(),
@@ -629,7 +618,9 @@ export function OnboardingPage() {
     }
   }, [refreshPushStatus]);
 
-  const showPushCta = !pushDismissed && pushEnabled === false;
+  const pushPermission =
+    typeof Notification !== 'undefined' ? Notification.permission : 'default';
+  const showPushCta = !pushDismissed && (pushEnabled === false || pushPermission !== 'granted');
 
   return (
     <div className="py-6 sm:relative">
