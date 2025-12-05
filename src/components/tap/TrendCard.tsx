@@ -99,7 +99,7 @@ export function TrendCard({
             <h3 className="font-bold text-gray-900 text-base leading-tight">{trend.title}</h3>
             {trend.snippet && (
               <p
-                className={`text-sm text-gray-700 ${isExpanded ? 'line-clamp-6' : 'line-clamp-3'}`}
+                className={`text-sm text-gray-700 ${isExpanded ? 'line-clamp-10' : 'line-clamp-5'}`}
               >
                 {trend.snippet}
               </p>
