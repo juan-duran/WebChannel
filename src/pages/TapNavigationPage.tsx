@@ -13,6 +13,7 @@ import { useOnboardingStatus } from '../state/OnboardingStatusContext';
 import { trackEvent } from '../lib/analytics';
 import { useWebpushStatus } from '../hooks/useWebpushStatus';
 import { enableNotifications } from '../lib/pushNotifications';
+import { TapInstallAndPushCTA } from '../components/TapInstallAndPushCTA';
 
 const sharedSummaryCache = new Map<
   string,
@@ -1184,6 +1185,8 @@ export function TapNavigationPage() {
                 <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{trendsSummary}</p>
               </div>
             )}
+
+            <TapInstallAndPushCTA />
 
             <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
               <div
