@@ -1192,6 +1192,12 @@ export function TapNavigationPage() {
 
             <TapInstallAndPushCTA />
 
+            <div className="mt-3 mb-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Assuntos mais quentes nas redes sociais hoje
+              </h2>
+            </div>
+
             <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
               <div
                 className={`w-full transition-transform duration-300 ease-in-out ${
