@@ -79,6 +79,12 @@ export function TapNavigationPage() {
       topicId?: string | number | null;
     };
   } | null>(null);
+  useEffect(() => {
+    const search = typeof window !== 'undefined' ? window.location.search : '';
+    const params = new URLSearchParams(search);
+    const src = params.get('src') || 'direct';
+    trackEvent('tap_opened', { src });
+  }, []);
   const summarySteps = [
     'QUENTY-IA coletando fontes quentes',
     'Filtrando ruído e lixo',

@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { isIos, isStandaloneMode } from '../lib/pwaEnvironment';
 import { usePwaInstallPrompt } from '../hooks/usePwaInstallPrompt';
 import { enableNotifications } from '../lib/pushNotifications';
 import { useWebpushStatus } from '../hooks/useWebpushStatus';
+import { trackEvent } from '../lib/analytics';
 
 export function TapInstallAndPushCTA() {
   const ios = isIos();
@@ -13,6 +15,22 @@ export function TapInstallAndPushCTA() {
 
   const showInstallButton = !standalone && canInstall && !ios;
   const showPushButton = !enabled && !ios;
+
+  useEffect(() => {
+    if (showInstallButton || showPushButton) {
+      trackEvent('pwa_install_cta_shown', {
+        context: 'tap',
+        ios,
+        standalone,
+        show_install: showInstallButton,
+        show_push: showPushButton,
+      });
+    }
+
+    if (showPushButton) {
+      trackEvent('webpush_enable_cta_shown', { context: 'tap' });
+    }
+  }, [showInstallButton, showPushButton, ios, standalone]);
 
   // iOS web (não standalone): instrução de adicionar à Tela Inicial
   if (ios && !standalone) {
@@ -33,15 +51,27 @@ export function TapInstallAndPushCTA() {
   if (!showInstallButton && !showPushButton) return null;
 
   const onInstall = async () => {
-    await promptInstall();
+    trackEvent('pwa_install_cta_clicked', { context: 'tap' });
+    const ok = await promptInstall();
+    trackEvent('pwa_install_cta_prompt_result', {
+      context: 'tap',
+      result: ok ? 'accepted' : 'dismissed',
+    });
   };
 
   const onEnablePush = async () => {
+    trackEvent('webpush_enable_cta_clicked', { context: 'tap' });
     try {
       await enableNotifications();
       await refresh();
+      trackEvent('webpush_enable_result', { context: 'tap', ok: true });
     } catch (err) {
       console.error('[TapInstallAndPushCTA] failed to enable push', err);
+      trackEvent('webpush_enable_result', {
+        context: 'tap',
+        ok: false,
+        error: String(err),
+      });
     }
   };
 
