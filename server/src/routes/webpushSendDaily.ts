@@ -152,7 +152,8 @@ router.post('/send-daily', async (req, res) => {
             JSON.stringify({
               title: '🔥 Seu resumo de hoje chegou!',
               body: 'Veja as 15 notícias mais quentes do seu dia.',
-              url: 'https://app.quenty.com.br/tap',
+              url: 'https://app.quenty.com.br/tap?src=webpush_daily',
+              data: { url: 'https://app.quenty.com.br/tap?src=webpush_daily' },
             }),
           );
 
