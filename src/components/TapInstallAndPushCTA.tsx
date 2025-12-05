@@ -11,8 +11,6 @@ export function TapInstallAndPushCTA() {
   const { canInstall, promptInstall } = usePwaInstallPrompt();
   const { enabled, refresh, loading } = useWebpushStatus({ auto: true });
 
-  if (loading) return null;
-
   const showInstallButton = !standalone && canInstall && !ios;
   const showPushButton = !enabled && !ios;
 
@@ -31,6 +29,8 @@ export function TapInstallAndPushCTA() {
       trackEvent('webpush_enable_cta_shown', { context: 'tap' });
     }
   }, [showInstallButton, showPushButton, ios, standalone]);
+
+  if (loading) return null;
 
   // iOS web (não standalone): instrução de adicionar à Tela Inicial
   if (ios && !standalone) {
