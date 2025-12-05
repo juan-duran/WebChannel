@@ -602,17 +602,6 @@ export function TapNavigationPage() {
     }
   }, [tapPushDismissed, refreshPushStatus]);
 
-  useEffect(() => {
-    if (pushEnabled) {
-      setTapPushDismissed(true);
-      try {
-        localStorage.setItem('webpush_asked_on_tap_once', 'true');
-      } catch {
-        // ignore
-      }
-    }
-  }, [pushEnabled]);
-
   const dismissTapPush = useCallback(() => {
     setTapPushDismissed(true);
     try {
@@ -628,6 +617,12 @@ export function TapNavigationPage() {
     try {
       await enableNotifications();
       await refreshPushStatus();
+      setTapPushDismissed(true);
+      try {
+        localStorage.setItem('webpush_asked_on_tap_once', 'true');
+      } catch {
+        // ignore
+      }
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Não foi possível ativar notificações.';
@@ -637,7 +632,10 @@ export function TapNavigationPage() {
     }
   }, [refreshPushStatus]);
 
-  const showTapPushCta = !tapPushDismissed && pushEnabled === false;
+  const pushPermission =
+    typeof Notification !== 'undefined' ? Notification.permission : 'default';
+  const showTapPushCta =
+    !tapPushDismissed && (pushEnabled === false || pushPermission !== 'granted');
 
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
