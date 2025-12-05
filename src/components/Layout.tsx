@@ -1,6 +1,6 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { MessageCircle, User, Menu, X, ClipboardList, RefreshCw } from 'lucide-react';
-// import { WebPushBanner } from './WebPushBanner';
+import { PwaInstallBanner } from './PwaInstallBanner';
 
 type LayoutProps = {
   children: ReactNode;
@@ -95,7 +95,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
       </header>
 
       <main className="flex-1 min-h-0 flex flex-col px-4 sm:px-6 lg:px-8">
-        {/* <WebPushBanner /> */}
+        <PwaInstallBanner />
         <div
           className={`flex-1 min-h-0 w-full max-w-screen-md mx-auto ${
             currentPage === 'chat'
