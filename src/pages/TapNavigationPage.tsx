@@ -718,7 +718,11 @@ export function TapNavigationPage() {
               if (!isSelectedTopic || expandedTrendId !== trend.position) return null;
 
               return (
-                <div className="mt-3 hidden lg:block" ref={summaryContainerRef}>
+                <div
+                  className="mt-3 hidden lg:block"
+                  ref={summaryContainerRef}
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {renderSummaryContent('desktop', trend)}
                 </div>
               );
