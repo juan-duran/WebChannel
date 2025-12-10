@@ -25,19 +25,6 @@ const sharedSummaryCache = new Map<
 >();
 const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
 
-const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null => {
-  if (!node) return null;
-  let current: HTMLElement | null = node.parentElement;
-  while (current) {
-    const { overflowY } = window.getComputedStyle(current);
-    if (overflowY === 'auto' || overflowY === 'scroll') {
-      return current;
-    }
-    current = current.parentElement;
-  }
-  return window;
-};
-
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
 
@@ -95,7 +82,6 @@ export function TapNavigationPage() {
     };
   } | null>(null);
   const [captureStepIndex, setCaptureStepIndex] = useState(0);
-  const [isCaptureFixed, setIsCaptureFixed] = useState(false);
   useEffect(() => {
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const params = new URLSearchParams(search);
@@ -117,9 +103,6 @@ export function TapNavigationPage() {
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
-  const captureBannerRef = useRef<HTMLDivElement | null>(null);
-  const captureSpacerRef = useRef<HTMLDivElement | null>(null);
-  const captureScrollParentRef = useRef<HTMLElement | Window | null>(null);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
@@ -748,52 +731,6 @@ export function TapNavigationPage() {
   const revealedCount = visibleTrends.length;
   const isRevealingTrends = pendingTrends.length > 0;
 
-  useEffect(() => {
-    if (!isRevealingTrends) {
-      setIsCaptureFixed(false);
-      if (captureSpacerRef.current) {
-        captureSpacerRef.current.style.height = '0px';
-      }
-      return;
-    }
-
-    const bannerEl = captureBannerRef.current;
-    if (!bannerEl) return;
-
-    const scrollParent = (captureScrollParentRef.current = getScrollParent(bannerEl));
-    const headerOffset = 80;
-
-    const updatePosition = () => {
-      if (!captureBannerRef.current) return;
-      const rect = captureBannerRef.current.getBoundingClientRect();
-      const scrollTop =
-        scrollParent === window
-          ? window.scrollY
-          : (scrollParent as HTMLElement).scrollTop;
-      const anchorTop = rect.top + scrollTop;
-      const shouldFix = scrollTop + headerOffset >= anchorTop;
-      setIsCaptureFixed(shouldFix);
-      if (captureSpacerRef.current) {
-        captureSpacerRef.current.style.height = shouldFix ? `${rect.height}px` : '0px';
-      }
-    };
-
-    updatePosition();
-
-    const scrollTarget = scrollParent === window ? window : (scrollParent as HTMLElement);
-    scrollTarget.addEventListener('scroll', updatePosition, { passive: true });
-    window.addEventListener('resize', updatePosition, { passive: true });
-
-    return () => {
-      scrollTarget.removeEventListener('scroll', updatePosition);
-      window.removeEventListener('resize', updatePosition);
-      setIsCaptureFixed(false);
-      if (captureSpacerRef.current) {
-        captureSpacerRef.current.style.height = '0px';
-      }
-    };
-  }, [isRevealingTrends]);
-
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
       const next = current === trend.position ? null : trend.position;
@@ -1348,28 +1285,19 @@ export function TapNavigationPage() {
             <TapInstallAndPushCTA />
 
             {isRevealingTrends && (
-              <div ref={captureSpacerRef} className="mb-3">
-                <div
-                  ref={captureBannerRef}
-                  className={`${
-                    isCaptureFixed
-                      ? 'fixed left-1/2 top-20 z-30 w-[calc(100%-24px)] max-w-screen-md -translate-x-1/2'
-                      : 'w-full'
-                  }`}
-                >
-                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-md animate-fadeIn">
-                    <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
-                    <div className="flex-1 space-y-1 text-xs text-blue-800">
-                      <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
-                      <p className="text-[12px] text-blue-800">
-                        {captureSteps[captureStepIndex] ?? captureSteps[0]}
+              <div className="mb-3 sticky top-24 z-20">
+                <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-md animate-fadeIn">
+                  <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
+                  <div className="flex-1 space-y-1 text-xs text-blue-800">
+                    <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
+                    <p className="text-[12px] text-blue-800">
+                      {captureSteps[captureStepIndex] ?? captureSteps[0]}
+                    </p>
+                    {totalTrends > 0 && (
+                      <p className="text-[11px] text-blue-700">
+                        {revealedCount}/{totalTrends} assuntos prontos
                       </p>
-                      {totalTrends > 0 && (
-                        <p className="text-[11px] text-blue-700">
-                          {revealedCount}/{totalTrends} assuntos prontos
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
