@@ -37,6 +37,8 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
 
 export function TapNavigationPage() {
   const [trends, setTrends] = useState<DailyTrend[]>([]);
+  const [visibleTrends, setVisibleTrends] = useState<DailyTrend[]>([]);
+  const [pendingTrends, setPendingTrends] = useState<DailyTrend[]>([]);
   const [trendsSummary, setTrendsSummary] = useState<string | null>(null);
   const [expandedTrendId, setExpandedTrendId] = useState<number | null>(null);
   const [selectedTopic, setSelectedTopic] = useState<DailyTrendTopic | null>(null);
@@ -79,6 +81,7 @@ export function TapNavigationPage() {
       topicId?: string | number | null;
     };
   } | null>(null);
+  const [captureStepIndex, setCaptureStepIndex] = useState(0);
   useEffect(() => {
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const params = new URLSearchParams(search);
@@ -90,8 +93,16 @@ export function TapNavigationPage() {
     'Filtrando ruído e lixo',
     'Despolarizando o conteúdo',
   ];
+  const captureSteps = [
+    'Quenty AI localizando sinais quentes',
+    'Filtrando ruído e spam',
+    'Despolarizando e organizando',
+    'Selecionando os 15 assuntos de agora',
+  ];
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
+  const revealTimerRef = useRef<number | null>(null);
+  const captureIntervalRef = useRef<number | null>(null);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<string | null>(null);
@@ -486,6 +497,10 @@ export function TapNavigationPage() {
     setError(null);
     setIsLoading((prev) => prev || !isRefresh);
     setIsRefreshing(isRefresh);
+    if (revealTimerRef.current) {
+      window.clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
 
     try {
       const { data, error: supabaseError } = await supabase
@@ -516,13 +531,21 @@ export function TapNavigationPage() {
       persistedBatchRef.current = data.batch_ts ?? null;
       const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
       setTrends(nextTrends);
+      setVisibleTrends([]);
+      setPendingTrends(nextTrends);
       setTrendsSummary(parsed.trendsSummary ?? null);
       setExpandedTrendId(null);
       setSelectedTopic(null);
+      setSelectedSummary(null);
+      setSummaryMetadata(null);
+      setSummaryFromCache(false);
+      setSummaryBubbleState('idle');
       setLastUpdated(data.batch_ts ?? null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erro ao carregar tendências.';
       setError(message);
+      setVisibleTrends([]);
+      setPendingTrends([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -573,6 +596,68 @@ export function TapNavigationPage() {
   useEffect(() => {
     fetchLatestTrends();
   }, [fetchLatestTrends]);
+
+  // Gradually reveal pending trends to emphasize real-time capture
+  useEffect(() => {
+    if (revealTimerRef.current) {
+      window.clearTimeout(revealTimerRef.current);
+      revealTimerRef.current = null;
+    }
+
+    if (pendingTrends.length === 0) {
+      return undefined;
+    }
+
+    const [nextTrend, ...remaining] = pendingTrends;
+    const delay = 2000 + Math.random() * 4000;
+
+    revealTimerRef.current = window.setTimeout(() => {
+      setVisibleTrends((prev) => [...prev, nextTrend]);
+      setPendingTrends(remaining);
+    }, delay);
+
+    return () => {
+      if (revealTimerRef.current) {
+        window.clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
+      }
+    };
+  }, [pendingTrends]);
+
+  // Rotate capture steps while revealing
+  useEffect(() => {
+    if (captureIntervalRef.current) {
+      window.clearInterval(captureIntervalRef.current);
+      captureIntervalRef.current = null;
+    }
+
+    if (pendingTrends.length === 0) {
+      setCaptureStepIndex(0);
+      return undefined;
+    }
+
+    captureIntervalRef.current = window.setInterval(() => {
+      setCaptureStepIndex((prev) => (prev + 1) % captureSteps.length);
+    }, 2800);
+
+    return () => {
+      if (captureIntervalRef.current) {
+        window.clearInterval(captureIntervalRef.current);
+        captureIntervalRef.current = null;
+      }
+    };
+  }, [pendingTrends.length, captureSteps.length]);
+
+  useEffect(() => {
+    return () => {
+      if (revealTimerRef.current) {
+        window.clearTimeout(revealTimerRef.current);
+      }
+      if (captureIntervalRef.current) {
+        window.clearInterval(captureIntervalRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let interval: number | undefined;
@@ -642,6 +727,9 @@ export function TapNavigationPage() {
     typeof Notification !== 'undefined' ? Notification.permission : 'default';
   const showTapPushCta =
     !tapPushDismissed && (pushEnabled === false || pushPermission !== 'granted');
+  const totalTrends = trends.length;
+  const revealedCount = visibleTrends.length;
+  const isRevealingTrends = pendingTrends.length > 0;
 
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
@@ -661,7 +749,7 @@ export function TapNavigationPage() {
 
   const renderTrendList = () => (
     <div className="space-y-3">
-      {trends.map((trend) => (
+      {visibleTrends.map((trend) => (
         <div key={`${trend.position}-${trend.title}`}>
           <TrendCard
             trend={trend}
@@ -1159,9 +1247,9 @@ export function TapNavigationPage() {
           </div>
         )}
 
-        {isLoading && trends.length === 0 ? (
+        {isLoading && revealedCount === 0 && totalTrends === 0 ? (
           <TrendSkeleton />
-        ) : trends.length === 0 ? (
+        ) : !isLoading && revealedCount === 0 && !isRevealingTrends && totalTrends === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
               <RefreshCw className="h-6 w-6 text-blue-600" />
@@ -1195,6 +1283,23 @@ export function TapNavigationPage() {
             )}
 
             <TapInstallAndPushCTA />
+
+            {isRevealingTrends && (
+              <div className="mb-3 flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 animate-fadeIn">
+                <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
+                <div className="flex-1 space-y-1 text-xs text-blue-800">
+                  <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
+                  <p className="text-[12px] text-blue-800">
+                    {captureSteps[captureStepIndex] ?? captureSteps[0]}
+                  </p>
+                  {totalTrends > 0 && (
+                    <p className="text-[11px] text-blue-700">
+                      {revealedCount}/{totalTrends} assuntos prontos
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mt-3 mb-2">
               <h2 className="text-lg font-semibold text-gray-900">
