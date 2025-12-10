@@ -948,6 +948,25 @@ export function TapNavigationPage() {
     );
   };
 
+  const renderCaptureBubble = () => {
+    if (!isRevealingTrends) return null;
+
+    return (
+      <div className="fixed right-4 bottom-36 z-40 flex max-w-xs items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/95 px-3 py-3 shadow-lg backdrop-blur lg:right-6 lg:bottom-24">
+        <Loader2 className="w-4 h-4 animate-spin text-blue-700 mt-0.5" />
+        <div className="flex-1 space-y-1 text-xs text-blue-800">
+          <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
+          <p className="text-[12px] text-blue-800">{captureSteps[captureStepIndex] ?? captureSteps[0]}</p>
+          {totalTrends > 0 && (
+            <p className="text-[11px] text-blue-700">
+              {revealedCount}/{totalTrends} assuntos prontos
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderSummaryContent = (breakpoint: 'mobile' | 'desktop', currentTrendOverride?: DailyTrend | null) => {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
@@ -1283,25 +1302,6 @@ export function TapNavigationPage() {
             )}
 
             <TapInstallAndPushCTA />
-
-            {isRevealingTrends && (
-              <div className="mb-3 sticky top-24 z-20">
-                <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-md animate-fadeIn">
-                  <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
-                  <div className="flex-1 space-y-1 text-xs text-blue-800">
-                    <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
-                    <p className="text-[12px] text-blue-800">
-                      {captureSteps[captureStepIndex] ?? captureSteps[0]}
-                    </p>
-                    {totalTrends > 0 && (
-                      <p className="text-[11px] text-blue-700">
-                        {revealedCount}/{totalTrends} assuntos prontos
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="mt-3 mb-2">
               <h2 className="text-lg font-semibold text-gray-900">
