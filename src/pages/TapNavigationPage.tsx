@@ -1284,58 +1284,56 @@ export function TapNavigationPage() {
 
             <TapInstallAndPushCTA />
 
-            <div className={isRevealingTrends ? 'relative pt-16' : 'relative'}>
-              {isRevealingTrends && (
-                <div className="fixed left-1/2 top-20 z-30 w-[calc(100%-24px)] max-w-screen-md -translate-x-1/2 animate-fadeIn">
-                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/95 px-3 py-3 shadow-md backdrop-blur">
-                    <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
-                    <div className="flex-1 space-y-1 text-xs text-blue-800">
-                      <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
-                      <p className="text-[12px] text-blue-800">
-                        {captureSteps[captureStepIndex] ?? captureSteps[0]}
+            {isRevealingTrends && (
+              <div className="mb-3 sticky top-2 z-20">
+                <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-md animate-fadeIn">
+                  <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
+                  <div className="flex-1 space-y-1 text-xs text-blue-800">
+                    <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
+                    <p className="text-[12px] text-blue-800">
+                      {captureSteps[captureStepIndex] ?? captureSteps[0]}
+                    </p>
+                    {totalTrends > 0 && (
+                      <p className="text-[11px] text-blue-700">
+                        {revealedCount}/{totalTrends} assuntos prontos
                       </p>
-                      {totalTrends > 0 && (
-                        <p className="text-[11px] text-blue-700">
-                          {revealedCount}/{totalTrends} assuntos prontos
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-3 mb-2">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Assuntos mais quentes nas redes sociais hoje
+              </h2>
+            </div>
+
+            <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
+              <div
+                className={`w-full transition-transform duration-300 ease-in-out ${
+                  showMobileSummary ? '-translate-x-full' : 'translate-x-0'
+                }`}
+              >
+                <div
+                  ref={mobileListContainerRef}
+                  onScroll={handleMobileListScroll}
+                  className="space-y-3 pb-8 max-h-[70vh] overflow-y-auto"
+                >
+                  {renderTrendList()}
+                </div>
+              </div>
+              {showMobileSummary && (
+                <div
+                  ref={mobileSummaryWrapperRef}
+                  className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
+                >
+                  {renderSummaryContent('mobile')}
                 </div>
               )}
-
-              <div className="mt-3 mb-2">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Assuntos mais quentes nas redes sociais hoje
-                </h2>
-              </div>
-
-              <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
-                <div
-                  className={`w-full transition-transform duration-300 ease-in-out ${
-                    showMobileSummary ? '-translate-x-full' : 'translate-x-0'
-                  }`}
-                >
-                  <div
-                    ref={mobileListContainerRef}
-                    onScroll={handleMobileListScroll}
-                    className="space-y-3 pb-8 max-h-[70vh] overflow-y-auto"
-                  >
-                    {renderTrendList()}
-                  </div>
-                </div>
-                {showMobileSummary && (
-                  <div
-                    ref={mobileSummaryWrapperRef}
-                    className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
-                  >
-                    {renderSummaryContent('mobile')}
-                  </div>
-                )}
-              </div>
-
-              <div className="hidden lg:block">{renderTrendList()}</div>
             </div>
+
+            <div className="hidden lg:block">{renderTrendList()}</div>
           </>
         )}
       </div>
