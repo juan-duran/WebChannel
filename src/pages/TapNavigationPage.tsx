@@ -1285,7 +1285,7 @@ export function TapNavigationPage() {
             <TapInstallAndPushCTA />
 
             {isRevealingTrends && (
-              <div className="mb-3 sticky top-2 z-20">
+              <div className="mb-3 sticky top-20 z-20">
                 <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-md animate-fadeIn">
                   <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
                   <div className="flex-1 space-y-1 text-xs text-blue-800">
