@@ -392,6 +392,7 @@ export function OnboardingPage() {
   });
   const [pushCtaLoading, setPushCtaLoading] = useState(false);
   const [pushCtaError, setPushCtaError] = useState<string | null>(null);
+  const [redirectScheduled, setRedirectScheduled] = useState(false);
 
   useEffect(() => {
     if (!pushDismissed) {
@@ -557,6 +558,19 @@ export function OnboardingPage() {
       await fetchUserData();
       setStatus({ type: 'success', message: 'Preferências salvas com sucesso! 🎉' });
       await refreshOnboardingStatus();
+
+      const completedNow = hasCompletedOnboarding({
+        ...formState,
+        onboarding_complete: true,
+      });
+      if (completedNow && !redirectScheduled) {
+        setRedirectScheduled(true);
+        // Redireciona para /tap após breve delay para o usuário ver a confirmação
+        window.setTimeout(() => {
+          window.history.pushState(null, '', '/tap');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }, 1200);
+      }
     } catch (error) {
       const message =
         error instanceof Error
