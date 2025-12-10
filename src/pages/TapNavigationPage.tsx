@@ -14,6 +14,7 @@ import { trackEvent } from '../lib/analytics';
 import { useWebpushStatus } from '../hooks/useWebpushStatus';
 import { enableNotifications } from '../lib/pushNotifications';
 import { TapInstallAndPushCTA } from '../components/TapInstallAndPushCTA';
+import { ProfileSurveyBanner } from '../components/ProfileSurveyBanner';
 
 const sharedSummaryCache = new Map<
   string,
@@ -1366,6 +1367,12 @@ export function TapNavigationPage() {
             </div>
 
             <div className="hidden lg:block">{renderTrendList()}</div>
+
+            {!isRevealingTrends && totalTrends > 0 && revealedCount === totalTrends && (
+              <div className="mt-6">
+                <ProfileSurveyBanner />
+              </div>
+            )}
           </>
         )}
       </div>
