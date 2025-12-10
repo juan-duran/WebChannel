@@ -1285,19 +1285,21 @@ export function TapNavigationPage() {
             <TapInstallAndPushCTA />
 
             {isRevealingTrends && (
-              <div className="mb-3 sticky top-2 z-20">
-                <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-3 shadow-sm animate-fadeIn">
-                  <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
-                  <div className="flex-1 space-y-1 text-xs text-blue-800">
-                    <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
-                    <p className="text-[12px] text-blue-800">
-                      {captureSteps[captureStepIndex] ?? captureSteps[0]}
-                    </p>
-                    {totalTrends > 0 && (
-                      <p className="text-[11px] text-blue-700">
-                        {revealedCount}/{totalTrends} assuntos prontos
+              <div className="mb-3">
+                <div className="fixed left-1/2 top-20 z-40 w-[calc(100%-24px)] max-w-screen-md -translate-x-1/2 animate-fadeIn">
+                  <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/95 px-3 py-3 shadow-md backdrop-blur">
+                    <Loader2 className="w-5 h-5 text-blue-700 animate-spin mt-0.5" />
+                    <div className="flex-1 space-y-1 text-xs text-blue-800">
+                      <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
+                      <p className="text-[12px] text-blue-800">
+                        {captureSteps[captureStepIndex] ?? captureSteps[0]}
                       </p>
-                    )}
+                      {totalTrends > 0 && (
+                        <p className="text-[11px] text-blue-700">
+                          {revealedCount}/{totalTrends} assuntos prontos
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
