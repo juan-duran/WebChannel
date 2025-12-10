@@ -1341,21 +1341,21 @@ export function TapNavigationPage() {
               </h2>
             </div>
 
-            <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
-              <div
-                className={`w-full transition-transform duration-300 ease-in-out ${
-                  showMobileSummary ? '-translate-x-full' : 'translate-x-0'
-                }`}
-              >
+              <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
                 <div
-                  ref={mobileListContainerRef}
-                  onScroll={handleMobileListScroll}
-                  className="space-y-3 pb-8 max-h-[70vh] overflow-y-auto"
+                  className={`w-full transition-transform duration-300 ease-in-out ${
+                    showMobileSummary ? '-translate-x-full' : 'translate-x-0'
+                  }`}
                 >
-                  {renderTrendList()}
+                  <div
+                    ref={mobileListContainerRef}
+                    onScroll={handleMobileListScroll}
+                    className="space-y-3 pb-8"
+                  >
+                    {renderTrendList()}
+                  </div>
                 </div>
-              </div>
-              {showMobileSummary && (
+                {showMobileSummary && (
                 <div
                   ref={mobileSummaryWrapperRef}
                   className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
