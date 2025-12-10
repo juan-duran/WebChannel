@@ -1337,6 +1337,7 @@ export function TapNavigationPage() {
           </>
         )}
       </div>
+      {renderCaptureBubble()}
       {renderSummaryBubble()}
       {!onboardingStatus.loading && !onboardingStatus.complete && (
         <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex items-center justify-center px-4">
