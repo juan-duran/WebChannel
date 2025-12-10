@@ -731,6 +731,38 @@ export function TapNavigationPage() {
   const revealedCount = visibleTrends.length;
   const isRevealingTrends = pendingTrends.length > 0;
 
+  // Auto-apply a pending summary if the user is still on the same trend/topic when it arrives.
+  useEffect(() => {
+    if (!pendingSummary) return;
+    const ctx = pendingSummary.context;
+    if (!ctx) return;
+
+    const matchesTrend =
+      (typeof ctx.trendPosition === 'number' && ctx.trendPosition === expandedTrendId) ||
+      (ctx.trendId &&
+        trends.some(
+          (t) =>
+            (t.position === expandedTrendId ||
+              t.id === expandedTrendId ||
+              t.title === expandedTrendId) &&
+            (t.id === ctx.trendId || t.title === ctx.trendId || t.position === ctx.trendPosition),
+        ));
+
+    const matchesTopic =
+      !selectedTopic ||
+      (ctx.topicNumber === selectedTopic.number ||
+        ctx.topicId === selectedTopic.id ||
+        ctx.topicId === selectedTopic.description);
+
+    if (matchesTrend && matchesTopic) {
+      setSelectedSummary(pendingSummary.summary);
+      setSummaryMetadata(pendingSummary.metadata);
+      setSummaryFromCache(pendingSummary.fromCache);
+      setPendingSummary(null);
+      setSummaryBubbleState('ready');
+    }
+  }, [pendingSummary, expandedTrendId, selectedTopic, trends]);
+
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
       const next = current === trend.position ? null : trend.position;
