@@ -2,6 +2,7 @@ import { User as UserIcon, LogOut, Mail, Calendar, BellRing, BellOff } from 'luc
 import { useAuth } from '../contexts/AuthContext';
 import { useCurrentUser } from '../state/UserContext';
 import { enableNotifications, disableNotifications } from '../lib/pushNotifications';
+import { ProfileSurveyBanner } from '../components/ProfileSurveyBanner';
 
 export function ProfilePage() {
   const { user: authUser } = useAuth();
@@ -41,6 +42,8 @@ export function ProfilePage() {
       </div>
 
       <div className="space-y-6">
+        <ProfileSurveyBanner />
+
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
