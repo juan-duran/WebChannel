@@ -236,6 +236,7 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
     }
 
     const sendPayload = async (body: unknown) => {
+      logger.info({ webhookUrl, topicId, trendId, correlationId, mode: Array.isArray(body) ? 'array' : 'object' }, 'Calling futebol webhook');
       return fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,20 +250,25 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
     // Se falhar, tenta como array (fallback ao formato usado no fluxo principal)
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      logger.error(
-        { status: response.status, topicId, trendId, correlationId, mode: 'object', body: text },
-        'Futebol summary failed (HTTP)',
-      );
+      logger.error({
+        status: response.status,
+        topicId,
+        trendId,
+        correlationId,
+        mode: 'object',
+        body: text,
+        webhookUrl,
+      }, 'Futebol summary failed (HTTP)');
       response = await sendPayload([payload]);
     }
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
       logger.error(
-        { status: response.status, topicId, trendId, correlationId, mode: 'array', body: text },
+        { status: response.status, topicId, trendId, correlationId, mode: 'array', body: text, webhookUrl },
         'Futebol summary failed (HTTP) on fallback',
       );
-      return res.status(500).json({ error: 'Failed to summarize trend' });
+      return res.status(500).json({ error: 'Failed to summarize trend', details: text || undefined });
     }
 
     const agentResponse = await response.json().catch(async () => {
