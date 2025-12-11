@@ -1409,7 +1409,7 @@ export function TapNavigationPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white" ref={pageContainerRef}>
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {showTapPushCta && (
           <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 shadow-sm">
