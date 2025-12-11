@@ -227,19 +227,44 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       message: `Assunto ${trendId ?? 'futebol'} topico ${topicId}`,
     };
 
-    const response = await fetch('https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      // n8n aceita objeto simples; enviamos direto
-      body: JSON.stringify(payload),
-    });
+    const webhookUrl =
+      'https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat';
+
+    const sendPayload = async (body: unknown) => {
+      return fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    };
+
+    // Primeiro tenta como objeto simples
+    let response = await sendPayload(payload);
+
+    // Se falhar, tenta como array (fallback ao formato usado no fluxo principal)
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      logger.error(
+        { status: response.status, topicId, trendId, correlationId, mode: 'object', body: text },
+        'Futebol summary failed (HTTP)',
+      );
+      response = await sendPayload([payload]);
+    }
 
     if (!response.ok) {
-      logger.error({ status: response.status, topicId, trendId, correlationId }, 'Futebol summary failed (HTTP)');
+      const text = await response.text().catch(() => '');
+      logger.error(
+        { status: response.status, topicId, trendId, correlationId, mode: 'array', body: text },
+        'Futebol summary failed (HTTP) on fallback',
+      );
       return res.status(500).json({ error: 'Failed to summarize trend' });
     }
 
-    const agentResponse = await response.json();
+    const agentResponse = await response.json().catch(async () => {
+      const text = await response.text().catch(() => '');
+      logger.error({ topicId, trendId, correlationId, body: text }, 'Futebol summary response not JSON');
+      return text;
+    });
     const extracted = extractSummaryFields(agentResponse);
 
     const summary = extracted?.summary ?? coalesceString(agentResponse) ?? `Topico ${topicId}`;
