@@ -38,6 +38,9 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
 };
 
 const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null => {
+  if (typeof window !== 'undefined') {
+    return window;
+  }
   if (!node) return null;
   let current: HTMLElement | null = node.parentElement;
   while (current) {
@@ -128,18 +131,12 @@ export function TapNavigationPage() {
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
   const getScrollPosition = useCallback(() => {
-    const parent = scrollParentRef.current;
-    if (!parent) return 0;
-    return parent === window ? window.scrollY : (parent as HTMLElement).scrollTop;
+    return typeof window !== 'undefined' ? window.scrollY : 0;
   }, []);
 
   const scrollToPosition = useCallback((y: number) => {
-    const parent = scrollParentRef.current;
-    if (!parent) return;
-    if (parent === window) {
+    if (typeof window !== 'undefined') {
       window.scrollTo({ top: y, behavior: 'auto' });
-    } else {
-      (parent as HTMLElement).scrollTo({ top: y, behavior: 'auto' });
     }
   }, []);
 
@@ -217,9 +214,7 @@ export function TapNavigationPage() {
   }, []);
 
   useEffect(() => {
-    if (pageContainerRef.current) {
-      scrollParentRef.current = getScrollParent(pageContainerRef.current) || document.scrollingElement || window;
-    }
+    scrollParentRef.current = typeof window !== 'undefined' ? window : null;
   }, []);
 
   const summaryTopicName =
@@ -936,7 +931,6 @@ export function TapNavigationPage() {
             onTopicSelect={(topic) => {
               // Salva a posição do scroll (scroll parent) antes de abrir o summary
               lastScrollBeforeSummaryRef.current = getScrollPosition();
-              lastScrollParentRef.current = scrollParentRef.current;
               if (typeof window !== 'undefined') {
                 lastScrollBeforeSummaryRef.current = window.scrollY;
               }
@@ -1167,41 +1161,29 @@ export function TapNavigationPage() {
           >
             <button
               type="button"
-              onClick={() => {
-                const savedY =
-                  (typeof window !== 'undefined' ? lastScrollBeforeSummaryRef.current : 0) ||
-                  getScrollPosition() ||
-                  lastPageScrollRef.current;
-                const targetEl = selectedTrendRef.current;
-                const savedParent = lastScrollParentRef.current || scrollParentRef.current;
+            onClick={() => {
+              const savedY =
+                (typeof window !== 'undefined' ? lastScrollBeforeSummaryRef.current : 0) ||
+                getScrollPosition() ||
+                lastPageScrollRef.current;
+              const targetEl = selectedTrendRef.current;
 
-                setSelectedTopic(null);
-                setSelectedSummary(null);
+              setSelectedTopic(null);
+              setSelectedSummary(null);
+              requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    // Restaura no scroll parent salvo
-                    if (savedParent && savedParent !== window) {
-                      (savedParent as HTMLElement).scrollTo({ top: Math.max(0, savedY), behavior: 'auto' });
-                    } else {
-                      scrollToPosition(Math.max(0, savedY));
-                    }
-                    if (targetEl) {
-                      targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
-                    }
-                    console.log('[TapNavLog][mobile] back scroll restore', {
-                      savedY,
-                      targetExists: Boolean(targetEl),
-                      savedParent: savedParent === window ? 'window' : savedParent?.tagName,
-                      currentOffset:
-                        scrollParentRef.current && scrollParentRef.current !== window
-                          ? (scrollParentRef.current as HTMLElement).scrollTop
-                          : typeof window !== 'undefined'
-                            ? window.scrollY
-                            : 0,
-                    });
+                  scrollToPosition(Math.max(0, savedY));
+                  if (targetEl) {
+                    targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+                  }
+                  console.log('[TapNavLog][mobile] back scroll restore', {
+                    savedY,
+                    targetExists: Boolean(targetEl),
+                    currentOffset: typeof window !== 'undefined' ? window.scrollY : 0,
                   });
                 });
-              }}
+              });
+            }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="Voltar para lista"
             >
