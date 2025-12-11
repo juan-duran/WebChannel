@@ -1353,16 +1353,18 @@ export function TapNavigationPage() {
         });
       }
     } else if (mobileListContainerRef.current) {
-      mobileListContainerRef.current.scrollTo({
-        top: mobileListScrollPosition.current,
-        behavior: 'auto',
-      });
+      // Restore scroll position on the main page (not the inner list)
       if (typeof window !== 'undefined') {
         const targetY = Math.max(0, lastListScrollYRef.current);
-        window.requestAnimationFrame(() => {
+        const restore = () => {
           window.scrollTo({ top: targetY, behavior: 'auto' });
-          // fallback: if we have the selected trend element, ensure visibility
-          selectedTrendRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+          // fallback: ensure the expanded trend is visible
+          if (selectedTrendRef.current) {
+            selectedTrendRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }
+        };
+        requestAnimationFrame(() => {
+          requestAnimationFrame(restore);
         });
       }
     }
