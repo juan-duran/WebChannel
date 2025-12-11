@@ -1325,7 +1325,9 @@ export function TapNavigationPage() {
       }
       // Bring the summary into view on mobile so it starts at the top.
       if (typeof window !== 'undefined' && mobileSummaryWrapperRef.current) {
-        const top = mobileSummaryWrapperRef.current.getBoundingClientRect().top + window.scrollY - 12;
+        const rect = mobileSummaryWrapperRef.current.getBoundingClientRect();
+        const headerOffset = 96; // account for sticky header and a bit of breathing room
+        const top = Math.max(0, rect.top + window.scrollY - headerOffset);
         window.scrollTo({ top, behavior: 'auto' });
       }
     } else if (mobileListContainerRef.current) {
