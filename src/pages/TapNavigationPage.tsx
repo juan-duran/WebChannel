@@ -921,6 +921,7 @@ export function TapNavigationPage() {
               selectedTrendRef.current = el;
             }
           }}
+          className="scroll-mt-28"
         >
           <TrendCard
             trend={trend}
@@ -1160,12 +1161,13 @@ export function TapNavigationPage() {
               type="button"
               onClick={() => {
                 const savedY = getScrollPosition();
+                const targetEl = selectedTrendRef.current;
                 setSelectedTopic(null);
                 setSelectedSummary(null);
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
                     scrollToPosition(Math.max(0, savedY));
-                    selectedTrendRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+                    targetEl?.scrollIntoView({ behavior: 'auto', block: 'start' });
                   });
                 });
               }}
