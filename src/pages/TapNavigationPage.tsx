@@ -171,6 +171,7 @@ export function TapNavigationPage() {
   const mobileListScrollPosition = useRef(0);
   const lastPageScrollRef = useRef(0);
   const lastScrollBeforeSummaryRef = useRef(0);
+  const lastScrollParentRef = useRef<HTMLElement | Window | null>(null);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -933,6 +934,9 @@ export function TapNavigationPage() {
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
+              // Salva a posição do scroll (scroll parent) antes de abrir o summary
+              lastScrollBeforeSummaryRef.current = getScrollPosition();
+              lastScrollParentRef.current = scrollParentRef.current;
               if (typeof window !== 'undefined') {
                 lastScrollBeforeSummaryRef.current = window.scrollY;
               }
@@ -1169,31 +1173,25 @@ export function TapNavigationPage() {
                   getScrollPosition() ||
                   lastPageScrollRef.current;
                 const targetEl = selectedTrendRef.current;
+                const savedParent = lastScrollParentRef.current || scrollParentRef.current;
+
                 setSelectedTopic(null);
                 setSelectedSummary(null);
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
-                    if (targetEl) {
-                      const parent = scrollParentRef.current;
-                      const parentRect =
-                        parent && parent !== window
-                          ? (parent as HTMLElement).getBoundingClientRect()
-                          : { top: 0 };
-                      const currentOffset =
-                        parent && parent !== window
-                          ? (parent as HTMLElement).scrollTop
-                          : typeof window !== 'undefined'
-                            ? window.scrollY
-                            : 0;
-                      const rect = targetEl.getBoundingClientRect();
-                      const targetY = rect.top - parentRect.top + currentOffset - 80; // header offset
-                      scrollToPosition(Math.max(0, targetY));
+                    // Restaura no scroll parent salvo
+                    if (savedParent && savedParent !== window) {
+                      (savedParent as HTMLElement).scrollTo({ top: Math.max(0, savedY), behavior: 'auto' });
                     } else {
                       scrollToPosition(Math.max(0, savedY));
+                    }
+                    if (targetEl) {
+                      targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
                     }
                     console.log('[TapNavLog][mobile] back scroll restore', {
                       savedY,
                       targetExists: Boolean(targetEl),
+                      savedParent: savedParent === window ? 'window' : savedParent?.tagName,
                       currentOffset:
                         scrollParentRef.current && scrollParentRef.current !== window
                           ? (scrollParentRef.current as HTMLElement).scrollTop
