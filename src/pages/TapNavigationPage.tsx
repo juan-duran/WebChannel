@@ -38,10 +38,7 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
 };
 
 const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null => {
-  if (typeof window !== 'undefined') {
-    return window;
-  }
-  if (!node) return null;
+  if (!node) return typeof window !== 'undefined' ? window : null;
   let current: HTMLElement | null = node.parentElement;
   while (current) {
     const { overflowY } = window.getComputedStyle(current);
@@ -50,7 +47,7 @@ const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null 
     }
     current = current.parentElement;
   }
-  return window;
+  return typeof window !== 'undefined' ? window : null;
 };
 
 export function TapNavigationPage() {
@@ -130,13 +127,23 @@ export function TapNavigationPage() {
   const selectedTrendRef = useRef<HTMLElement | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
-  const getScrollPosition = useCallback(() => {
-    return typeof window !== 'undefined' ? window.scrollY : 0;
-  }, []);
+  const getScrollPosition = useCallback(
+    (parent?: HTMLElement | Window | null) => {
+      const target = parent ?? scrollParentRef.current;
+      if (!target) return 0;
+      if (target === window) return typeof window !== 'undefined' ? window.scrollY : 0;
+      return (target as HTMLElement).scrollTop;
+    },
+    [],
+  );
 
-  const scrollToPosition = useCallback((y: number) => {
-    if (typeof window !== 'undefined') {
-      window.scrollTo({ top: y, behavior: 'auto' });
+  const scrollToPosition = useCallback((y: number, parent?: HTMLElement | Window | null) => {
+    const target = parent ?? scrollParentRef.current;
+    if (!target) return;
+    if (target === window) {
+      if (typeof window !== 'undefined') window.scrollTo({ top: y, behavior: 'auto' });
+    } else {
+      (target as HTMLElement).scrollTo({ top: y, behavior: 'auto' });
     }
   }, []);
 
@@ -169,6 +176,7 @@ export function TapNavigationPage() {
   const lastPageScrollRef = useRef(0);
   const lastScrollBeforeSummaryRef = useRef(0);
   const lastScrollParentRef = useRef<HTMLElement | Window | null>(null);
+  const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -917,6 +925,7 @@ export function TapNavigationPage() {
             if (expandedTrendId === trend.position) {
               selectedTrendRef.current = el;
             }
+            trendElementRefs.current[trend.position] = el;
           }}
           className="scroll-mt-28"
         >
@@ -929,15 +938,15 @@ export function TapNavigationPage() {
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
-              // Salva a posição do scroll (scroll parent) antes de abrir o summary
-              lastScrollBeforeSummaryRef.current = getScrollPosition();
-              if (typeof window !== 'undefined') {
-                lastScrollBeforeSummaryRef.current = window.scrollY;
-                console.log('[TapNavLog][mobile] topic select', {
-                  savedY: lastScrollBeforeSummaryRef.current,
-                  expandedTrendId: trend.position,
-                });
-              }
+              const trendEl = trendElementRefs.current[trend.position];
+              const parent = trendEl ? getScrollParent(trendEl) : scrollParentRef.current;
+              lastScrollParentRef.current = parent;
+              lastScrollBeforeSummaryRef.current = getScrollPosition(parent);
+              console.log('[TapNavLog][mobile] topic select', {
+                savedY: lastScrollBeforeSummaryRef.current,
+                expandedTrendId: trend.position,
+                parent: parent === window ? 'window' : parent?.tagName,
+              });
               const isSameTopic =
                 expandedTrendId === trend.position &&
                 selectedTopic &&
@@ -1395,13 +1404,13 @@ export function TapNavigationPage() {
       if (mobileListContainerRef.current) {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
-      lastListScrollYRef.current = getScrollPosition();
+      lastListScrollYRef.current = getScrollPosition(lastScrollParentRef.current || scrollParentRef.current);
       if (typeof window !== 'undefined') {
         lastPageScrollRef.current = window.scrollY;
       }
       console.log('[TapNavLog][mobile] open summary', {
         scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
-        scrollTop: getScrollPosition(),
+        scrollTop: lastListScrollYRef.current,
         expandedTrendId,
       });
 
@@ -1409,15 +1418,16 @@ export function TapNavigationPage() {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
       }
     } else {
+      const parent = lastScrollParentRef.current || scrollParentRef.current;
       const targetY = Math.max(0, lastListScrollYRef.current || lastPageScrollRef.current);
       const restore = () => {
-        scrollToPosition(targetY);
+        scrollToPosition(targetY, parent);
         const targetEl = selectedTrendRef.current;
         if (targetEl) {
           targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
         }
         console.log('[TapNavLog][mobile] close summary', {
-          scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
+          scrollParent: parent === window ? 'window' : (parent as HTMLElement | null)?.tagName,
           targetY,
           expandedTrendId,
           targetElExists: Boolean(targetEl),
