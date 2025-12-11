@@ -3,6 +3,7 @@ import { Router } from 'express';
 import fetch from 'node-fetch';
 import { n8nService } from '../services/n8n.js';
 import { logger } from '../utils/logger.js';
+import { config } from '../config/index.js';
 
 const trendsRouter = Router();
 
@@ -227,8 +228,12 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       message: `Assunto ${trendId ?? 'futebol'} topico ${topicId}`,
     };
 
-    const webhookUrl =
-      'https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat';
+    const webhookUrl = config.n8n.futebolWebhookUrl;
+
+    if (!webhookUrl) {
+      logger.error({ topicId, trendId, correlationId }, 'Missing N8N_FUTEBOL_WEBHOOK_URL');
+      return res.status(500).json({ error: 'missing_futebol_webhook' });
+    }
 
     const sendPayload = async (body: unknown) => {
       return fetch(webhookUrl, {

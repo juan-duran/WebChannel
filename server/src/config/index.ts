@@ -49,6 +49,7 @@ export const config = {
 
   n8n: {
     webhookUrl: requireEnv('N8N_WEBHOOK_URL'),
+    futebolWebhookUrl: optionalEnv('N8N_FUTEBOL_WEBHOOK_URL', ''),
     apiKey: requireEnv('N8N_API_KEY'),
     webhookTimeout: parseInt(optionalEnv('WEBHOOK_TIMEOUT_MS', '120000'), 10),
     retryAttempts: parseInt(optionalEnv('WEBHOOK_RETRY_ATTEMPTS', '3'), 10),
