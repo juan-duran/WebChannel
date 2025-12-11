@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { Router } from 'express';
+import fetch from 'node-fetch';
 import { n8nService } from '../services/n8n.js';
 import { logger } from '../utils/logger.js';
 
@@ -226,15 +227,12 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       message: `Assunto ${trendId ?? 'futebol'} topico ${topicId}`,
     };
 
-    const response = await fetch(
-      'https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // n8n espera array como no fluxo principal, então enviamos payload embrulhado
-        body: JSON.stringify([payload]),
-      },
-    );
+    const response = await fetch('https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      // n8n aceita objeto simples; enviamos direto
+      body: JSON.stringify(payload),
+    });
 
     if (!response.ok) {
       logger.error({ status: response.status, topicId, trendId, correlationId }, 'Futebol summary failed (HTTP)');
