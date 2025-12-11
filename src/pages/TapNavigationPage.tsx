@@ -108,6 +108,8 @@ export function TapNavigationPage() {
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryTopRef = useRef<HTMLDivElement | null>(null);
+  const lastListScrollYRef = useRef(0);
+  const selectedTrendRef = useRef<HTMLElement | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
 
@@ -875,7 +877,14 @@ export function TapNavigationPage() {
   const renderTrendList = () => (
     <div className="space-y-3">
       {visibleTrends.map((trend) => (
-        <div key={`${trend.position}-${trend.title}`}>
+        <div
+          key={`${trend.position}-${trend.title}`}
+          ref={(el) => {
+            if (expandedTrendId === trend.position) {
+              selectedTrendRef.current = el;
+            }
+          }}
+        >
           <TrendCard
             trend={trend}
             isExpanded={expandedTrendId === trend.position}
@@ -1323,6 +1332,9 @@ export function TapNavigationPage() {
       if (mobileListContainerRef.current) {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
+      if (typeof window !== 'undefined') {
+        lastListScrollYRef.current = window.scrollY;
+      }
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -1345,6 +1357,14 @@ export function TapNavigationPage() {
         top: mobileListScrollPosition.current,
         behavior: 'auto',
       });
+      if (typeof window !== 'undefined') {
+        const targetY = Math.max(0, lastListScrollYRef.current);
+        window.requestAnimationFrame(() => {
+          window.scrollTo({ top: targetY, behavior: 'auto' });
+          // fallback: if we have the selected trend element, ensure visibility
+          selectedTrendRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+        });
+      }
     }
   }, [showMobileSummary]);
 
