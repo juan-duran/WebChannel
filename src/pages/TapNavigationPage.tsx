@@ -37,7 +37,22 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
   return payload;
 };
 
+const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null => {
+  if (!node) return null;
+  let current: HTMLElement | null = node.parentElement;
+  while (current) {
+    const { overflowY } = window.getComputedStyle(current);
+    if (overflowY === 'auto' || overflowY === 'scroll') {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return window;
+};
+
 export function TapNavigationPage() {
+  const pageContainerRef = useRef<HTMLDivElement | null>(null);
+  const scrollParentRef = useRef<HTMLElement | Window | null>(null);
   const [currentCategory, setCurrentCategory] = useState<TapCategory>('brasil');
   const [trends, setTrends] = useState<DailyTrend[]>([]);
   const [visibleTrends, setVisibleTrends] = useState<DailyTrend[]>([]);
@@ -112,6 +127,21 @@ export function TapNavigationPage() {
   const selectedTrendRef = useRef<HTMLElement | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
+  const getScrollPosition = useCallback(() => {
+    const parent = scrollParentRef.current;
+    if (!parent) return 0;
+    return parent === window ? window.scrollY : (parent as HTMLElement).scrollTop;
+  }, []);
+
+  const scrollToPosition = useCallback((y: number) => {
+    const parent = scrollParentRef.current;
+    if (!parent) return;
+    if (parent === window) {
+      window.scrollTo({ top: y, behavior: 'auto' });
+    } else {
+      (parent as HTMLElement).scrollTo({ top: y, behavior: 'auto' });
+    }
+  }, []);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
   const lastBatchRef = useRef<Record<TapCategory, string | null>>({
@@ -181,6 +211,12 @@ export function TapNavigationPage() {
       }
     });
     keysToDelete.forEach((key) => summaryCacheRef.current.delete(key));
+  }, []);
+
+  useEffect(() => {
+    if (pageContainerRef.current) {
+      scrollParentRef.current = getScrollParent(pageContainerRef.current);
+    }
   }, []);
 
   const summaryTopicName =
@@ -1332,9 +1368,7 @@ export function TapNavigationPage() {
       if (mobileListContainerRef.current) {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
-      if (typeof window !== 'undefined') {
-        lastListScrollYRef.current = window.scrollY;
-      }
+      lastListScrollYRef.current = getScrollPosition();
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -1352,21 +1386,19 @@ export function TapNavigationPage() {
           requestAnimationFrame(scrollToAnchor);
         });
       }
-    } else if (mobileListContainerRef.current) {
-      // Restore scroll position on the main page (not the inner list)
-      if (typeof window !== 'undefined') {
-        const targetY = Math.max(0, lastListScrollYRef.current);
-        const restore = () => {
-          window.scrollTo({ top: targetY, behavior: 'auto' });
-          // fallback: ensure the expanded trend is visible
-          if (selectedTrendRef.current) {
-            selectedTrendRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
-          }
-        };
-        requestAnimationFrame(() => {
-          requestAnimationFrame(restore);
-        });
-      }
+    } else {
+      // Restore scroll position on the main scroll parent
+      const targetY = Math.max(0, lastListScrollYRef.current);
+      const restore = () => {
+        scrollToPosition(targetY);
+        // fallback: ensure the expanded trend is visible
+        if (selectedTrendRef.current) {
+          selectedTrendRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restore);
+      });
     }
   }, [showMobileSummary]);
 
