@@ -1323,6 +1323,11 @@ export function TapNavigationPage() {
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
       }
+      // Bring the summary into view on mobile so it starts at the top.
+      if (typeof window !== 'undefined' && mobileSummaryWrapperRef.current) {
+        const top = mobileSummaryWrapperRef.current.getBoundingClientRect().top + window.scrollY - 12;
+        window.scrollTo({ top, behavior: 'auto' });
+      }
     } else if (mobileListContainerRef.current) {
       mobileListContainerRef.current.scrollTo({
         top: mobileListScrollPosition.current,
