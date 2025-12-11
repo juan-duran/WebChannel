@@ -107,6 +107,7 @@ export function TapNavigationPage() {
   ];
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
+  const mobileSummaryTopRef = useRef<HTMLDivElement | null>(null);
   const revealTimerRef = useRef<number | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
 
@@ -1105,7 +1106,10 @@ export function TapNavigationPage() {
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
         {isMobile && (
-          <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3">
+          <div
+            ref={mobileSummaryTopRef}
+            className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3 scroll-mt-24"
+          >
             <button
               type="button"
               onClick={() => {
@@ -1323,11 +1327,17 @@ export function TapNavigationPage() {
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
       }
-      // Bring the summary into view on mobile so it starts at the top.
-      if (typeof window !== 'undefined' && mobileSummaryWrapperRef.current) {
-        // Scroll page to top to ensure CTA "Voltar" is visible consistently.
-        window.requestAnimationFrame(() => {
-          window.scrollTo({ top: 0, behavior: 'auto' });
+      // Bring the summary into view on mobile so it starts at the top (CTA "Voltar")
+      if (mobileSummaryTopRef.current) {
+        const scrollToAnchor = () => {
+          mobileSummaryTopRef.current?.scrollIntoView({
+            behavior: 'auto',
+            block: 'start',
+          });
+        };
+        // Two ticks to avoid shifts from reveal animations/layout
+        requestAnimationFrame(() => {
+          requestAnimationFrame(scrollToAnchor);
         });
       }
     } else if (mobileListContainerRef.current) {
