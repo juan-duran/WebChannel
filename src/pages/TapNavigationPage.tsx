@@ -170,6 +170,7 @@ export function TapNavigationPage() {
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
   const mobileListScrollPosition = useRef(0);
   const lastPageScrollRef = useRef(0);
+  const lastScrollBeforeSummaryRef = useRef(0);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -932,6 +933,9 @@ export function TapNavigationPage() {
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
+              if (typeof window !== 'undefined') {
+                lastScrollBeforeSummaryRef.current = window.scrollY;
+              }
               const isSameTopic =
                 expandedTrendId === trend.position &&
                 selectedTopic &&
@@ -1160,7 +1164,10 @@ export function TapNavigationPage() {
             <button
               type="button"
               onClick={() => {
-                const savedY = getScrollPosition();
+                const savedY =
+                  (typeof window !== 'undefined' ? lastScrollBeforeSummaryRef.current : 0) ||
+                  getScrollPosition() ||
+                  lastPageScrollRef.current;
                 const targetEl = selectedTrendRef.current;
                 setSelectedTopic(null);
                 setSelectedSummary(null);
