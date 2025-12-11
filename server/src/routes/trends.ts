@@ -216,17 +216,23 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   const correlationId = randomUUID();
 
   try {
+    const payload = {
+      topicId,
+      trendId,
+      email,
+      correlationId,
+      source: 'web-app',
+      date_time: new Date().toISOString(),
+      message: `Assunto ${trendId ?? 'futebol'} topico ${topicId}`,
+    };
+
     const response = await fetch(
       'https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          topicId,
-          trendId,
-          email,
-          correlationId,
-        }),
+        // n8n espera array como no fluxo principal, então enviamos payload embrulhado
+        body: JSON.stringify([payload]),
       },
     );
 
