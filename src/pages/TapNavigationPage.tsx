@@ -1158,8 +1158,15 @@ export function TapNavigationPage() {
             <button
               type="button"
               onClick={() => {
+                const savedY = getScrollPosition();
                 setSelectedTopic(null);
                 setSelectedSummary(null);
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    scrollToPosition(Math.max(0, savedY));
+                    selectedTrendRef.current?.scrollIntoView({ behavior: 'auto', block: 'start' });
+                  });
+                });
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label="Voltar para lista"
@@ -1386,19 +1393,6 @@ export function TapNavigationPage() {
           requestAnimationFrame(scrollToAnchor);
         });
       }
-    } else {
-      // Restore scroll position on the main scroll parent
-      const targetY = Math.max(0, lastListScrollYRef.current);
-      const restore = () => {
-        scrollToPosition(targetY);
-        // fallback: ensure the expanded trend is visible
-        if (selectedTrendRef.current) {
-          selectedTrendRef.current.scrollIntoView({ behavior: 'auto', block: 'start' });
-        }
-      };
-      requestAnimationFrame(() => {
-        requestAnimationFrame(restore);
-      });
     }
   }, [showMobileSummary]);
 
