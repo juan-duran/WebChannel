@@ -1382,7 +1382,7 @@ export function TapNavigationPage() {
       if (typeof window !== 'undefined') {
         lastPageScrollRef.current = window.scrollY;
       }
-      console.info('[TapNavigationPage][mobile] open summary', {
+      console.log('[TapNavLog][mobile] open summary', {
         scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
         scrollTop: getScrollPosition(),
         expandedTrendId,
@@ -1412,7 +1412,7 @@ export function TapNavigationPage() {
         if (targetEl) {
           targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
         }
-        console.info('[TapNavigationPage][mobile] close summary', {
+        console.log('[TapNavLog][mobile] close summary', {
           scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
           targetY,
           expandedTrendId,
