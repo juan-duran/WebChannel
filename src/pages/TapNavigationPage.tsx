@@ -1382,6 +1382,11 @@ export function TapNavigationPage() {
       if (typeof window !== 'undefined') {
         lastPageScrollRef.current = window.scrollY;
       }
+      console.info('[TapNavigationPage][mobile] open summary', {
+        scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
+        scrollTop: getScrollPosition(),
+        expandedTrendId,
+      });
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -1399,8 +1404,26 @@ export function TapNavigationPage() {
           requestAnimationFrame(scrollToAnchor);
         });
       }
+    } else {
+      const targetY = Math.max(0, lastListScrollYRef.current || lastPageScrollRef.current);
+      const restore = () => {
+        scrollToPosition(targetY);
+        const targetEl = selectedTrendRef.current;
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+        }
+        console.info('[TapNavigationPage][mobile] close summary', {
+          scrollParent: scrollParentRef.current === window ? 'window' : scrollParentRef.current?.tagName,
+          targetY,
+          expandedTrendId,
+          targetElExists: Boolean(targetEl),
+        });
+      };
+      requestAnimationFrame(() => {
+        requestAnimationFrame(restore);
+      });
     }
-  }, [showMobileSummary]);
+  }, [showMobileSummary, expandedTrendId, scrollToPosition, getScrollPosition]);
 
   const handleMobileListScroll = useCallback(() => {
     if (mobileListContainerRef.current) {
