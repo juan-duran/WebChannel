@@ -217,7 +217,7 @@ export function TapNavigationPage() {
 
   useEffect(() => {
     if (pageContainerRef.current) {
-      scrollParentRef.current = getScrollParent(pageContainerRef.current);
+      scrollParentRef.current = getScrollParent(pageContainerRef.current) || document.scrollingElement || window;
     }
   }, []);
 
@@ -1173,8 +1173,34 @@ export function TapNavigationPage() {
                 setSelectedSummary(null);
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
-                    scrollToPosition(Math.max(0, savedY));
-                    targetEl?.scrollIntoView({ behavior: 'auto', block: 'start' });
+                    if (targetEl) {
+                      const parent = scrollParentRef.current;
+                      const parentRect =
+                        parent && parent !== window
+                          ? (parent as HTMLElement).getBoundingClientRect()
+                          : { top: 0 };
+                      const currentOffset =
+                        parent && parent !== window
+                          ? (parent as HTMLElement).scrollTop
+                          : typeof window !== 'undefined'
+                            ? window.scrollY
+                            : 0;
+                      const rect = targetEl.getBoundingClientRect();
+                      const targetY = rect.top - parentRect.top + currentOffset - 80; // header offset
+                      scrollToPosition(Math.max(0, targetY));
+                    } else {
+                      scrollToPosition(Math.max(0, savedY));
+                    }
+                    console.log('[TapNavLog][mobile] back scroll restore', {
+                      savedY,
+                      targetExists: Boolean(targetEl),
+                      currentOffset:
+                        scrollParentRef.current && scrollParentRef.current !== window
+                          ? (scrollParentRef.current as HTMLElement).scrollTop
+                          : typeof window !== 'undefined'
+                            ? window.scrollY
+                            : 0,
+                    });
                   });
                 });
               }}
