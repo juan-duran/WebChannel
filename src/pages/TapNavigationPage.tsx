@@ -1156,20 +1156,20 @@ export function TapNavigationPage() {
                 </>
               )}
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
                 {!hasCachedSummary && (
                   <button
                     type="button"
                     onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic)}
                     disabled={isLoadingSummary || !currentTrend}
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
                     Gerar resumo
                   </button>
                 )}
                 {hasCachedSummary && (
-                  <div className="flex items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                  <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
                     <CheckCircle className="w-3 h-3" />
                     Resumo em cache
                     <button
