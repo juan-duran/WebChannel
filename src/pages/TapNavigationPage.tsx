@@ -169,6 +169,7 @@ export function TapNavigationPage() {
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
   const mobileListScrollPosition = useRef(0);
+  const lastPageScrollRef = useRef(0);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -1376,6 +1377,9 @@ export function TapNavigationPage() {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
       lastListScrollYRef.current = getScrollPosition();
+      if (typeof window !== 'undefined') {
+        lastPageScrollRef.current = window.scrollY;
+      }
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
