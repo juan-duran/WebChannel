@@ -933,6 +933,10 @@ export function TapNavigationPage() {
               lastScrollBeforeSummaryRef.current = getScrollPosition();
               if (typeof window !== 'undefined') {
                 lastScrollBeforeSummaryRef.current = window.scrollY;
+                console.log('[TapNavLog][mobile] topic select', {
+                  savedY: lastScrollBeforeSummaryRef.current,
+                  expandedTrendId: trend.position,
+                });
               }
               const isSameTopic =
                 expandedTrendId === trend.position &&
@@ -1403,19 +1407,6 @@ export function TapNavigationPage() {
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
-      }
-      // Bring the summary into view on mobile so it starts at the top (CTA "Voltar")
-      if (mobileSummaryTopRef.current) {
-        const scrollToAnchor = () => {
-          mobileSummaryTopRef.current?.scrollIntoView({
-            behavior: 'auto',
-            block: 'start',
-          });
-        };
-        // Two ticks to avoid shifts from reveal animations/layout
-        requestAnimationFrame(() => {
-          requestAnimationFrame(scrollToAnchor);
-        });
       }
     } else {
       const targetY = Math.max(0, lastListScrollYRef.current || lastPageScrollRef.current);
