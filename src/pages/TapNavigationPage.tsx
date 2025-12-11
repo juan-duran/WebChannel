@@ -1325,10 +1325,10 @@ export function TapNavigationPage() {
       }
       // Bring the summary into view on mobile so it starts at the top.
       if (typeof window !== 'undefined' && mobileSummaryWrapperRef.current) {
-        const rect = mobileSummaryWrapperRef.current.getBoundingClientRect();
-        const headerOffset = 96; // account for sticky header and a bit of breathing room
-        const top = Math.max(0, rect.top + window.scrollY - headerOffset);
-        window.scrollTo({ top, behavior: 'auto' });
+        // Scroll page to top to ensure CTA "Voltar" is visible consistently.
+        window.requestAnimationFrame(() => {
+          window.scrollTo({ top: 0, behavior: 'auto' });
+        });
       }
     } else if (mobileListContainerRef.current) {
       mobileListContainerRef.current.scrollTo({
