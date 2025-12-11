@@ -200,4 +200,72 @@ trendsRouter.post('/summarize', async (req, res) => {
   }
 });
 
+trendsRouter.post('/summarize-fut', async (req, res) => {
+  const topicId = coalesceString(req.body?.topicId, req.body?.topic_id, req.body?.topic);
+  const trendId = coalesceString(req.body?.trendId, req.body?.trend_id, req.body?.assunto);
+  const email = coalesceString(req.body?.email, req.user?.email);
+
+  if (!topicId) {
+    return res.status(400).json({ error: 'topicId is required' });
+  }
+
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  const correlationId = randomUUID();
+
+  try {
+    const response = await fetch(
+      'https://brian-jado.app.n8n.cloud/webhook/846073ac-b0b8-42d3-9e19-14cd1cf25918/chat',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topicId,
+          trendId,
+          email,
+          correlationId,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      logger.error({ status: response.status, topicId, trendId, correlationId }, 'Futebol summary failed (HTTP)');
+      return res.status(500).json({ error: 'Failed to summarize trend' });
+    }
+
+    const agentResponse = await response.json();
+    const extracted = extractSummaryFields(agentResponse);
+
+    const summary = extracted?.summary ?? coalesceString(agentResponse) ?? `Topico ${topicId}`;
+    const resolvedTrendId =
+      trendId ??
+      extracted?.trendId ??
+      coalesceString(
+        extracted?.metadata?.trendId,
+        extracted?.metadata?.['trend-id'],
+        extracted?.metadata?.trendName,
+        extracted?.metadata?.['trend-name'],
+      ) ??
+      null;
+    const resolvedTopicId =
+      topicId ??
+      extracted?.topicId ??
+      coalesceString(
+        extracted?.metadata?.topicId,
+        extracted?.metadata?.['topic-id'],
+        extracted?.metadata?.topicName,
+        extracted?.metadata?.['topic-name'],
+      ) ??
+      null;
+    const metadata = (extracted?.metadata as Record<string, unknown> | null | undefined) ?? null;
+
+    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
+  } catch (error) {
+    logger.error({ error, topicId, trendId, correlationId }, 'Failed to summarize futebol trend');
+    return res.status(500).json({ error: 'Failed to summarize trend' });
+  }
+});
+
 export default trendsRouter;

@@ -3,7 +3,7 @@ import { RefreshCw, AlertCircle, ArrowLeft, AlertTriangle, CheckCircle, Loader2 
 import { TrendCard } from '../components/tap/TrendCard';
 import { TrendSkeleton } from '../components/tap/LoadingProgress';
 import { DailyTrend, DailyTrendTopic, DailyTrendsPayload } from '../types/dailyTrends';
-import { type DailyTrendsRow, supabase } from '../lib/supabase';
+import { type DailyTrendsRow, type DailyTrendsTable, supabase } from '../lib/supabase';
 import { safeJsonParse } from '../lib/safeJsonParse';
 import { SummaryData } from '../types/tapNavigation';
 import { websocketService } from '../lib/websocket';
@@ -25,6 +25,7 @@ const sharedSummaryCache = new Map<
   }
 >();
 const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
+type TapCategory = 'brasil' | 'futebol';
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -37,6 +38,7 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
 };
 
 export function TapNavigationPage() {
+  const [currentCategory, setCurrentCategory] = useState<TapCategory>('brasil');
   const [trends, setTrends] = useState<DailyTrend[]>([]);
   const [visibleTrends, setVisibleTrends] = useState<DailyTrend[]>([]);
   const [pendingTrends, setPendingTrends] = useState<DailyTrend[]>([]);
@@ -55,6 +57,7 @@ export function TapNavigationPage() {
   const [summaryStepIndex, setSummaryStepIndex] = useState(0);
   const [summaryBubbleState, setSummaryBubbleState] = useState<'idle' | 'progress' | 'ready'>('idle');
   const [lastSummaryContext, setLastSummaryContext] = useState<{
+    category?: TapCategory | null;
     trendPosition?: number | null;
     trendId?: string | number | null;
     topicNumber?: number | null;
@@ -65,6 +68,7 @@ export function TapNavigationPage() {
     metadata: Record<string, unknown> | null;
     fromCache: boolean;
     context: {
+      category?: TapCategory | null;
       trendPosition?: number | null;
       trendId?: string | number | null;
       topicNumber?: number | null;
@@ -76,6 +80,7 @@ export function TapNavigationPage() {
     metadata: Record<string, unknown> | null;
     fromCache: boolean;
     context: {
+      category?: TapCategory | null;
       trendPosition?: number | null;
       trendId?: string | number | null;
       topicNumber?: number | null;
@@ -106,8 +111,27 @@ export function TapNavigationPage() {
   const captureIntervalRef = useRef<number | null>(null);
 
   const summaryCacheRef = useRef(sharedSummaryCache);
-  const lastBatchRef = useRef<string | null>(null);
-  const persistedBatchRef = useRef<string | null>(null);
+  const lastBatchRef = useRef<Record<TapCategory, string | null>>({
+    brasil: null,
+    futebol: null,
+  });
+  const persistedBatchRef = useRef<Record<TapCategory, string | null>>({
+    brasil: null,
+    futebol: null,
+  });
+  const categoryDataRef = useRef<
+    Record<
+      TapCategory,
+      {
+        trends: DailyTrend[];
+        trendsSummary: string | null;
+        lastUpdated: string | null;
+      }
+    >
+  >({
+    brasil: { trends: [], trendsSummary: null, lastUpdated: null },
+    futebol: { trends: [], trendsSummary: null, lastUpdated: null },
+  });
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -146,6 +170,16 @@ export function TapNavigationPage() {
     }).format(date);
   }, []);
 
+  const clearSummaryCacheForCategory = useCallback((category: TapCategory) => {
+    const keysToDelete: string[] = [];
+    summaryCacheRef.current.forEach((_value, key) => {
+      if (key.startsWith(`${category}::`)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach((key) => summaryCacheRef.current.delete(key));
+  }, []);
+
   const summaryTopicName =
     selectedSummary?.['topic-name'] ??
     selectedSummary?.topicName ??
@@ -160,14 +194,22 @@ export function TapNavigationPage() {
     ? selectedSummary.debate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
     : [];
 
-  const createCacheKey = useCallback((trendId: string | number | null | undefined, topicId: string | number | null | undefined) => {
-    const normalize = (value: string | number | null | undefined) => {
-      if (value === null || value === undefined) return '';
-      return String(value).trim();
-    };
+  const createCacheKey = useCallback(
+    (
+      trendId: string | number | null | undefined,
+      topicId: string | number | null | undefined,
+      categoryOverride?: TapCategory,
+    ) => {
+      const normalize = (value: string | number | null | undefined) => {
+        if (value === null || value === undefined) return '';
+        return String(value).trim();
+      };
+      const category = categoryOverride ?? currentCategory;
 
-    return `${normalize(trendId)}::${normalize(topicId)}`;
-  }, []);
+      return `${category}::${normalize(trendId)}::${normalize(topicId)}`;
+    },
+    [currentCategory],
+  );
 
   const coalesceString = useCallback((...values: unknown[]): string | undefined => {
     for (const value of values) {
@@ -285,6 +327,7 @@ export function TapNavigationPage() {
       const cacheKey = createCacheKey(
         trend.id ?? trend.position ?? trend.title ?? '',
         topic.id ?? topic.number ?? topic.description ?? '',
+        currentCategory,
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
@@ -309,6 +352,8 @@ export function TapNavigationPage() {
       const correlationId = websocketService.generateCorrelationId();
       const startedAt = performance.now();
       const startedAtIso = new Date().toISOString();
+      const summaryEndpoint =
+        currentCategory === 'futebol' ? '/api/trends/summarize-fut' : '/api/trends/summarize';
 
       const startLogContext = {
         event: 'summary_fetch',
@@ -337,14 +382,21 @@ export function TapNavigationPage() {
         trackEvent('summary_request', {
           trend_id: trendId,
           topic_id: topicId,
+          category: currentCategory,
         });
 
-        const response = await fetch('/api/trends/summarize', {
+        const response = await fetch(summaryEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ topicId, trendId, email, forceRefresh: options?.forceRefresh, correlationId }),
+          body: JSON.stringify({
+            topicId,
+            trendId,
+            email,
+            forceRefresh: options?.forceRefresh,
+            correlationId,
+          }),
         });
 
         if (!response.ok) {
@@ -377,6 +429,7 @@ export function TapNavigationPage() {
             fromCache: Boolean(data.fromCache),
           };
           const context = {
+            category: currentCategory,
             trendPosition: trend.position ?? null,
             trendId: trend.id ?? trend.position ?? trend.title ?? null,
             topicNumber: topic.number ?? null,
@@ -390,7 +443,7 @@ export function TapNavigationPage() {
             expandedTrendId === trend.position;
 
           setLastSummaryData({ ...summaryPayload, context });
-          setLastSummaryContext(context);
+          setLastSummaryContext({ ...context, category: currentCategory });
 
           if (isSameSelection) {
             setSelectedSummary(summaryPayload.summary);
@@ -424,8 +477,8 @@ export function TapNavigationPage() {
           const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
       const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
 
-      const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId);
-      const fallbackCacheKey = createCacheKey(trendId, topicId);
+      const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId, currentCategory);
+      const fallbackCacheKey = createCacheKey(trendId, topicId, currentCategory);
 
       const cacheEntry = {
         summary: normalizedSummary,
@@ -490,68 +543,80 @@ export function TapNavigationPage() {
         setIsLoadingSummary(false);
       }
     },
-    [createCacheKey, email, normalizeSummaryPayload],
+    [createCacheKey, email, normalizeSummaryPayload, currentCategory],
   );
 
-  const fetchLatestTrends = useCallback(async (options?: { isRefresh?: boolean }) => {
-    const isRefresh = options?.isRefresh ?? false;
-    setError(null);
-    setIsLoading((prev) => prev || !isRefresh);
-    setIsRefreshing(isRefresh);
-    if (revealTimerRef.current) {
-      window.clearTimeout(revealTimerRef.current);
-      revealTimerRef.current = null;
-    }
-
-    try {
-      const { data, error: supabaseError } = await supabase
-        .from<'daily_trends', DailyTrendsRow>('daily_trends')
-        .select('batch_ts, payload')
-        .order('batch_ts', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (supabaseError) {
-        throw supabaseError;
+  const fetchLatestTrends = useCallback(
+    async (category: TapCategory, options?: { isRefresh?: boolean }) => {
+      const isRefresh = options?.isRefresh ?? false;
+      setError(null);
+      setIsLoading((prev) => prev || !isRefresh);
+      setIsRefreshing(isRefresh);
+      if (revealTimerRef.current) {
+        window.clearTimeout(revealTimerRef.current);
+        revealTimerRef.current = null;
       }
 
-      if (!data) {
-        throw new Error('Nenhum dado disponível.');
-      }
+      const tableName: DailyTrendsTable = category === 'futebol' ? 'daily_futebol' : 'daily_trends';
 
-      const parsed = parseTrendsPayload(data.payload);
+      try {
+        const { data, error: supabaseError } = await supabase
+          .from<DailyTrendsTable, DailyTrendsRow>(tableName)
+          .select('batch_ts, payload')
+          .order('batch_ts', { ascending: false })
+          .limit(1)
+          .single();
 
-      if (!parsed) {
-        throw new Error('Não foi possível interpretar os dados de tendências.');
-      }
+        if (supabaseError) {
+          throw supabaseError;
+        }
 
-      if (lastBatchRef.current && lastBatchRef.current !== data.batch_ts) {
-        summaryCacheRef.current.clear();
+        if (!data) {
+          throw new Error('Nenhum dado disponível.');
+        }
+
+        const parsed = parseTrendsPayload(data.payload);
+
+        if (!parsed) {
+          throw new Error('Não foi possível interpretar os dados de tendências.');
+        }
+
+        if (lastBatchRef.current[category] && lastBatchRef.current[category] !== data.batch_ts) {
+          clearSummaryCacheForCategory(category);
+        }
+        lastBatchRef.current[category] = data.batch_ts ?? null;
+        persistedBatchRef.current[category] = data.batch_ts ?? null;
+
+        const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
+        categoryDataRef.current[category] = {
+          trends: nextTrends,
+          trendsSummary: parsed.trendsSummary ?? null,
+          lastUpdated: data.batch_ts ?? null,
+        };
+
+        setTrends(nextTrends);
+        setVisibleTrends([]);
+        setPendingTrends(nextTrends);
+        setTrendsSummary(parsed.trendsSummary ?? null);
+        setExpandedTrendId(null);
+        setSelectedTopic(null);
+        setSelectedSummary(null);
+        setSummaryMetadata(null);
+        setSummaryFromCache(false);
+        setSummaryBubbleState('idle');
+        setLastUpdated(data.batch_ts ?? null);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao carregar tendências.';
+        setError(message);
+        setVisibleTrends([]);
+        setPendingTrends([]);
+      } finally {
+        setIsLoading(false);
+        setIsRefreshing(false);
       }
-      lastBatchRef.current = data.batch_ts ?? null;
-      persistedBatchRef.current = data.batch_ts ?? null;
-      const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
-      setTrends(nextTrends);
-      setVisibleTrends([]);
-      setPendingTrends(nextTrends);
-      setTrendsSummary(parsed.trendsSummary ?? null);
-      setExpandedTrendId(null);
-      setSelectedTopic(null);
-      setSelectedSummary(null);
-      setSummaryMetadata(null);
-      setSummaryFromCache(false);
-      setSummaryBubbleState('idle');
-      setLastUpdated(data.batch_ts ?? null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro ao carregar tendências.';
-      setError(message);
-      setVisibleTrends([]);
-      setPendingTrends([]);
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, []);
+    },
+    [clearSummaryCacheForCategory],
+  );
 
   // Persist summary cache across full reloads keyed by batch_ts
   useEffect(() => {
@@ -559,10 +624,18 @@ export function TapNavigationPage() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored) as {
-          batch_ts: string | null;
+          batches?: Record<TapCategory, string | null>;
+          batch_ts?: string | null;
           entries: Record<string, { summary: SummaryData; metadata: Record<string, unknown> | null; fromCache: boolean }>;
         };
-        persistedBatchRef.current = parsed.batch_ts ?? null;
+        if (parsed.batches) {
+          persistedBatchRef.current = {
+            brasil: parsed.batches.brasil ?? null,
+            futebol: parsed.batches.futebol ?? null,
+          };
+        } else if (parsed.batch_ts !== undefined) {
+          persistedBatchRef.current = { brasil: parsed.batch_ts, futebol: null };
+        }
         if (parsed.entries && typeof parsed.entries === 'object') {
           summaryCacheRef.current.clear();
           Object.entries(parsed.entries).forEach(([key, entry]) => {
@@ -585,7 +658,7 @@ export function TapNavigationPage() {
       sessionStorage.setItem(
         SUMMARY_CACHE_STORAGE_KEY,
         JSON.stringify({
-          batch_ts: persistedBatchRef.current,
+          batches: persistedBatchRef.current,
           entries,
         }),
       );
@@ -595,8 +668,23 @@ export function TapNavigationPage() {
   }, []);
 
   useEffect(() => {
-    fetchLatestTrends();
-  }, [fetchLatestTrends]);
+    const cached = categoryDataRef.current[currentCategory];
+    if (cached?.trends.length > 0) {
+      setTrends(cached.trends);
+      setTrendsSummary(cached.trendsSummary);
+      setLastUpdated(cached.lastUpdated ?? null);
+      setVisibleTrends([]);
+      setPendingTrends(cached.trends);
+      setExpandedTrendId(null);
+      setSelectedTopic(null);
+      setSelectedSummary(null);
+      setSummaryMetadata(null);
+      setSummaryFromCache(false);
+      setSummaryBubbleState('idle');
+    } else {
+      fetchLatestTrends(currentCategory);
+    }
+  }, [currentCategory, fetchLatestTrends]);
 
   // Gradually reveal pending trends to emphasize real-time capture
   useEffect(() => {
@@ -738,6 +826,9 @@ export function TapNavigationPage() {
     const ctx = pendingSummary.context;
     if (!ctx) return;
 
+    const matchesCategory = !ctx.category || ctx.category === currentCategory;
+    if (!matchesCategory) return;
+
     const matchesTrend =
       (typeof ctx.trendPosition === 'number' && ctx.trendPosition === expandedTrendId) ||
       (ctx.trendId &&
@@ -762,7 +853,7 @@ export function TapNavigationPage() {
       setPendingSummary(null);
       setSummaryBubbleState('ready');
     }
-  }, [pendingSummary, expandedTrendId, selectedTopic, trends]);
+  }, [pendingSummary, expandedTrendId, selectedTopic, trends, currentCategory]);
 
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
@@ -922,6 +1013,7 @@ export function TapNavigationPage() {
           const matchesContext = (
             ctx:
               | {
+                  category?: TapCategory | null;
                   trendPosition?: number | null;
                   trendId?: string | number | null;
                   topicNumber?: number | null;
@@ -931,6 +1023,7 @@ export function TapNavigationPage() {
           ) =>
             Boolean(
               ctx &&
+                (!ctx.category || ctx.category === currentCategory) &&
                 (ctx.trendPosition === targetTrend.position ||
                   (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
                 (ctx.topicNumber === matchTopic?.number ||
@@ -1290,7 +1383,7 @@ export function TapNavigationPage() {
               <p className="text-sm font-medium text-red-900">Erro</p>
               <p className="text-sm text-red-700 mt-1">{error}</p>
               <button
-                onClick={() => fetchLatestTrends({ isRefresh: true })}
+                onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
                 className="mt-2 text-sm text-red-700 font-medium hover:text-red-800"
               >
                 Tentar novamente
@@ -1298,6 +1391,29 @@ export function TapNavigationPage() {
             </div>
           </div>
         )}
+
+        <div className="flex flex-wrap gap-2">
+          {(['brasil', 'futebol'] as TapCategory[]).map((cat) => {
+            const isActive = currentCategory === cat;
+            const label = cat === 'futebol' ? 'Futebol' : 'Brasil';
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => {
+                  if (cat !== currentCategory) {
+                    setCurrentCategory(cat);
+                  }
+                }}
+                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
 
         {isLoading && revealedCount === 0 && totalTrends === 0 ? (
           <TrendSkeleton />
@@ -1311,7 +1427,7 @@ export function TapNavigationPage() {
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
-                onClick={() => fetchLatestTrends({ isRefresh: true })}
+                onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
                 disabled={isLoading || isRefreshing}
                 className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >

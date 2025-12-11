@@ -54,14 +54,16 @@ export interface DailyTrendsRow {
   payload: DailyTrendsPayload | string | null;
 }
 
+export type DailyTrendsTable = 'daily_trends' | 'daily_futebol';
+
 export interface DailyTrendsResult {
   payload: DailyTrendsPayload;
   version: string;
 }
 
-export async function fetchLatestDailyTrends(): Promise<DailyTrendsResult> {
+export async function fetchLatestDailyTrends(table: DailyTrendsTable = 'daily_trends'): Promise<DailyTrendsResult> {
   const { data, error, status } = await supabase
-    .from('daily_trends')
+    .from(table)
     .select('batch_ts, payload')
     .order('batch_ts', { ascending: false })
     .limit(1)
