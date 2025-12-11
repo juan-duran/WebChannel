@@ -206,6 +206,8 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   const topicId = coalesceString(req.body?.topicId, req.body?.topic_id, req.body?.topic);
   const trendId = coalesceString(req.body?.trendId, req.body?.trend_id, req.body?.assunto);
   const email = coalesceString(req.body?.email, req.user?.email);
+  const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
+  const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
 
   if (!topicId) {
     return res.status(400).json({ error: 'topicId is required' });
@@ -215,70 +217,28 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
     return res.status(400).json({ error: 'email is required' });
   }
 
+  const webhookUrl = config.n8n.futebolWebhookUrl;
+  if (!webhookUrl) {
+    logger.error({ topicId, trendId }, 'Missing N8N_FUTEBOL_WEBHOOK_URL');
+    return res.status(500).json({ error: 'missing_futebol_webhook' });
+  }
+
   const correlationId = randomUUID();
+  const message = trendId ? `Assunto ${trendId} topico ${topicId}` : `Topico ${topicId}`;
 
   try {
-    const payload = {
-      topicId,
-      trendId,
+    const agentResponse = await n8nService.sendMessage(
       email,
+      message,
+      sessionId,
       correlationId,
-      source: 'web-app',
-      date_time: new Date().toISOString(),
-      message: `Assunto ${trendId ?? 'futebol'} topico ${topicId}`,
-    };
+      userId,
+      webhookUrl,
+    );
 
-    const webhookUrl = config.n8n.futebolWebhookUrl;
-
-    if (!webhookUrl) {
-      logger.error({ topicId, trendId, correlationId }, 'Missing N8N_FUTEBOL_WEBHOOK_URL');
-      return res.status(500).json({ error: 'missing_futebol_webhook' });
-    }
-
-    const sendPayload = async (body: unknown) => {
-      logger.info({ webhookUrl, topicId, trendId, correlationId, mode: Array.isArray(body) ? 'array' : 'object' }, 'Calling futebol webhook');
-      return fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-    };
-
-    // Primeiro tenta como objeto simples
-    let response = await sendPayload(payload);
-
-    // Se falhar, tenta como array (fallback ao formato usado no fluxo principal)
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      logger.error({
-        status: response.status,
-        topicId,
-        trendId,
-        correlationId,
-        mode: 'object',
-        body: text,
-        webhookUrl,
-      }, 'Futebol summary failed (HTTP)');
-      response = await sendPayload([payload]);
-    }
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      logger.error(
-        { status: response.status, topicId, trendId, correlationId, mode: 'array', body: text, webhookUrl },
-        'Futebol summary failed (HTTP) on fallback',
-      );
-      return res.status(500).json({ error: 'Failed to summarize trend', details: text || undefined });
-    }
-
-    const agentResponse = await response.json().catch(async () => {
-      const text = await response.text().catch(() => '');
-      logger.error({ topicId, trendId, correlationId, body: text }, 'Futebol summary response not JSON');
-      return text;
-    });
     const extracted = extractSummaryFields(agentResponse);
 
-    const summary = extracted?.summary ?? coalesceString(agentResponse) ?? `Topico ${topicId}`;
+    const summary = extracted?.summary ?? coalesceString(agentResponse) ?? message;
     const resolvedTrendId =
       trendId ??
       extracted?.trendId ??
@@ -303,7 +263,7 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
 
     return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
   } catch (error) {
-    logger.error({ error, topicId, trendId, correlationId }, 'Failed to summarize futebol trend');
+    logger.error({ error, topicId, trendId, correlationId, webhookUrl }, 'Failed to summarize futebol trend');
     return res.status(500).json({ error: 'Failed to summarize trend' });
   }
 });

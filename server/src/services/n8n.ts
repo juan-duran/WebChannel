@@ -13,7 +13,8 @@ export class N8nService {
     message: string,
     sessionId: string,
     correlationId: string,
-    userId: string
+    userId: string,
+    webhookUrlOverride?: string,
   ): Promise<any> {
     const isCacheable = this.isCacheableRequest(message);
 
@@ -23,11 +24,11 @@ export class N8nService {
       return await cacheService.fetchWithCache(
         kind,
         params,
-        () => this.callWebhook(userEmail, message, sessionId, correlationId)
+        () => this.callWebhook(userEmail, message, sessionId, correlationId, webhookUrlOverride)
       );
     }
 
-    return await this.callWebhook(userEmail, message, sessionId, correlationId);
+    return await this.callWebhook(userEmail, message, sessionId, correlationId, webhookUrlOverride);
   }
 
   private parseMessage(message: string): {
@@ -91,9 +92,11 @@ export class N8nService {
     userEmail: string,
     message: string,
     sessionId: string,
-    correlationId: string
+    correlationId: string,
+    webhookUrlOverride?: string,
   ): Promise<any> {
-    logger.info({ correlationId, message, webhookUrl: config.n8n.webhookUrl }, 'Dispatching to n8n webhook');
+    const webhookUrl = webhookUrlOverride || config.n8n.webhookUrl;
+    logger.info({ correlationId, message, webhookUrl }, 'Dispatching to n8n webhook');
 
     const payload: N8nWebhookPayload = {
       event: 'messages.upsert',
@@ -122,7 +125,7 @@ export class N8nService {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), config.n8n.webhookTimeout);
 
-        const response = await fetch(config.n8n.webhookUrl, {
+        const response = await fetch(webhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
