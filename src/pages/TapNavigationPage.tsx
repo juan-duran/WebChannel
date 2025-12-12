@@ -177,7 +177,7 @@ export function TapNavigationPage() {
   const lastScrollBeforeSummaryRef = useRef(0);
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
-  const resolveScrollContext = useCallback(() => {
+  const resolveScrollContext = useCallback((anchor?: HTMLElement | null) => {
     if (typeof window === 'undefined') {
       return {
         parent: null,
@@ -226,7 +226,7 @@ export function TapNavigationPage() {
     addCandidate(document.documentElement, 'documentElement');
     addCandidate(document.body, 'body');
 
-    let current: HTMLElement | null = pageContainerRef.current;
+    let current: HTMLElement | null = anchor ?? pageContainerRef.current;
     while (current) {
       addCandidate(current, current.tagName);
       current = current.parentElement;
@@ -236,7 +236,7 @@ export function TapNavigationPage() {
     const scrolled = scrollable.filter((c) => c.scrollTop > 1);
     const selected =
       scrolled.sort((a, b) => b.scrollTop - a.scrollTop)[0] ??
-      scrollable.sort((a, b) => b.scrollHeight - b.clientHeight - (a.scrollHeight - a.clientHeight))[0] ??
+      scrollable[0] ??
       candidates[0];
 
     const parent = selected?.node ?? window;
@@ -1020,7 +1020,7 @@ export function TapNavigationPage() {
             onTopicSelect={(topic) => {
               const trendEl = trendElementRefs.current[trend.position];
               const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel, candidates } =
-                resolveScrollContext();
+                resolveScrollContext(trendEl ?? pageContainerRef.current);
               scrollParentRef.current = parent;
 
               const effectiveOffset = Math.max(parentOffset, windowOffset);
@@ -1281,7 +1281,7 @@ export function TapNavigationPage() {
               type="button"
               onClick={() => {
                 const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } =
-                  resolveScrollContext();
+                  resolveScrollContext(selectedTrendRef.current ?? pageContainerRef.current);
                 scrollParentRef.current = parent;
                 const savedY = Math.max(parentOffset, windowOffset, lastPageScrollRef.current, lastAnchorYRef.current);
                 const targetEl = selectedTrendRef.current;
@@ -1508,12 +1508,16 @@ export function TapNavigationPage() {
   };
 
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
+  const prevShowMobileSummaryRef = useRef<boolean>(false);
 
   useEffect(() => {
-    const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } = resolveScrollContext();
+    const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } = resolveScrollContext(
+      selectedTrendRef.current ?? pageContainerRef.current,
+    );
     scrollParentRef.current = parent;
 
     if (showMobileSummary) {
+      prevShowMobileSummaryRef.current = true;
       if (mobileListContainerRef.current) {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
@@ -1559,9 +1563,13 @@ export function TapNavigationPage() {
           bodyOffset,
         });
       };
-      requestAnimationFrame(() => {
-        requestAnimationFrame(restore);
-      });
+      // Only restore when we are actually closing a summary, not on plain list expand/collapse.
+      if (prevShowMobileSummaryRef.current) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(restore);
+        });
+      }
+      prevShowMobileSummaryRef.current = false;
     }
   }, [showMobileSummary, expandedTrendId, scrollToPosition, resolveScrollContext]);
 
