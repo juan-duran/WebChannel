@@ -178,24 +178,75 @@ export function TapNavigationPage() {
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
   const resolveScrollContext = useCallback(() => {
-    const candidateParent = scrollParentRef.current ?? getScrollParent(pageContainerRef.current);
-    const windowOffset = typeof window !== 'undefined' ? window.scrollY : 0;
-    let parent: HTMLElement | Window | null = candidateParent ?? (typeof window !== 'undefined' ? window : null);
-    let parentOffset = parent
-      ? parent === window
-        ? windowOffset
-        : (parent as HTMLElement).scrollTop
-      : 0;
-
-    // If the detected parent is not scrolling but window is, prefer window.
-    if (windowOffset > parentOffset + 2) {
-      parent = window;
-      parentOffset = windowOffset;
+    if (typeof window === 'undefined') {
+      return {
+        parent: null,
+        parentLabel: 'window',
+        parentOffset: 0,
+        windowOffset: 0,
+        documentOffset: 0,
+        bodyOffset: 0,
+      };
     }
 
-    const parentLabel = parent && parent !== window ? (parent as HTMLElement).tagName : 'window';
+    type ScrollCandidate = {
+      node: HTMLElement | Window;
+      label: string;
+      scrollTop: number;
+      scrollHeight: number;
+      clientHeight: number;
+    };
 
-    return { parent, parentOffset, windowOffset, parentLabel };
+    const seen = new Set<HTMLElement | Window>();
+    const candidates: ScrollCandidate[] = [];
+
+    const addCandidate = (node: HTMLElement | Window | null | undefined, label: string) => {
+      if (!node || seen.has(node)) return;
+      seen.add(node);
+      let scrollTop = 0;
+      let scrollHeight = 0;
+      let clientHeight = 0;
+
+      if (node === window) {
+        scrollTop = window.scrollY;
+        scrollHeight = document.documentElement?.scrollHeight ?? 0;
+        clientHeight = window.innerHeight;
+      } else {
+        const el = node as HTMLElement;
+        scrollTop = el.scrollTop;
+        scrollHeight = el.scrollHeight;
+        clientHeight = el.clientHeight;
+      }
+
+      candidates.push({ node, label, scrollTop, scrollHeight, clientHeight });
+    };
+
+    addCandidate(window, 'window');
+    addCandidate(document.scrollingElement as HTMLElement | null, 'document.scrollingElement');
+    addCandidate(document.documentElement, 'documentElement');
+    addCandidate(document.body, 'body');
+
+    let current: HTMLElement | null = pageContainerRef.current;
+    while (current) {
+      addCandidate(current, current.tagName);
+      current = current.parentElement;
+    }
+
+    const scrollable = candidates.filter((c) => c.scrollHeight - c.clientHeight > 4);
+    const scrolled = scrollable.filter((c) => c.scrollTop > 1);
+    const selected =
+      scrolled.sort((a, b) => b.scrollTop - a.scrollTop)[0] ??
+      scrollable.sort((a, b) => b.scrollHeight - b.clientHeight - (a.scrollHeight - a.clientHeight))[0] ??
+      candidates[0];
+
+    const parent = selected?.node ?? window;
+    const parentLabel = selected?.label ?? 'window';
+    const parentOffset = selected?.scrollTop ?? 0;
+    const windowOffset = window.scrollY ?? 0;
+    const documentOffset = document.documentElement?.scrollTop ?? 0;
+    const bodyOffset = document.body?.scrollTop ?? 0;
+
+    return { parent, parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset, candidates };
   }, []);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
@@ -242,9 +293,16 @@ export function TapNavigationPage() {
   }, []);
 
   useEffect(() => {
-    const { parent, parentLabel } = resolveScrollContext();
+    const { parent, parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset } = resolveScrollContext();
     scrollParentRef.current = parent;
     console.log('[TapNavLog][mobile] scroll parent detected', { parent: parentLabel });
+    console.log('[TapNavLog][mobile] scroll metrics init', {
+      parentLabel,
+      parentOffset,
+      windowOffset,
+      documentOffset,
+      bodyOffset,
+    });
   }, [resolveScrollContext]);
 
   const summaryTopicName =
@@ -961,7 +1019,8 @@ export function TapNavigationPage() {
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
               const trendEl = trendElementRefs.current[trend.position];
-              const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+              const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel, candidates } =
+                resolveScrollContext();
               scrollParentRef.current = parent;
 
               const effectiveOffset = Math.max(parentOffset, windowOffset);
@@ -987,6 +1046,11 @@ export function TapNavigationPage() {
                 anchorY: lastAnchorYRef.current,
                 windowOffset,
                 parentOffset,
+                documentOffset,
+                bodyOffset,
+                candidates: candidates
+                  ?.slice(0, 5)
+                  .map((c) => ({ label: c.label, scrollTop: c.scrollTop, scrollHeight: c.scrollHeight, clientHeight: c.clientHeight })),
               });
               const isSameTopic =
                 expandedTrendId === trend.position &&
@@ -1216,7 +1280,8 @@ export function TapNavigationPage() {
             <button
               type="button"
               onClick={() => {
-                const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+                const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } =
+                  resolveScrollContext();
                 scrollParentRef.current = parent;
                 const savedY = Math.max(parentOffset, windowOffset, lastPageScrollRef.current, lastAnchorYRef.current);
                 const targetEl = selectedTrendRef.current;
@@ -1236,6 +1301,8 @@ export function TapNavigationPage() {
                       scrollParent: parentLabel,
                       windowOffset,
                       parentOffset,
+                      documentOffset,
+                      bodyOffset,
                     });
                   });
                 });
@@ -1443,7 +1510,7 @@ export function TapNavigationPage() {
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
-    const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+    const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } = resolveScrollContext();
     scrollParentRef.current = parent;
 
     if (showMobileSummary) {
@@ -1458,6 +1525,8 @@ export function TapNavigationPage() {
         expandedTrendId,
         windowOffset,
         parentOffset,
+        documentOffset,
+        bodyOffset,
       });
 
       if (mobileSummaryWrapperRef.current) {
@@ -1486,6 +1555,8 @@ export function TapNavigationPage() {
           targetElExists: Boolean(targetEl),
           windowOffset,
           parentOffset,
+          documentOffset,
+          bodyOffset,
         });
       };
       requestAnimationFrame(() => {
