@@ -177,6 +177,26 @@ export function TapNavigationPage() {
   const lastScrollBeforeSummaryRef = useRef(0);
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
+  const resolveScrollContext = useCallback(() => {
+    const candidateParent = scrollParentRef.current ?? getScrollParent(pageContainerRef.current);
+    const windowOffset = typeof window !== 'undefined' ? window.scrollY : 0;
+    let parent: HTMLElement | Window | null = candidateParent ?? (typeof window !== 'undefined' ? window : null);
+    let parentOffset = parent
+      ? parent === window
+        ? windowOffset
+        : (parent as HTMLElement).scrollTop
+      : 0;
+
+    // If the detected parent is not scrolling but window is, prefer window.
+    if (windowOffset > parentOffset + 2) {
+      parent = window;
+      parentOffset = windowOffset;
+    }
+
+    const parentLabel = parent && parent !== window ? (parent as HTMLElement).tagName : 'window';
+
+    return { parent, parentOffset, windowOffset, parentLabel };
+  }, []);
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -222,12 +242,10 @@ export function TapNavigationPage() {
   }, []);
 
   useEffect(() => {
-    const parent = getScrollParent(pageContainerRef.current);
+    const { parent, parentLabel } = resolveScrollContext();
     scrollParentRef.current = parent;
-    console.log('[TapNavLog][mobile] scroll parent detected', {
-      parent: parent && parent !== window ? (parent as HTMLElement).tagName : 'window',
-    });
-  }, []);
+    console.log('[TapNavLog][mobile] scroll parent detected', { parent: parentLabel });
+  }, [resolveScrollContext]);
 
   const summaryTopicName =
     selectedSummary?.['topic-name'] ??
@@ -943,22 +961,20 @@ export function TapNavigationPage() {
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
               const trendEl = trendElementRefs.current[trend.position];
-              const scrollParent = scrollParentRef.current ?? getScrollParent(pageContainerRef.current);
-              scrollParentRef.current = scrollParent;
-              const isWindowParent = !scrollParent || scrollParent === window;
-              const currentOffset = getScrollPosition(scrollParent);
+              const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+              scrollParentRef.current = parent;
 
-              lastScrollBeforeSummaryRef.current = currentOffset;
+              const effectiveOffset = Math.max(parentOffset, windowOffset);
+              lastScrollBeforeSummaryRef.current = effectiveOffset;
+              lastPageScrollRef.current = windowOffset;
 
               if (trendEl) {
                 const rect = trendEl.getBoundingClientRect();
-                if (isWindowParent && typeof window !== 'undefined') {
-                  lastAnchorYRef.current = Math.max(0, currentOffset + rect.top - 80);
-                } else if (scrollParent && scrollParent !== window) {
-                  const parentRect = (scrollParent as HTMLElement).getBoundingClientRect();
-                  lastAnchorYRef.current = Math.max(0, currentOffset + rect.top - parentRect.top - 80);
+                if (parent && parent !== window) {
+                  const parentRect = (parent as HTMLElement).getBoundingClientRect();
+                  lastAnchorYRef.current = Math.max(0, parentOffset + rect.top - parentRect.top - 80);
                 } else {
-                  lastAnchorYRef.current = currentOffset;
+                  lastAnchorYRef.current = Math.max(0, effectiveOffset + rect.top - 80);
                 }
               } else {
                 lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
@@ -967,8 +983,10 @@ export function TapNavigationPage() {
               console.log('[TapNavLog][mobile] topic select', {
                 savedY: lastScrollBeforeSummaryRef.current,
                 expandedTrendId: trend.position,
-                parent: isWindowParent ? 'window' : (scrollParent as HTMLElement | null)?.tagName,
+                parent: parentLabel,
                 anchorY: lastAnchorYRef.current,
+                windowOffset,
+                parentOffset,
               });
               const isSameTopic =
                 expandedTrendId === trend.position &&
@@ -1198,25 +1216,26 @@ export function TapNavigationPage() {
             <button
               type="button"
               onClick={() => {
-                const scrollParent = scrollParentRef.current ?? getScrollParent(pageContainerRef.current);
-                scrollParentRef.current = scrollParent;
-                const savedY = getScrollPosition(scrollParent) || lastPageScrollRef.current;
+                const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+                scrollParentRef.current = parent;
+                const savedY = Math.max(parentOffset, windowOffset, lastPageScrollRef.current, lastAnchorYRef.current);
                 const targetEl = selectedTrendRef.current;
-                const parentLabel = scrollParent && scrollParent !== window ? (scrollParent as HTMLElement).tagName : 'window';
 
                 setSelectedTopic(null);
                 setSelectedSummary(null);
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
-                    scrollToPosition(Math.max(0, savedY), scrollParent);
+                    scrollToPosition(Math.max(0, savedY), parent);
                     if (targetEl) {
                       targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
                     }
                     console.log('[TapNavLog][mobile] back scroll restore', {
                       savedY,
                       targetExists: Boolean(targetEl),
-                      currentOffset: getScrollPosition(scrollParent),
+                      currentOffset: getScrollPosition(parent),
                       scrollParent: parentLabel,
+                      windowOffset,
+                      parentOffset,
                     });
                   });
                 });
@@ -1424,20 +1443,21 @@ export function TapNavigationPage() {
   const showMobileSummary = Boolean(selectedTopic || selectedSummary);
 
   useEffect(() => {
-    const scrollParent = scrollParentRef.current ?? getScrollParent(pageContainerRef.current);
-    scrollParentRef.current = scrollParent;
-    const parentLabel = scrollParent && scrollParent !== window ? (scrollParent as HTMLElement).tagName : 'window';
+    const { parent, parentOffset, windowOffset, parentLabel } = resolveScrollContext();
+    scrollParentRef.current = parent;
 
     if (showMobileSummary) {
       if (mobileListContainerRef.current) {
         mobileListScrollPosition.current = mobileListContainerRef.current.scrollTop;
       }
-      lastListScrollYRef.current = getScrollPosition(scrollParent);
-      lastPageScrollRef.current = lastListScrollYRef.current;
+      lastListScrollYRef.current = Math.max(parentOffset, windowOffset);
+      lastPageScrollRef.current = windowOffset;
       console.log('[TapNavLog][mobile] open summary', {
         scrollParent: parentLabel,
         scrollTop: lastListScrollYRef.current,
         expandedTrendId,
+        windowOffset,
+        parentOffset,
       });
 
       if (mobileSummaryWrapperRef.current) {
@@ -1454,7 +1474,7 @@ export function TapNavigationPage() {
     } else {
       const targetY = Math.max(0, lastAnchorYRef.current || lastScrollBeforeSummaryRef.current || lastPageScrollRef.current);
       const restore = () => {
-        scrollToPosition(targetY, scrollParent);
+        scrollToPosition(targetY, parent);
         const targetEl = selectedTrendRef.current;
         if (targetEl) {
           targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -1464,13 +1484,15 @@ export function TapNavigationPage() {
           targetY,
           expandedTrendId,
           targetElExists: Boolean(targetEl),
+          windowOffset,
+          parentOffset,
         });
       };
       requestAnimationFrame(() => {
         requestAnimationFrame(restore);
       });
     }
-  }, [showMobileSummary, expandedTrendId, scrollToPosition, getScrollPosition]);
+  }, [showMobileSummary, expandedTrendId, scrollToPosition, resolveScrollContext]);
 
   const handleMobileListScroll = useCallback(() => {
     if (mobileListContainerRef.current) {
