@@ -1366,18 +1366,15 @@ export function TapNavigationPage() {
             applySummary(lastSummaryData);
           }
 
-          const targetPosition = targetTrend.position;
-          requestAnimationFrame(() => {
-            const summaryEl =
-              (typeof targetPosition === 'number' ? summaryElementRefs.current[targetPosition] : null) ??
-              summaryContainerRef.current ??
-              (typeof targetPosition === 'number' ? trendElementRefs.current[targetPosition] : null);
-            if (summaryEl) {
-              summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            } else {
-              scrollToSummary();
-            }
-          });
+          const summaryEl =
+            summaryElementRefs.current[targetTrend.position] ??
+            summaryContainerRef.current ??
+            trendElementRefs.current[targetTrend.position];
+          if (summaryEl) {
+            summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            scrollToSummary();
+          }
           return;
         }
       }
