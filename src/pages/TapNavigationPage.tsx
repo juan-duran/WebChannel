@@ -1199,10 +1199,10 @@ export function TapNavigationPage() {
                         fetchSummaryForTopic(trend, syntheticTopic);
                       }
                     }}
-                    disabled={isLoadingSummary}
+                    disabled={isLoadingSummary && expandedTrendId === trend.position}
                     className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isLoadingSummary ? (
+                    {isLoadingSummary && expandedTrendId === trend.position ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <RefreshCw className="h-4 w-4" />
@@ -1216,10 +1216,15 @@ export function TapNavigationPage() {
               currentCategory === 'fofocas' &&
               expandedTrendId === trend.position &&
               selectedTopic &&
-              selectedSummary &&
-              (selectedSummary.thesis || summaryMetadata) ? (
+              (selectedSummary || isLoadingSummary) ? (
                 <div ref={summaryContainerRef} className="mt-3">
-                  {renderSummaryContent('desktop', trend, { hideActions: true })}
+                  {renderSummaryContent('desktop', trend, { hideActions: true, onClose: () => {
+                    setSelectedTopic(null);
+                    setSelectedSummary(null);
+                    setSummaryMetadata(null);
+                    setSummaryFromCache(false);
+                    setSummaryError(null);
+                  } })}
                 </div>
               ) : null
             }
@@ -1380,9 +1385,10 @@ export function TapNavigationPage() {
   const renderSummaryContent = (
     breakpoint: 'mobile' | 'desktop',
     currentTrendOverride?: DailyTrend | null,
-    options?: { hideActions?: boolean },
+    options?: { hideActions?: boolean; onClose?: () => void },
   ) => {
     const hideActions = options?.hideActions ?? false;
+    const onClose = options?.onClose;
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
@@ -1393,6 +1399,19 @@ export function TapNavigationPage() {
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
+        {onClose && (
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+            <span className="text-xs font-semibold text-gray-700">Resumo do assunto</span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Fechar resumo
+            </button>
+          </div>
+        )}
         {isMobile && (
           <div
             ref={mobileSummaryTopRef}
