@@ -1282,6 +1282,10 @@ export function TapNavigationPage() {
     if (summaryBubbleState === 'idle') return null;
 
     const isReady = summaryBubbleState === 'ready';
+    const trendLabel =
+      lastSummaryContext?.trendPosition ||
+      (typeof expandedTrendId === 'number' ? expandedTrendId : lastSummaryContext?.trendId) ||
+      '?';
     const handleClick = () => {
       if (isReady && (lastSummaryContext.trendPosition || lastSummaryContext.trendId)) {
         const targetTrend =
@@ -1360,7 +1364,9 @@ export function TapNavigationPage() {
           <Loader2 className="w-4 h-4 animate-spin" />
         )}
         <span className="text-sm font-semibold">
-          {isReady ? 'Resumo pronto — abrir' : 'Resumo em preparo (QUENTY-IA)'}
+          {isReady
+            ? `Resumo pronto — assunto #${trendLabel}`
+            : `Resumo em preparo — assunto #${trendLabel}`}
         </span>
       </button>
     );
@@ -1401,9 +1407,9 @@ export function TapNavigationPage() {
     const hasCachedSummary = summaryFromCache && Boolean(selectedSummary);
 
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
+      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full relative">
         {onClose && (
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+          <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white/95 backdrop-blur px-4 py-3">
             <span className="text-xs font-semibold text-gray-700">Resumo do assunto</span>
             <button
               type="button"
