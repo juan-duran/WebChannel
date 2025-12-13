@@ -1200,6 +1200,7 @@ export function TapNavigationPage() {
               const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
+                      setSummaryRequestContext(trend, syntheticTopic);
                       setSelectedTopic(syntheticTopic);
 
                       const cachedSummary = summaryCacheRef.current.get(
