@@ -1208,29 +1208,11 @@ export function TapNavigationPage() {
                       setSummaryRequestContext(trend, syntheticTopic);
                       setSelectedTopic(syntheticTopic);
 
-                      const cachedSummary = summaryCacheRef.current.get(
-                        createCacheKey(
-                          trend.id ?? trend.position ?? trend.title ?? '',
-                          syntheticTopic.id ?? syntheticTopic.number ?? syntheticTopic.description ?? '',
-                        ),
-                      );
-
-                      if (cachedSummary) {
-                        setSelectedSummary(cachedSummary.summary);
-                        setSummaryMetadata(cachedSummary.metadata);
-                        setSummaryFromCache(Boolean(cachedSummary.fromCache));
-                        console.log('[TapNavLog][mobile] fofocas summary cached', {
-                          savedY: lastScrollBeforeSummaryRef.current,
-                          expandedTrendId: trend.position,
-                          parent: scrollCapture.parentLabel,
-                          anchorY: lastAnchorYRef.current,
-                        });
-                      } else {
-                        setSelectedSummary(null);
-                        setSummaryMetadata(null);
-                        setSummaryFromCache(false);
-                        fetchSummaryForTopic(trend, syntheticTopic, { forceRefresh: true });
-                      }
+                      // Ignore cache for fofocas to avoid stale summaries bleeding into other cards.
+                      setSelectedSummary(null);
+                      setSummaryMetadata(null);
+                      setSummaryFromCache(false);
+                      fetchSummaryForTopic(trend, syntheticTopic, { forceRefresh: true });
                     }}
                     disabled={isLoadingSummary}
                     className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
