@@ -1175,9 +1175,6 @@ export function TapNavigationPage() {
                 return;
               }
 
-              const isBusyOnOtherCard = isLoadingSummary && expandedTrendId !== trend.position;
-              if (isBusyOnOtherCard) return;
-
               setExpandedTrendId(trend.position ?? null);
               const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
