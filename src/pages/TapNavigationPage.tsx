@@ -1299,6 +1299,12 @@ export function TapNavigationPage() {
 
         if (targetTrend) {
           setExpandedTrendId(targetTrend.position ?? null);
+          const trendEl = targetTrend.position ? trendElementRefs.current[targetTrend.position] : null;
+          const summaryEl = summaryContainerRef.current;
+          const scrollTarget = summaryEl ?? trendEl;
+          if (scrollTarget) {
+            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
 
           const matchTopic =
             targetTrend.topics?.find(
