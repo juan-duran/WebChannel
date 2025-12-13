@@ -1011,6 +1011,7 @@ export function TapNavigationPage() {
         trackEvent('trend_expand', {
           trend_position: trend.position,
           trend_id: trend.id ?? trend.position,
+          tab: currentCategory,
         });
       }
       return next;
