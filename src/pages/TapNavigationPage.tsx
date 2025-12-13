@@ -185,6 +185,7 @@ export function TapNavigationPage() {
   const lastScrollBeforeSummaryRef = useRef(0);
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
+  const summaryElementRefs = useRef<Record<number, HTMLElement | null>>({});
   const hasTrackedLoadRef = useRef(false);
   const resolveScrollContext = useCallback((anchor?: HTMLElement | null) => {
     if (typeof window === 'undefined') {
@@ -1223,13 +1224,23 @@ export function TapNavigationPage() {
               expandedTrendId === trend.position &&
               selectedTopic &&
               (selectedSummary || isLoadingSummary) ? (
-                <div ref={summaryContainerRef} className="mt-3">
+                <div
+                  ref={(el) => {
+                    summaryElementRefs.current[trend.position ?? -1] = el;
+                    summaryContainerRef.current = el;
+                  }}
+                  className="mt-3"
+                >
                   {renderSummaryContent('desktop', trend, { hideActions: true, onClose: () => {
                     setSelectedTopic(null);
                     setSelectedSummary(null);
                     setSummaryMetadata(null);
                     setSummaryFromCache(false);
                     setSummaryError(null);
+                    setSummaryBubbleState('idle');
+                    setLastSummaryContext({});
+                    summaryElementRefs.current[trend.position ?? -1] = null;
+                    summaryContainerRef.current = null;
                   } })}
                 </div>
               ) : null
@@ -1297,15 +1308,8 @@ export function TapNavigationPage() {
           trends.find((t) => t.position === expandedTrendId) ||
           null;
 
-        if (targetTrend) {
+        if (targetTrend?.position) {
           setExpandedTrendId(targetTrend.position ?? null);
-          const trendEl = targetTrend.position ? trendElementRefs.current[targetTrend.position] : null;
-          const summaryEl = summaryContainerRef.current;
-          const scrollTarget = summaryEl ?? trendEl;
-          if (scrollTarget) {
-            scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-
           const matchTopic =
             targetTrend.topics?.find(
               (topic) =>
@@ -1315,27 +1319,6 @@ export function TapNavigationPage() {
             ) || targetTrend.topics?.[0] || null;
 
           setSelectedTopic(matchTopic ?? null);
-          const matchesContext = (
-            ctx:
-              | {
-                  category?: TapCategory | null;
-                  trendPosition?: number | null;
-                  trendId?: string | number | null;
-                  topicNumber?: number | null;
-                  topicId?: string | number | null;
-                }
-              | null
-          ) =>
-            Boolean(
-              ctx &&
-                (!ctx.category || ctx.category === currentCategory) &&
-                (ctx.trendPosition === targetTrend.position ||
-                  (ctx.trendId && (ctx.trendId === targetTrend.id || ctx.trendId === targetTrend.title))) &&
-                (ctx.topicNumber === matchTopic?.number ||
-                  ctx.topicId === matchTopic?.id ||
-                  ctx.topicId === matchTopic?.description ||
-                  matchTopic === null), // tolerate missing topic match and still apply summary
-            );
 
           const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
             if (!payload) return false;
@@ -1345,12 +1328,19 @@ export function TapNavigationPage() {
             return true;
           };
 
-          if (matchesContext(pendingSummary?.context) && applySummary(pendingSummary)) {
+          if (pendingSummary?.context?.trendPosition === targetTrend.position && applySummary(pendingSummary)) {
             setPendingSummary(null);
-          } else if (matchesContext(lastSummaryData?.context) && applySummary(lastSummaryData)) {
-            // keep lastSummaryData for future clicks
+          } else if (lastSummaryData?.context?.trendPosition === targetTrend.position) {
+            applySummary(lastSummaryData);
           }
-          setTimeout(() => scrollToSummary(), 100);
+
+          const summaryEl =
+            summaryElementRefs.current[targetTrend.position] ?? summaryContainerRef.current ?? trendElementRefs.current[targetTrend.position];
+          if (summaryEl) {
+            summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else {
+            scrollToSummary();
+          }
           return;
         }
       }
