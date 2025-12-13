@@ -108,6 +108,28 @@ export function TapNavigationPage() {
     };
   } | null>(null);
   const [captureStepIndex, setCaptureStepIndex] = useState(0);
+  const [fofocasSummaries, setFofocasSummaries] = useState<
+    Record<
+      number,
+      {
+        loading: boolean;
+        summary: SummaryData | null;
+        metadata: Record<string, unknown> | null;
+        error: string | null;
+      }
+    >
+  >({});
+  const [fofocasSummaries, setFofocasSummaries] = useState<
+    Record<
+      number,
+      {
+        loading: boolean;
+        summary: SummaryData | null;
+        metadata: Record<string, unknown> | null;
+        error: string | null;
+      }
+    >
+  >({});
   useEffect(() => {
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const params = new URLSearchParams(search);
@@ -744,6 +766,94 @@ export function TapNavigationPage() {
     [createCacheKey, email, normalizeSummaryPayload, currentCategory],
   );
 
+  const fetchFofocasSummary = useCallback(
+    async (trend: DailyTrend, topic: DailyTrendTopic) => {
+      const position = trend.position ?? -1;
+      setSummaryError(null);
+      setFofocasSummaries((prev) => ({
+        ...prev,
+        [position]: { loading: true, summary: null, metadata: null, error: null },
+      }));
+      setSummaryRequestContext(trend, topic);
+      const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
+      const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
+      const correlationId = websocketService.generateCorrelationId();
+      const summaryEndpoint = '/api/trends/summarize-fof';
+
+      try {
+        trackEvent('summary_request', {
+          trend_id: trendId,
+          topic_id: topicId,
+          category: 'fofocas',
+        });
+
+        const response = await fetch(summaryEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            topicId,
+            trendId,
+            email,
+            forceRefresh: true,
+            correlationId,
+          }),
+        });
+
+        if (!response.ok) {
+          const message = 'Não foi possível obter o resumo.';
+          setFofocasSummaries((prev) => ({
+            ...prev,
+            [position]: { loading: false, summary: null, metadata: null, error: message },
+          }));
+          setSummaryBubbleState('idle');
+          return;
+        }
+
+        const data: { summary?: SummaryData | string; metadata?: Record<string, unknown>; fromCache?: boolean } =
+          await response.json();
+        const normalizedSummary = normalizeSummaryPayload(data?.summary, data?.metadata);
+
+        if (normalizedSummary) {
+          setFofocasSummaries((prev) => ({
+            ...prev,
+            [position]: {
+              loading: false,
+              summary: normalizedSummary,
+              metadata: (data.metadata as Record<string, unknown>) ?? null,
+              error: null,
+            },
+          }));
+          setLastSummaryContext({
+            category: 'fofocas',
+            trendPosition: trend.position ?? null,
+            trendId: trend.id ?? trend.position ?? trend.title ?? null,
+            topicNumber: topic.number ?? null,
+            topicId: topic.id ?? topic.number ?? topic.description ?? null,
+          });
+          setSummaryBubbleState('ready');
+          activeSummaryTrendRef.current = trend.position ?? null;
+        } else {
+          const message = 'Não foi possível obter o resumo.';
+          setFofocasSummaries((prev) => ({
+            ...prev,
+            [position]: { loading: false, summary: null, metadata: null, error: message },
+          }));
+          setSummaryBubbleState('idle');
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
+        setFofocasSummaries((prev) => ({
+          ...prev,
+          [position]: { loading: false, summary: null, metadata: null, error: message },
+        }));
+        setSummaryBubbleState('idle');
+      }
+    },
+    [email, normalizeSummaryPayload, setSummaryRequestContext],
+  );
+
   const fetchLatestTrends = useCallback(
     async (category: TapCategory, options?: { isRefresh?: boolean }) => {
       const isRefresh = options?.isRefresh ?? false;
@@ -1166,92 +1276,123 @@ export function TapNavigationPage() {
               );
             }}
             renderInlineCta={
-              currentCategory === 'fofocas' ? (
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      const trendEl = trendElementRefs.current[trend.position];
-              const syntheticTopic: DailyTrendTopic = {
-                id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
-                number: trend.position ?? 1,
-                description: trend.title ?? 'Assunto',
-              };
+              currentCategory === 'fofocas'
+                ? (() => {
+                    const fofEntry = fofocasSummaries[trend.position ?? -1];
+                    const isLoadingFof = Boolean(fofEntry?.loading);
+                    const hasSummaryFof = Boolean(fofEntry?.summary);
+                    return (
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const trendEl = trendElementRefs.current[trend.position];
+                            const syntheticTopic: DailyTrendTopic = {
+                              id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
+                              number: trend.position ?? 1,
+                              description: trend.title ?? 'Assunto',
+                            };
 
-              const isCurrentCard = expandedTrendId === trend.position;
-              const isBusyOnOtherCard = isLoadingSummary && !isCurrentCard;
-              if (isBusyOnOtherCard) return;
+                            const isSummaryVisible = hasSummaryFof && expandedTrendId === trend.position;
+                            if (isSummaryVisible) {
+                              setFofocasSummaries((prev) => ({
+                                ...prev,
+                                [trend.position ?? -1]: { loading: false, summary: null, metadata: null, error: null },
+                              }));
+                              setSummaryBubbleState('idle');
+                              setLastSummaryContext({});
+                              return;
+                            }
+                            if (isLoadingFof) return;
 
-                      const isSummaryVisible =
-                        expandedTrendId === trend.position &&
-                        selectedTopic &&
-                        selectedTopic.id === syntheticTopic.id &&
-                        selectedSummary;
+                            setExpandedTrendId(trend.position ?? null);
+                            captureScrollBeforeSummary(trend.position ?? 0, trendEl);
+                            setSummaryError(null);
+                            setSelectedSummary(null);
+                            setSummaryMetadata(null);
+                            setSummaryFromCache(false);
+                            setSummaryRequestContext(trend, syntheticTopic);
+                            setSelectedTopic(syntheticTopic);
 
-              if (isSummaryVisible) {
-                setSelectedTopic(null);
-                setSelectedSummary(null);
-                setSummaryMetadata(null);
-                setSummaryFromCache(false);
-                setSummaryError(null);
-                return;
-              }
-
-                      setExpandedTrendId(trend.position ?? null);
-                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
-
-                      setSummaryError(null);
-                      setSelectedSummary(null);
-                      setSummaryMetadata(null);
-                      setSummaryFromCache(false);
-                      setSummaryRequestContext(trend, syntheticTopic);
-                      setSelectedTopic(syntheticTopic);
-
-                      // Ignore cache for fofocas to avoid stale summaries bleeding into other cards.
-                      setSelectedSummary(null);
-                      setSummaryMetadata(null);
-                      setSummaryFromCache(false);
-                      fetchSummaryForTopic(trend, syntheticTopic, { forceRefresh: true });
-                    }}
-                    disabled={isLoadingSummary}
-                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {isLoadingSummary && expandedTrendId === trend.position ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    {expandedTrendId === trend.position && selectedSummary ? 'Fechar resumo' : 'Gerar resumo'}
-                  </button>
-                </div>
-              ) : null
+                            setFofocasSummaries((prev) => ({
+                              ...prev,
+                              [trend.position ?? -1]: { loading: true, summary: null, metadata: null, error: null },
+                            }));
+                            fetchFofocasSummary(trend, syntheticTopic);
+                          }}
+                          disabled={isLoadingFof}
+                          className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          {isLoadingFof ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                          {expandedTrendId === trend.position && hasSummaryFof ? 'Fechar resumo' : 'Gerar resumo'}
+                        </button>
+                      </div>
+                    );
+                  })()
+                : null
             }
             afterContent={
-              currentCategory === 'fofocas' &&
-              expandedTrendId === trend.position &&
-              selectedTopic &&
-              (selectedSummary || isLoadingSummary) ? (
-                <div
-                  ref={(el) => {
-                    summaryElementRefs.current[trend.position ?? -1] = el;
-                    summaryContainerRef.current = el;
-                  }}
-                  className="mt-3"
-                >
-                  {renderSummaryContent('desktop', trend, { hideActions: true, onClose: () => {
-                    setSelectedTopic(null);
-                    setSelectedSummary(null);
-                    setSummaryMetadata(null);
-                    setSummaryFromCache(false);
-                    setSummaryError(null);
-                    setSummaryBubbleState('idle');
-                    setLastSummaryContext({});
-                    summaryElementRefs.current[trend.position ?? -1] = null;
-                    summaryContainerRef.current = null;
-                  } })}
-                </div>
-              ) : null
+              currentCategory === 'fofocas'
+                ? (() => {
+                    const fofEntry = fofocasSummaries[trend.position ?? -1];
+                    if (!fofEntry || (!fofEntry.loading && !fofEntry.summary && !fofEntry.error)) return null;
+                    const handleClose = () => {
+                      setFofocasSummaries((prev) => ({
+                        ...prev,
+                        [trend.position ?? -1]: { loading: false, summary: null, metadata: null, error: null },
+                      }));
+                      setSummaryBubbleState('idle');
+                      setLastSummaryContext({});
+                      summaryElementRefs.current[trend.position ?? -1] = null;
+                      summaryContainerRef.current = null;
+                    };
+                    return (
+                      <div
+                        ref={(el) => {
+                          summaryElementRefs.current[trend.position ?? -1] = el;
+                          summaryContainerRef.current = el;
+                        }}
+                        className="mt-3"
+                      >
+                        {fofEntry.loading ? (
+                          renderSummaryProgress()
+                        ) : fofEntry.error ? (
+                          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                            {fofEntry.error}
+                          </div>
+                        ) : fofEntry.summary ? (
+                          <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3">
+                            <div className="sticky top-0 z-20 flex items-center justify-between border-b border-gray-200 bg-white/95 backdrop-blur px-2 py-2">
+                              <span className="text-xs font-semibold text-gray-700">Resumo do assunto</span>
+                              <button
+                                type="button"
+                                onClick={handleClose}
+                                className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-[11px] font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                              >
+                                <ArrowLeft className="h-3 w-3" />
+                                Fechar resumo
+                              </button>
+                            </div>
+                            {fofEntry.summary.thesis && (
+                              <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
+                                {fofEntry.summary.thesis}
+                              </p>
+                            )}
+                            {fofEntry.summary.personalization && (
+                              <div>
+                                <p className="text-xs font-semibold text-gray-900 mb-1">Personalização</p>
+                                <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                                  {fofEntry.summary.personalization}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()
+                : null
             }
             disabled={isLoading || isRefreshing}
           />
@@ -1318,6 +1459,21 @@ export function TapNavigationPage() {
 
         if (targetTrend?.position) {
           setExpandedTrendId(targetTrend.position ?? null);
+
+          const targetCategory = lastSummaryContext.category ?? currentCategory;
+          if (targetCategory === 'fofocas') {
+            const summaryEl =
+              summaryElementRefs.current[targetTrend.position] ??
+              summaryContainerRef.current ??
+              trendElementRefs.current[targetTrend.position];
+            if (summaryEl) {
+              summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+              scrollToSummary();
+            }
+            return;
+          }
+
           const matchTopic =
             targetTrend.topics?.find(
               (topic) =>
