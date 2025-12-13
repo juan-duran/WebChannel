@@ -156,10 +156,6 @@ trendsRouter.post('/summarize', async (req, res) => {
   const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
   const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
 
-  if (!topicId) {
-    return res.status(400).json({ error: 'topicId is required' });
-  }
-
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
@@ -286,7 +282,8 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
   }
 
   const correlationId = randomUUID();
-  const message = trendId ? `Assunto ${trendId} topico ${topicId}` : `Topico ${topicId}`;
+  const threadId = trendId || topicId || 'desconhecido';
+  const message = `thread-id:${threadId}`;
 
   try {
     const agentResponse = await n8nService.sendMessage(
