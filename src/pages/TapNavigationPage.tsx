@@ -1183,11 +1183,11 @@ export function TapNavigationPage() {
               const isBusyOnOtherCard = isLoadingSummary && !isCurrentCard;
               if (isBusyOnOtherCard) return;
 
-              const isSummaryVisible =
-                expandedTrendId === trend.position &&
-                selectedTopic &&
-                selectedTopic.id === syntheticTopic.id &&
-                selectedSummary;
+                      const isSummaryVisible =
+                        expandedTrendId === trend.position &&
+                        selectedTopic &&
+                        selectedTopic.id === syntheticTopic.id &&
+                        selectedSummary;
 
               if (isSummaryVisible) {
                 setSelectedTopic(null);
@@ -1198,8 +1198,8 @@ export function TapNavigationPage() {
                 return;
               }
 
-              setExpandedTrendId(trend.position ?? null);
-              const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
+                      setExpandedTrendId(trend.position ?? null);
+                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
                       setSelectedSummary(null);
