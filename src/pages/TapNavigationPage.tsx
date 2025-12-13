@@ -519,7 +519,9 @@ export function TapNavigationPage() {
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
-      if (!options?.forceRefresh && cachedSummary) {
+      const skipCache = currentCategory === 'fofocas';
+
+      if (!skipCache && !options?.forceRefresh && cachedSummary) {
         setSelectedSummary(cachedSummary.summary);
         setSummaryMetadata(cachedSummary.metadata);
         setSummaryFromCache(Boolean(cachedSummary.fromCache));
@@ -1200,6 +1202,10 @@ export function TapNavigationPage() {
               const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
+                      setSelectedSummary(null);
+                      setSummaryMetadata(null);
+                      setSummaryFromCache(false);
+                      setSummaryRequestContext(trend, syntheticTopic);
                       setSelectedTopic(syntheticTopic);
 
                       const cachedSummary = summaryCacheRef.current.get(
@@ -1223,7 +1229,7 @@ export function TapNavigationPage() {
                         setSelectedSummary(null);
                         setSummaryMetadata(null);
                         setSummaryFromCache(false);
-                        fetchSummaryForTopic(trend, syntheticTopic);
+                        fetchSummaryForTopic(trend, syntheticTopic, { forceRefresh: true });
                       }
                     }}
                     disabled={isLoadingSummary}
