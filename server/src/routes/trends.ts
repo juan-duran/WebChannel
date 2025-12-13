@@ -268,4 +268,70 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   }
 });
 
+trendsRouter.post('/summarize-fof', async (req, res) => {
+  const topicId = coalesceString(req.body?.topicId, req.body?.topic_id, req.body?.topic);
+  const trendId = coalesceString(req.body?.trendId, req.body?.trend_id, req.body?.assunto);
+  const email = coalesceString(req.body?.email, req.user?.email);
+  const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
+  const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
+
+  if (!topicId) {
+    return res.status(400).json({ error: 'topicId is required' });
+  }
+
+  if (!email) {
+    return res.status(400).json({ error: 'email is required' });
+  }
+
+  const webhookUrl = config.n8n.fofocasWebhookUrl;
+  if (!webhookUrl) {
+    logger.error({ topicId, trendId }, 'Missing N8N_FOFOCAS_WEBHOOK_URL');
+    return res.status(500).json({ error: 'missing_fofocas_webhook' });
+  }
+
+  const correlationId = randomUUID();
+  const message = trendId ? `Assunto ${trendId} topico ${topicId}` : `Topico ${topicId}`;
+
+  try {
+    const agentResponse = await n8nService.sendMessage(
+      email,
+      message,
+      sessionId,
+      correlationId,
+      userId,
+      webhookUrl,
+    );
+
+    const extracted = extractSummaryFields(agentResponse);
+
+    const summary = extracted?.summary ?? coalesceString(agentResponse) ?? message;
+    const resolvedTrendId =
+      trendId ??
+      extracted?.trendId ??
+      coalesceString(
+        extracted?.metadata?.trendId,
+        extracted?.metadata?.['trend-id'],
+        extracted?.metadata?.trendName,
+        extracted?.metadata?.['trend-name'],
+      ) ??
+      null;
+    const resolvedTopicId =
+      topicId ??
+      extracted?.topicId ??
+      coalesceString(
+        extracted?.metadata?.topicId,
+        extracted?.metadata?.['topic-id'],
+        extracted?.metadata?.topicName,
+        extracted?.metadata?.['topic-name'],
+      ) ??
+      null;
+    const metadata = (extracted?.metadata as Record<string, unknown> | null | undefined) ?? null;
+
+    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
+  } catch (error) {
+    logger.error({ error, topicId, trendId, correlationId, webhookUrl }, 'Failed to summarize fofocas trend');
+    return res.status(500).json({ error: 'Failed to summarize trend' });
+  }
+});
+
 export default trendsRouter;

@@ -54,7 +54,7 @@ export interface DailyTrendsRow {
   payload: DailyTrendsPayload | string | null;
 }
 
-export type DailyTrendsTable = 'daily_trends' | 'daily_futebol';
+export type DailyTrendsTable = 'daily_trends' | 'daily_futebol' | 'daily_fofocas';
 
 export interface DailyTrendsResult {
   payload: DailyTrendsPayload;
@@ -74,7 +74,7 @@ export async function fetchLatestDailyTrends(table: DailyTrendsTable = 'daily_tr
   }
 
   if (!data) {
-    throw new Error('Nenhum registro encontrado em daily_trends.');
+    throw new Error(`Nenhum registro encontrado em ${table}.`);
   }
 
   const payloadValue = (data as DailyTrendsRow).payload;
@@ -84,7 +84,7 @@ export async function fetchLatestDailyTrends(table: DailyTrendsTable = 'daily_tr
       : (payloadValue as DailyTrendsPayload | null);
 
   if (!rawPayload || typeof rawPayload !== 'object') {
-    throw new Error('Payload de daily_trends inválido.');
+    throw new Error(`Payload de ${table} inválido.`);
   }
 
   return {

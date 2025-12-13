@@ -25,7 +25,12 @@ const sharedSummaryCache = new Map<
   }
 >();
 const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
-type TapCategory = 'brasil' | 'futebol';
+type TapCategory = 'brasil' | 'futebol' | 'fofocas';
+const TABS: { key: TapCategory; label: string }[] = [
+  { key: 'brasil', label: 'Brasil' },
+  { key: 'futebol', label: 'Futebol' },
+  { key: 'fofocas', label: 'Fofocas' },
+];
 
 const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayload | null => {
   if (!payload) return null;
@@ -151,10 +156,12 @@ export function TapNavigationPage() {
   const lastBatchRef = useRef<Record<TapCategory, string | null>>({
     brasil: null,
     futebol: null,
+    fofocas: null,
   });
   const persistedBatchRef = useRef<Record<TapCategory, string | null>>({
     brasil: null,
     futebol: null,
+    fofocas: null,
   });
   const categoryDataRef = useRef<
     Record<
@@ -168,6 +175,7 @@ export function TapNavigationPage() {
   >({
     brasil: { trends: [], trendsSummary: null, lastUpdated: null },
     futebol: { trends: [], trendsSummary: null, lastUpdated: null },
+    fofocas: { trends: [], trendsSummary: null, lastUpdated: null },
   });
 
   const mobileListContainerRef = useRef<HTMLDivElement | null>(null);
@@ -478,7 +486,11 @@ export function TapNavigationPage() {
       const startedAt = performance.now();
       const startedAtIso = new Date().toISOString();
       const summaryEndpoint =
-        currentCategory === 'futebol' ? '/api/trends/summarize-fut' : '/api/trends/summarize';
+        currentCategory === 'futebol'
+          ? '/api/trends/summarize-fut'
+          : currentCategory === 'fofocas'
+            ? '/api/trends/summarize-fof'
+            : '/api/trends/summarize';
 
       const startLogContext = {
         event: 'summary_fetch',
@@ -682,7 +694,8 @@ export function TapNavigationPage() {
         revealTimerRef.current = null;
       }
 
-      const tableName: DailyTrendsTable = category === 'futebol' ? 'daily_futebol' : 'daily_trends';
+      const tableName: DailyTrendsTable =
+        category === 'futebol' ? 'daily_futebol' : category === 'fofocas' ? 'daily_fofocas' : 'daily_trends';
 
       try {
         const { data, error: supabaseError } = await supabase
@@ -757,9 +770,10 @@ export function TapNavigationPage() {
           persistedBatchRef.current = {
             brasil: parsed.batches.brasil ?? null,
             futebol: parsed.batches.futebol ?? null,
+            fofocas: parsed.batches.fofocas ?? null,
           };
         } else if (parsed.batch_ts !== undefined) {
-          persistedBatchRef.current = { brasil: parsed.batch_ts, futebol: null };
+          persistedBatchRef.current = { brasil: parsed.batch_ts, futebol: null, fofocas: null };
         }
         if (parsed.entries && typeof parsed.entries === 'object') {
           summaryCacheRef.current.clear();
@@ -1635,9 +1649,8 @@ export function TapNavigationPage() {
         )}
 
         <div className="flex flex-wrap gap-2">
-          {(['brasil', 'futebol'] as TapCategory[]).map((cat) => {
+          {TABS.map(({ key: cat, label }) => {
             const isActive = currentCategory === cat;
-            const label = cat === 'futebol' ? 'Futebol' : 'Brasil';
             return (
               <button
                 key={cat}
