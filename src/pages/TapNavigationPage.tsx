@@ -186,6 +186,7 @@ export function TapNavigationPage() {
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
   const summaryElementRefs = useRef<Record<number, HTMLElement | null>>({});
+  const activeSummaryTrendRef = useRef<number | null>(null);
   const hasTrackedLoadRef = useRef(false);
   const resolveScrollContext = useCallback((anchor?: HTMLElement | null) => {
     if (typeof window === 'undefined') {
@@ -508,6 +509,7 @@ export function TapNavigationPage() {
         setSummaryMetadata(cachedSummary.metadata);
         setSummaryFromCache(Boolean(cachedSummary.fromCache));
         setSummaryBubbleState('ready');
+        activeSummaryTrendRef.current = typeof trend.position === 'number' ? trend.position : null;
         return;
       }
 
@@ -620,6 +622,8 @@ export function TapNavigationPage() {
 
           setLastSummaryData({ ...summaryPayload, context });
           setLastSummaryContext({ ...context, category: currentCategory });
+          activeSummaryTrendRef.current =
+            typeof trend.position === 'number' ? trend.position : (trend.id as number | null) ?? null;
 
           if (isSameSelection) {
             setSelectedSummary(summaryPayload.summary);
@@ -1335,7 +1339,9 @@ export function TapNavigationPage() {
           }
 
           const summaryEl =
-            summaryElementRefs.current[targetTrend.position] ?? summaryContainerRef.current ?? trendElementRefs.current[targetTrend.position];
+            summaryElementRefs.current[targetTrend.position] ??
+            summaryContainerRef.current ??
+            trendElementRefs.current[targetTrend.position];
           if (summaryEl) {
             summaryEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
           } else {
