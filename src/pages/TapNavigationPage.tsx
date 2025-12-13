@@ -1063,12 +1063,13 @@ export function TapNavigationPage() {
         >
           <TrendCard
             trend={trend}
-            isExpanded={expandedTrendId === trend.position}
+            isExpanded={currentCategory === 'fofocas' ? true : expandedTrendId === trend.position}
             topics={currentCategory === 'fofocas' ? [] : trend.topics ?? null}
+            hideTopics={currentCategory === 'fofocas'}
             isLoadingTopics={false}
             topicsError={null}
-            onExpand={() => handleTrendExpand(trend)}
-            onCollapse={() => handleTrendExpand(trend)}
+            onExpand={currentCategory === 'fofocas' ? () => {} : () => handleTrendExpand(trend)}
+            onCollapse={currentCategory === 'fofocas' ? () => {} : () => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
               const trendEl = trendElementRefs.current[trend.position];
               const { parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset } =

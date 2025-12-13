@@ -19,6 +19,7 @@ interface TrendCardProps {
   afterContent?: ReactNode;
   renderTopicExtras?: (topic: DailyTrendTopic) => ReactNode;
   renderInlineCta?: ReactNode;
+  hideTopics?: boolean;
 }
 
 const formatDate = (value?: string | null) => {
@@ -59,6 +60,7 @@ export function TrendCard({
   afterContent,
   renderTopicExtras,
   renderInlineCta,
+  hideTopics = false,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
   const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
@@ -167,83 +169,82 @@ export function TrendCard({
                 Ver conteúdo do assunto
               </a>
             )}
-            {uniqueTopics.length > 0 && (
+            {!hideTopics && uniqueTopics.length > 0 && (
               <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Tópicos</h4>
             )}
-            {topicsSummary && (
+            {!hideTopics && topicsSummary && (
               <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
                 <p className="text-xs font-semibold text-gray-900 mb-1">Panorama do Assunto</p>
                 <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{topicsSummary}</p>
               </div>
             )}
-            {isLoadingTopics ? (
-              <TopicSkeleton />
-            ) : topicsError && uniqueTopics.length === 0 ? (
-              <div className="text-center py-6" role="alert">
-                <p className="text-sm text-red-600 mb-3 flex items-center justify-center gap-2">
-                  <AlertCircle className="w-4 h-4" aria-hidden="true" />
-                  {topicsError}
-                </p>
-                {onRetryTopics && (
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onRetryTopics();
-                    }}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-full hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  >
-                    Tentar novamente
-                  </button>
-                )}
-              </div>
-            ) : uniqueTopics.length > 0 ? (
-              <div className="space-y-2">
-                {uniqueTopics.map((topic) => {
-                  const { likesLabel, repliesLabel } = extractTopicEngagement(topic);
-
-                  return (
+            {!hideTopics &&
+              (isLoadingTopics ? (
+                <TopicSkeleton />
+              ) : topicsError && uniqueTopics.length === 0 ? (
+                <div className="text-center py-6" role="alert">
+                  <p className="text-sm text-red-600 mb-3 flex items-center justify-center gap-2">
+                    <AlertCircle className="w-4 h-4" aria-hidden="true" />
+                    {topicsError}
+                  </p>
+                  {onRetryTopics && (
                     <button
-                      key={`topic-${topic.number}`}
-                      onClick={(event) => onTopicSelect(topic, event)}
-                      disabled={disabled}
                       type="button"
-                      className="w-full flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onRetryTopics();
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-700 border border-blue-200 rounded-full hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-semibold text-gray-900">
-                          <span className="inline-flex items-center justify-center rounded-full bg-green-100 px-2 py-1 text-green-700">
-                            Tópico #{topic.number}
+                      Tentar novamente
+                    </button>
+                  )}
+                </div>
+              ) : uniqueTopics.length > 0 ? (
+                <div className="space-y-2">
+                  {uniqueTopics.map((topic) => {
+                    const { likesLabel, repliesLabel } = extractTopicEngagement(topic);
+
+                    return (
+                      <button
+                        key={`topic-${topic.number}`}
+                        onClick={(event) => onTopicSelect(topic, event)}
+                        disabled={disabled}
+                        type="button"
+                        className="w-full flex flex-col gap-2 p-3 rounded-lg border border-gray-200 bg-white hover:border-green-500 hover:bg-green-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-gray-900">
+                            <span className="inline-flex items-center justify-center rounded-full bg-green-100 px-2 py-1 text-green-700">
+                              Tópico #{topic.number}
+                            </span>
+                          </div>
+                          <ChevronDown
+                            className="w-4 h-4 text-gray-400 group-hover:text-green-600 flex-shrink-0 -rotate-90"
+                            aria-hidden="true"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-700">{topic.description}</p>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                            👍 {likesLabel}
+                            <span className="text-gray-500 font-normal">(Likes)</span>
+                          </span>
+                          <span className="text-gray-400">·</span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
+                            💬 {repliesLabel}
+                            <span className="text-gray-500 font-normal">(Debates do comentário)</span>
                           </span>
                         </div>
-                        <ChevronDown
-                          className="w-4 h-4 text-gray-400 group-hover:text-green-600 flex-shrink-0 -rotate-90"
-                          aria-hidden="true"
-                        />
-                      </div>
-                      <p className="text-sm text-gray-700">{topic.description}</p>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
-                          👍 {likesLabel}
-                          <span className="text-gray-500 font-normal">(Likes)</span>
-                        </span>
-                        <span className="text-gray-400">·</span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-1 font-semibold text-gray-900">
-                          💬 {repliesLabel}
-                          <span className="text-gray-500 font-normal">(Debates do comentário)</span>
-                        </span>
-                      </div>
-                      {topic.posted_at && (
-                        <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
-                      )}
-                      {renderTopicExtras && <div className="pt-2">{renderTopicExtras(topic)}</div>}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 text-center py-4">Nenhum tópico disponível</p>
-            )}
+                        {topic.posted_at && (
+                          <p className="text-[11px] text-gray-500">Publicado em {formatDate(topic.posted_at)}</p>
+                        )}
+                        {renderTopicExtras && <div className="pt-2">{renderTopicExtras(topic)}</div>}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null)}
             {afterContent}
           </div>
         </div>
