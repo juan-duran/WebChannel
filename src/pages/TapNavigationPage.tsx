@@ -1154,23 +1154,26 @@ export function TapNavigationPage() {
                         description: trend.title ?? 'Assunto',
                       };
 
-                      const isSummaryVisible =
-                        expandedTrendId === trend.position &&
-                        selectedTopic &&
-                        selectedTopic.id === syntheticTopic.id &&
-                        selectedSummary;
+              const isSummaryVisible =
+                expandedTrendId === trend.position &&
+                selectedTopic &&
+                selectedTopic.id === syntheticTopic.id &&
+                selectedSummary;
 
-                      if (isSummaryVisible) {
-                        setSelectedTopic(null);
-                        setSelectedSummary(null);
-                        setSummaryMetadata(null);
-                        setSummaryFromCache(false);
-                        setSummaryError(null);
-                        return;
-                      }
+              if (isSummaryVisible) {
+                setSelectedTopic(null);
+                setSelectedSummary(null);
+                setSummaryMetadata(null);
+                setSummaryFromCache(false);
+                setSummaryError(null);
+                return;
+              }
 
-                      setExpandedTrendId(trend.position ?? null);
-                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
+              const isBusyOnOtherCard = isLoadingSummary && expandedTrendId !== trend.position;
+              if (isBusyOnOtherCard) return;
+
+              setExpandedTrendId(trend.position ?? null);
+              const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
                       setSelectedTopic(syntheticTopic);
@@ -1199,7 +1202,7 @@ export function TapNavigationPage() {
                         fetchSummaryForTopic(trend, syntheticTopic);
                       }
                     }}
-                    disabled={isLoadingSummary && expandedTrendId === trend.position}
+                    disabled={isLoadingSummary}
                     className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isLoadingSummary && expandedTrendId === trend.position ? (
@@ -1626,7 +1629,7 @@ export function TapNavigationPage() {
     );
   };
 
-  const showMobileSummary = Boolean(selectedTopic || selectedSummary);
+  const showMobileSummary = currentCategory !== 'fofocas' && Boolean(selectedTopic || selectedSummary);
   const prevShowMobileSummaryRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -1832,11 +1835,11 @@ export function TapNavigationPage() {
                     {renderTrendList()}
                   </div>
                 </div>
-                {showMobileSummary && (
-                <div
-                  ref={mobileSummaryWrapperRef}
-                  className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
-                >
+        {showMobileSummary && (
+        <div
+          ref={mobileSummaryWrapperRef}
+          className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
+        >
                   {renderSummaryContent('mobile')}
                 </div>
               )}
