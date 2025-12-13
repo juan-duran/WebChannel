@@ -1147,14 +1147,30 @@ export function TapNavigationPage() {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setExpandedTrendId(trend.position ?? null);
                       const trendEl = trendElementRefs.current[trend.position];
-                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
                       const syntheticTopic: DailyTrendTopic = {
                         id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
                         number: trend.position ?? 1,
                         description: trend.title ?? 'Assunto',
                       };
+
+                      const isSummaryVisible =
+                        expandedTrendId === trend.position &&
+                        selectedTopic &&
+                        selectedTopic.id === syntheticTopic.id &&
+                        selectedSummary;
+
+                      if (isSummaryVisible) {
+                        setSelectedTopic(null);
+                        setSelectedSummary(null);
+                        setSummaryMetadata(null);
+                        setSummaryFromCache(false);
+                        setSummaryError(null);
+                        return;
+                      }
+
+                      setExpandedTrendId(trend.position ?? null);
+                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
                       setSelectedTopic(syntheticTopic);
@@ -1191,7 +1207,7 @@ export function TapNavigationPage() {
                     ) : (
                       <RefreshCw className="h-4 w-4" />
                     )}
-                    {isLoadingSummary ? 'Gerando...' : 'Gerar resumo'}
+                    {expandedTrendId === trend.position && selectedSummary ? 'Fechar resumo' : 'Gerar resumo'}
                   </button>
                 </div>
               ) : null
@@ -1203,7 +1219,7 @@ export function TapNavigationPage() {
               selectedSummary &&
               (selectedSummary.thesis || summaryMetadata) ? (
                 <div ref={summaryContainerRef} className="mt-3">
-                  {renderSummaryContent('desktop', trend)}
+                  {renderSummaryContent('desktop', trend, { hideActions: true })}
                 </div>
               ) : null
             }
@@ -1361,7 +1377,12 @@ export function TapNavigationPage() {
     );
   };
 
-  const renderSummaryContent = (breakpoint: 'mobile' | 'desktop', currentTrendOverride?: DailyTrend | null) => {
+  const renderSummaryContent = (
+    breakpoint: 'mobile' | 'desktop',
+    currentTrendOverride?: DailyTrend | null,
+    options?: { hideActions?: boolean },
+  ) => {
+    const hideActions = options?.hideActions ?? false;
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
@@ -1451,34 +1472,36 @@ export function TapNavigationPage() {
                 </>
               )}
 
-              <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
-                {!hasCachedSummary && (
-                  <button
-                    type="button"
-                    onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic)}
-                    disabled={isLoadingSummary || !currentTrend}
-                    className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
-                    Gerar resumo
-                  </button>
-                )}
-                {hasCachedSummary && (
-                  <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
-                    <CheckCircle className="w-3 h-3" />
-                    Resumo em cache
+              {!hideActions && (
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
+                  {!hasCachedSummary && (
                     <button
                       type="button"
-                      onClick={() =>
-                        currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic, { forceRefresh: true })
-                      }
-                      className="ml-1 text-blue-600 hover:text-blue-700 underline"
+                      onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic)}
+                      disabled={isLoadingSummary || !currentTrend}
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      Reprocessar
+                      <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
+                      Gerar resumo
                     </button>
-                  </div>
-                )}
-              </div>
+                  )}
+                  {hasCachedSummary && (
+                    <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                      <CheckCircle className="w-3 h-3" />
+                      Resumo em cache
+                      <button
+                        type="button"
+                        onClick={() =>
+                          currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic, { forceRefresh: true })
+                        }
+                        className="ml-1 text-blue-600 hover:text-blue-700 underline"
+                      >
+                        Reprocessar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {isLoadingSummary && renderSummaryProgress()}
               {summaryError && !isLoadingSummary && (
