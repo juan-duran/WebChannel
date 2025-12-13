@@ -1199,6 +1199,9 @@ export function TapNavigationPage() {
               setExpandedTrendId(trend.position ?? null);
               const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
+                      setSelectedSummary(null);
+                      setSummaryMetadata(null);
+                      setSummaryFromCache(false);
                       setSummaryError(null);
                       setSummaryRequestContext(trend, syntheticTopic);
                       setSelectedTopic(syntheticTopic);
