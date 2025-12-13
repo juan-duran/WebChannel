@@ -1330,21 +1330,33 @@ export function TapNavigationPage() {
 
         if (targetTrend?.position) {
           setExpandedTrendId(targetTrend.position ?? null);
-          const matchTopic =
-            targetTrend.topics?.find(
-              (topic) =>
-                topic.number === lastSummaryContext.topicNumber ||
-                topic.id === lastSummaryContext.topicId ||
-                topic.description === lastSummaryContext.topicId,
-            ) || targetTrend.topics?.[0] || null;
 
-          setSelectedTopic(matchTopic ?? null);
+          const syntheticTopic: DailyTrendTopic = {
+            id: targetTrend.id ?? targetTrend.position ?? targetTrend.title ?? 'assunto',
+            number: targetTrend.position ?? 1,
+            description: targetTrend.title ?? 'Assunto',
+          };
+
+          const isFofocas = currentCategory === 'fofocas';
+          const matchTopic =
+            isFofocas
+              ? syntheticTopic
+              : targetTrend.topics?.find(
+                  (topic) =>
+                    topic.number === lastSummaryContext.topicNumber ||
+                    topic.id === lastSummaryContext.topicId ||
+                    topic.description === lastSummaryContext.topicId,
+                ) || targetTrend.topics?.[0] || null;
+
+          setSelectedTopic(matchTopic ?? syntheticTopic);
 
           const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
             if (!payload) return false;
             setSelectedSummary(payload.summary);
             setSummaryMetadata(payload.metadata);
             setSummaryFromCache(payload.fromCache);
+            setSummaryBubbleState('ready');
+            activeSummaryTrendRef.current = targetTrend.position ?? null;
             return true;
           };
 
