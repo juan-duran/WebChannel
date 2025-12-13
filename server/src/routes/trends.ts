@@ -283,7 +283,7 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
 
   const correlationId = randomUUID();
   const threadId = trendId || topicId || 'desconhecido';
-  const message = `thread-id:${threadId}`;
+  const message = threadId;
 
   try {
     const agentResponse = await n8nService.sendMessage(
