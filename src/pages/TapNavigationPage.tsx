@@ -519,9 +519,7 @@ export function TapNavigationPage() {
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
-      const skipCache = currentCategory === 'fofocas';
-
-      if (!skipCache && !options?.forceRefresh && cachedSummary) {
+      if (!options?.forceRefresh && cachedSummary) {
         setSelectedSummary(cachedSummary.summary);
         setSummaryMetadata(cachedSummary.metadata);
         setSummaryFromCache(Boolean(cachedSummary.fromCache));
@@ -1183,11 +1181,11 @@ export function TapNavigationPage() {
               const isBusyOnOtherCard = isLoadingSummary && !isCurrentCard;
               if (isBusyOnOtherCard) return;
 
-                      const isSummaryVisible =
-                        expandedTrendId === trend.position &&
-                        selectedTopic &&
-                        selectedTopic.id === syntheticTopic.id &&
-                        selectedSummary;
+              const isSummaryVisible =
+                expandedTrendId === trend.position &&
+                selectedTopic &&
+                selectedTopic.id === syntheticTopic.id &&
+                selectedSummary;
 
               if (isSummaryVisible) {
                 setSelectedTopic(null);
@@ -1198,21 +1196,35 @@ export function TapNavigationPage() {
                 return;
               }
 
-                      setExpandedTrendId(trend.position ?? null);
-                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
+              setExpandedTrendId(trend.position ?? null);
+              const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
                       setSummaryError(null);
-                      setSelectedSummary(null);
-                      setSummaryMetadata(null);
-                      setSummaryFromCache(false);
-                      setSummaryRequestContext(trend, syntheticTopic);
                       setSelectedTopic(syntheticTopic);
 
-                      // Ignore cache for fofocas to avoid stale summaries bleeding into other cards.
-                      setSelectedSummary(null);
-                      setSummaryMetadata(null);
-                      setSummaryFromCache(false);
-                      fetchSummaryForTopic(trend, syntheticTopic, { forceRefresh: true });
+                      const cachedSummary = summaryCacheRef.current.get(
+                        createCacheKey(
+                          trend.id ?? trend.position ?? trend.title ?? '',
+                          syntheticTopic.id ?? syntheticTopic.number ?? syntheticTopic.description ?? '',
+                        ),
+                      );
+
+                      if (cachedSummary) {
+                        setSelectedSummary(cachedSummary.summary);
+                        setSummaryMetadata(cachedSummary.metadata);
+                        setSummaryFromCache(Boolean(cachedSummary.fromCache));
+                        console.log('[TapNavLog][mobile] fofocas summary cached', {
+                          savedY: lastScrollBeforeSummaryRef.current,
+                          expandedTrendId: trend.position,
+                          parent: scrollCapture.parentLabel,
+                          anchorY: lastAnchorYRef.current,
+                        });
+                      } else {
+                        setSelectedSummary(null);
+                        setSummaryMetadata(null);
+                        setSummaryFromCache(false);
+                        fetchSummaryForTopic(trend, syntheticTopic);
+                      }
                     }}
                     disabled={isLoadingSummary}
                     className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
