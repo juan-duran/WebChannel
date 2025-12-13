@@ -1141,7 +1141,7 @@ export function TapNavigationPage() {
             }}
             afterContent={
               currentCategory === 'fofocas' && expandedTrendId === trend.position ? (
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -1191,6 +1191,12 @@ export function TapNavigationPage() {
                       {summaryError}
                     </div>
                   )}
+                  {selectedTopic &&
+                    selectedSummary &&
+                    expandedTrendId === trend.position &&
+                    (selectedSummary.thesis || summaryMetadata) && (
+                      <div ref={summaryContainerRef}>{renderSummaryContent('desktop', trend)}</div>
+                    )}
                 </div>
               ) : null
             }
