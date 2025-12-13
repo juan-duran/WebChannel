@@ -1146,6 +1146,7 @@ export function TapNavigationPage() {
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
+                      setExpandedTrendId(trend.position ?? null);
                       const trendEl = trendElementRefs.current[trend.position];
                       const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
                       const syntheticTopic: DailyTrendTopic = {
@@ -1182,7 +1183,7 @@ export function TapNavigationPage() {
                       }
                     }}
                     disabled={isLoadingSummary}
-                    className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-white px-3 py-1 text-[11px] font-semibold text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isLoadingSummary ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1191,11 +1192,20 @@ export function TapNavigationPage() {
                     )}
                     {isLoadingSummary ? 'Gerando...' : 'Gerar resumo'}
                   </button>
-                  <span className="text-[11px] text-gray-500">Resumo direto do assunto</span>
                 </div>
               ) : null
             }
-            afterContent={null}
+            afterContent={
+              currentCategory === 'fofocas' &&
+              expandedTrendId === trend.position &&
+              selectedTopic &&
+              selectedSummary &&
+              (selectedSummary.thesis || summaryMetadata) ? (
+                <div ref={summaryContainerRef} className="mt-3">
+                  {renderSummaryContent('desktop', trend)}
+                </div>
+              ) : null
+            }
             disabled={isLoading || isRefreshing}
           />
         </div>
