@@ -355,7 +355,8 @@ export function TapNavigationPage() {
     selectedSummary?.topicName ??
     ((summaryMetadata?.['topic-name'] as string) || (summaryMetadata?.topicName as string) || undefined);
   const summaryTrendName = (summaryMetadata?.trendName as string) ?? (summaryMetadata?.['trend-name'] as string);
-  const summaryLikesData = selectedSummary?.['likes-data'] ?? selectedSummary?.likesData;
+  const summaryLikesData =
+    currentCategory === 'fofocas' ? undefined : selectedSummary?.['likes-data'] ?? selectedSummary?.likesData;
   const summaryTopicsSummary = (summaryMetadata?.topicsSummary as string) ?? (summaryMetadata?.['topicsSummary'] as string);
   const summaryContext = Array.isArray(selectedSummary?.context)
     ? selectedSummary.context.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
@@ -1066,6 +1067,7 @@ export function TapNavigationPage() {
             isExpanded={currentCategory === 'fofocas' ? true : expandedTrendId === trend.position}
             topics={currentCategory === 'fofocas' ? [] : trend.topics ?? null}
             hideTopics={currentCategory === 'fofocas'}
+            allowOverflow={currentCategory === 'fofocas'}
             isLoadingTopics={false}
             topicsError={null}
             onExpand={currentCategory === 'fofocas' ? () => {} : () => handleTrendExpand(trend)}
@@ -1148,11 +1150,15 @@ export function TapNavigationPage() {
                     onClick={(event) => {
                       event.stopPropagation();
                       const trendEl = trendElementRefs.current[trend.position];
-                      const syntheticTopic: DailyTrendTopic = {
-                        id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
-                        number: trend.position ?? 1,
-                        description: trend.title ?? 'Assunto',
-                      };
+              const syntheticTopic: DailyTrendTopic = {
+                id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
+                number: trend.position ?? 1,
+                description: trend.title ?? 'Assunto',
+              };
+
+              const isCurrentCard = expandedTrendId === trend.position;
+              const isBusyOnOtherCard = isLoadingSummary && !isCurrentCard;
+              if (isBusyOnOtherCard) return;
 
               const isSummaryVisible =
                 expandedTrendId === trend.position &&
@@ -1403,7 +1409,8 @@ export function TapNavigationPage() {
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
     const currentTrend =
       (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
-    const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
+    const topicEngagement =
+      currentCategory === 'fofocas' ? null : selectedTopic ? extractTopicEngagement(selectedTopic) : null;
     const hasCachedSummary = summaryFromCache && Boolean(selectedSummary);
 
     return (

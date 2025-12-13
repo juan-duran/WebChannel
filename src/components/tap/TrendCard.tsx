@@ -20,6 +20,7 @@ interface TrendCardProps {
   renderTopicExtras?: (topic: DailyTrendTopic) => ReactNode;
   renderInlineCta?: ReactNode;
   hideTopics?: boolean;
+  allowOverflow?: boolean;
 }
 
 const formatDate = (value?: string | null) => {
@@ -61,6 +62,7 @@ export function TrendCard({
   renderTopicExtras,
   renderInlineCta,
   hideTopics = false,
+  allowOverflow = false,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
   const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
@@ -77,7 +79,11 @@ export function TrendCard({
   const engagementValue = trend.value ?? trend.upvotes ?? 'Não informado';
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden transition-all duration-250 hover:shadow-md">
+    <div
+      className={`bg-white rounded-xl border border-gray-200 transition-all duration-250 hover:shadow-md ${
+        allowOverflow ? 'overflow-visible' : 'overflow-hidden'
+      }`}
+    >
       <button
         type="button"
         onClick={handleToggle}
