@@ -188,6 +188,21 @@ export function TapNavigationPage() {
   const summaryElementRefs = useRef<Record<number, HTMLElement | null>>({});
   const activeSummaryTrendRef = useRef<number | null>(null);
   const hasTrackedLoadRef = useRef(false);
+  const setSummaryRequestContext = useCallback(
+    (trend: DailyTrend, topic: DailyTrendTopic | null) => {
+      const context = {
+        category: currentCategory,
+        trendPosition: trend.position ?? null,
+        trendId: trend.id ?? trend.position ?? trend.title ?? null,
+        topicNumber: topic?.number ?? null,
+        topicId: topic?.id ?? topic?.number ?? topic?.description ?? null,
+      };
+      setLastSummaryContext(context);
+      activeSummaryTrendRef.current = typeof trend.position === 'number' ? trend.position : null;
+      setSummaryBubbleState('progress');
+    },
+    [currentCategory],
+  );
   const resolveScrollContext = useCallback((anchor?: HTMLElement | null) => {
     if (typeof window === 'undefined') {
       return {
@@ -523,6 +538,7 @@ export function TapNavigationPage() {
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
+      setSummaryRequestContext(trend, topic);
       const correlationId = websocketService.generateCorrelationId();
       const startedAt = performance.now();
       const startedAtIso = new Date().toISOString();
@@ -1406,6 +1422,7 @@ export function TapNavigationPage() {
     const isMobile = breakpoint === 'mobile';
     const contentPadding = isMobile ? 'p-4' : 'p-6';
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
+    const overflowClass = currentCategory === 'fofocas' ? '' : 'overflow-y-auto';
     const currentTrend =
       (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
     const topicEngagement =
@@ -1470,7 +1487,7 @@ export function TapNavigationPage() {
             </button>
           </div>
         )}
-        <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
+        <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 ${overflowClass} ${contentPadding}`}>
           {selectedTopic ? (
             <div className="space-y-3">
               {isMobile && (
