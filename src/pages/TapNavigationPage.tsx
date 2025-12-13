@@ -119,6 +119,17 @@ export function TapNavigationPage() {
       }
     >
   >({});
+  const [fofocasSummaries, setFofocasSummaries] = useState<
+    Record<
+      number,
+      {
+        loading: boolean;
+        summary: SummaryData | null;
+        metadata: Record<string, unknown> | null;
+        error: string | null;
+      }
+    >
+  >({});
   useEffect(() => {
     const search = typeof window !== 'undefined' ? window.location.search : '';
     const params = new URLSearchParams(search);
