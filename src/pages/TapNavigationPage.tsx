@@ -1462,31 +1462,8 @@ export function TapNavigationPage() {
                 <>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="font-semibold text-gray-700">
-                      Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
-                      {selectedTopic.number}
+                      Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'}
                     </span>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                    <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
-                    <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
-                  </div>
-                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                      <span className="font-semibold text-gray-900">
-                        👍 {topicEngagement?.likesLabel ?? 'Não informado'}
-                      </span>
-                      <span className="text-gray-500">(Likes)</span>
-                      <span className="text-gray-400">·</span>
-                      <span className="font-semibold text-gray-900">
-                        💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}
-                      </span>
-                      <span className="text-gray-500">(Debates do comentário)</span>
-                    </div>
-                    {selectedTopic.posted_at && (
-                      <p className="text-xs text-gray-600">
-                        <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
-                      </p>
-                    )}
                   </div>
                 </>
               )}
