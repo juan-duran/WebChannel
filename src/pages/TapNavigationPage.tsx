@@ -257,6 +257,33 @@ export function TapNavigationPage() {
 
     return { parent, parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset, candidates };
   }, []);
+  const captureScrollBeforeSummary = useCallback(
+    (trendPosition: number, trendEl: HTMLElement | null) => {
+      const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel } = resolveScrollContext(
+        trendEl ?? pageContainerRef.current,
+      );
+      scrollParentRef.current = parent;
+
+      const effectiveOffset = Math.max(parentOffset, windowOffset);
+      lastScrollBeforeSummaryRef.current = effectiveOffset;
+      lastPageScrollRef.current = windowOffset;
+
+      if (trendEl) {
+        const rect = trendEl.getBoundingClientRect();
+        if (parent && parent !== window) {
+          const parentRect = (parent as HTMLElement).getBoundingClientRect();
+          lastAnchorYRef.current = Math.max(0, parentOffset + rect.top - parentRect.top - 80);
+        } else {
+          lastAnchorYRef.current = Math.max(0, effectiveOffset + rect.top - 80);
+        }
+      } else {
+        lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
+      }
+
+      return { parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset };
+    },
+    [resolveScrollContext],
+  );
   const { email } = useCurrentUser();
   const onboardingStatus = useOnboardingStatus();
   const { enabled: pushEnabled, refresh: refreshPushStatus } = useWebpushStatus({ auto: false });
@@ -1037,32 +1064,15 @@ export function TapNavigationPage() {
           <TrendCard
             trend={trend}
             isExpanded={expandedTrendId === trend.position}
-            topics={trend.topics ?? null}
+            topics={currentCategory === 'fofocas' ? [] : trend.topics ?? null}
             isLoadingTopics={false}
             topicsError={null}
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
               const trendEl = trendElementRefs.current[trend.position];
-              const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel, candidates } =
-                resolveScrollContext(trendEl ?? pageContainerRef.current);
-              scrollParentRef.current = parent;
-
-              const effectiveOffset = Math.max(parentOffset, windowOffset);
-              lastScrollBeforeSummaryRef.current = effectiveOffset;
-              lastPageScrollRef.current = windowOffset;
-
-              if (trendEl) {
-                const rect = trendEl.getBoundingClientRect();
-                if (parent && parent !== window) {
-                  const parentRect = (parent as HTMLElement).getBoundingClientRect();
-                  lastAnchorYRef.current = Math.max(0, parentOffset + rect.top - parentRect.top - 80);
-                } else {
-                  lastAnchorYRef.current = Math.max(0, effectiveOffset + rect.top - 80);
-                }
-              } else {
-                lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
-              }
+              const { parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset } =
+                captureScrollBeforeSummary(trend.position ?? 0, trendEl);
 
               console.log('[TapNavLog][mobile] topic select', {
                 savedY: lastScrollBeforeSummaryRef.current,
@@ -1073,9 +1083,6 @@ export function TapNavigationPage() {
                 parentOffset,
                 documentOffset,
                 bodyOffset,
-                candidates: candidates
-                  ?.slice(0, 5)
-                  .map((c) => ({ label: c.label, scrollTop: c.scrollTop, scrollHeight: c.scrollHeight, clientHeight: c.clientHeight })),
               });
               const isSameTopic =
                 expandedTrendId === trend.position &&
@@ -1132,6 +1139,61 @@ export function TapNavigationPage() {
                 </div>
               );
             }}
+            afterContent={
+              currentCategory === 'fofocas' && expandedTrendId === trend.position ? (
+                <div className="mt-3 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trendEl = trendElementRefs.current[trend.position];
+                      const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
+                      const syntheticTopic: DailyTrendTopic = {
+                        id: trend.id ?? trend.position ?? trend.title ?? 'assunto',
+                        number: trend.position ?? 1,
+                        description: trend.title ?? 'Assunto',
+                      };
+
+                      setSummaryError(null);
+                      setSelectedTopic(syntheticTopic);
+
+                      const cachedSummary = summaryCacheRef.current.get(
+                        createCacheKey(
+                          trend.id ?? trend.position ?? trend.title ?? '',
+                          syntheticTopic.id ?? syntheticTopic.number ?? syntheticTopic.description ?? '',
+                        ),
+                      );
+
+                      if (cachedSummary) {
+                        setSelectedSummary(cachedSummary.summary);
+                        setSummaryMetadata(cachedSummary.metadata);
+                        setSummaryFromCache(Boolean(cachedSummary.fromCache));
+                        console.log('[TapNavLog][mobile] fofocas summary cached', {
+                          savedY: lastScrollBeforeSummaryRef.current,
+                          expandedTrendId: trend.position,
+                          parent: scrollCapture.parentLabel,
+                          anchorY: lastAnchorYRef.current,
+                        });
+                      } else {
+                        setSelectedSummary(null);
+                        setSummaryMetadata(null);
+                        setSummaryFromCache(false);
+                        fetchSummaryForTopic(trend, syntheticTopic);
+                      }
+                    }}
+                    disabled={isLoadingSummary}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isLoadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    {isLoadingSummary ? 'Gerando...' : 'Gerar Resumo'}
+                  </button>
+                  {summaryError && (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                      {summaryError}
+                    </div>
+                  )}
+                </div>
+              ) : null
+            }
             disabled={isLoading || isRefreshing}
           />
         </div>
