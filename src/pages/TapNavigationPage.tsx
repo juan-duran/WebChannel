@@ -1139,12 +1139,13 @@ export function TapNavigationPage() {
                 </div>
               );
             }}
-            afterContent={
-              currentCategory === 'fofocas' && expandedTrendId === trend.position ? (
-                <div className="mt-3 space-y-3">
+            renderInlineCta={
+              currentCategory === 'fofocas' ? (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation();
                       const trendEl = trendElementRefs.current[trend.position];
                       const scrollCapture = captureScrollBeforeSummary(trend.position ?? 0, trendEl);
                       const syntheticTopic: DailyTrendTopic = {
@@ -1181,25 +1182,20 @@ export function TapNavigationPage() {
                       }
                     }}
                     disabled={isLoadingSummary}
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 border border-blue-200 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isLoadingSummary ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                    {isLoadingSummary ? 'Gerando...' : 'Gerar Resumo'}
-                  </button>
-                  {summaryError && (
-                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                      {summaryError}
-                    </div>
-                  )}
-                  {selectedTopic &&
-                    selectedSummary &&
-                    expandedTrendId === trend.position &&
-                    (selectedSummary.thesis || summaryMetadata) && (
-                      <div ref={summaryContainerRef}>{renderSummaryContent('desktop', trend)}</div>
+                    {isLoadingSummary ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
                     )}
+                    {isLoadingSummary ? 'Gerando...' : 'Gerar resumo'}
+                  </button>
+                  <span className="text-[11px] text-gray-500">Resumo direto do assunto</span>
                 </div>
               ) : null
             }
+            afterContent={null}
             disabled={isLoading || isRefreshing}
           />
         </div>

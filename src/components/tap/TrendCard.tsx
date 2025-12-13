@@ -18,6 +18,7 @@ interface TrendCardProps {
   disabled?: boolean;
   afterContent?: ReactNode;
   renderTopicExtras?: (topic: DailyTrendTopic) => ReactNode;
+  renderInlineCta?: ReactNode;
 }
 
 const formatDate = (value?: string | null) => {
@@ -57,6 +58,7 @@ export function TrendCard({
   disabled = false,
   afterContent,
   renderTopicExtras,
+  renderInlineCta,
 }: TrendCardProps) {
   const contentId = `trend-${trend.id ?? trend.position ?? trend.title ?? 'trend'}-content`;
   const uniqueTopics = useMemo(() => (topics ? deduplicateTopics(topics) : []), [topics]);
@@ -133,6 +135,7 @@ export function TrendCard({
                 </a>
               )}
             </div>
+            {renderInlineCta && <div className="pt-2">{renderInlineCta}</div>}
           </div>
 
           <div className="flex-shrink-0">
