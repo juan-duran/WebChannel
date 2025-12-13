@@ -185,6 +185,7 @@ export function TapNavigationPage() {
   const lastScrollBeforeSummaryRef = useRef(0);
   const lastAnchorYRef = useRef(0);
   const trendElementRefs = useRef<Record<number, HTMLElement | null>>({});
+  const hasTrackedLoadRef = useRef(false);
   const resolveScrollContext = useCallback((anchor?: HTMLElement | null) => {
     if (typeof window === 'undefined') {
       return {
@@ -312,6 +313,15 @@ export function TapNavigationPage() {
       bodyOffset,
     });
   }, [resolveScrollContext]);
+
+  useEffect(() => {
+    if (!hasTrackedLoadRef.current) {
+      hasTrackedLoadRef.current = true;
+      trackEvent('tap_loaded', { tab: currentCategory });
+    } else {
+      trackEvent('tap_tab_changed', { tab: currentCategory });
+    }
+  }, [currentCategory]);
 
   const summaryTopicName =
     selectedSummary?.['topic-name'] ??
