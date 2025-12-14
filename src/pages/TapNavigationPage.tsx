@@ -26,6 +26,14 @@ const sharedSummaryCache = new Map<
 >();
 const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
 type TapCategory = 'brasil' | 'futebol' | 'fofocas';
+type FofocasSummaryState = {
+  topic: DailyTrendTopic | null;
+  summary: SummaryData | null;
+  metadata: Record<string, unknown> | null;
+  fromCache: boolean;
+  isLoading: boolean;
+  error: string | null;
+};
 const TABS: { key: TapCategory; label: string }[] = [
   { key: 'brasil', label: 'Brasil' },
   { key: 'futebol', label: 'Futebol' },
@@ -40,19 +48,6 @@ const parseTrendsPayload = (payload: DailyTrendsRow['payload']): DailyTrendsPayl
   }
 
   return payload;
-};
-
-const getScrollParent = (node: HTMLElement | null): HTMLElement | Window | null => {
-  if (typeof window === 'undefined') return null;
-  let current: HTMLElement | null = node;
-  while (current) {
-    const { overflowY } = window.getComputedStyle(current);
-    if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') {
-      return current;
-    }
-    current = current.parentElement;
-  }
-  return window;
 };
 
 export function TapNavigationPage() {
@@ -70,6 +65,7 @@ export function TapNavigationPage() {
   const [isLoadingSummary, setIsLoadingSummary] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
+  const [fofocasSummaries, setFofocasSummaries] = useState<Record<string, FofocasSummaryState>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -126,6 +122,7 @@ export function TapNavigationPage() {
     'Selecionando os 15 assuntos de agora',
   ];
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
+  const fofocasSummaryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryTopRef = useRef<HTMLDivElement | null>(null);
   const lastListScrollYRef = useRef(0);
@@ -313,19 +310,34 @@ export function TapNavigationPage() {
     });
   }, [resolveScrollContext]);
 
-  const summaryTopicName =
-    selectedSummary?.['topic-name'] ??
-    selectedSummary?.topicName ??
-    ((summaryMetadata?.['topic-name'] as string) || (summaryMetadata?.topicName as string) || undefined);
-  const summaryTrendName = (summaryMetadata?.trendName as string) ?? (summaryMetadata?.['trend-name'] as string);
-  const summaryLikesData = selectedSummary?.['likes-data'] ?? selectedSummary?.likesData;
-  const summaryTopicsSummary = (summaryMetadata?.topicsSummary as string) ?? (summaryMetadata?.['topicsSummary'] as string);
-  const summaryContext = Array.isArray(selectedSummary?.context)
-    ? selectedSummary.context.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
-  const summaryDebate = Array.isArray(selectedSummary?.debate)
-    ? selectedSummary.debate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
-    : [];
+  const getTrendKey = useCallback((trend: DailyTrend | null | undefined) => {
+    const raw = trend?.id ?? trend?.position ?? trend?.title ?? '';
+    return String(raw);
+  }, []);
+
+  const createEmptyFofocasState = useCallback(
+    (topic?: DailyTrendTopic | null): FofocasSummaryState => ({
+      topic: topic ?? null,
+      summary: null,
+      metadata: null,
+      fromCache: false,
+      isLoading: false,
+      error: null,
+    }),
+    [],
+  );
+
+  const updateFofocasSummary = useCallback(
+    (trendKey: string, updater: (prev: FofocasSummaryState) => FofocasSummaryState) => {
+      setFofocasSummaries((prev) => {
+        const base = prev[trendKey] ?? createEmptyFofocasState();
+        const next = updater(base);
+        if (next === base) return prev;
+        return { ...prev, [trendKey]: next };
+      });
+    },
+    [createEmptyFofocasState],
+  );
 
   const createCacheKey = useCallback(
     (
@@ -457,6 +469,9 @@ export function TapNavigationPage() {
     async (trend: DailyTrend, topic: DailyTrendTopic, options?: { forceRefresh?: boolean }) => {
       setSummaryError(null);
 
+      const isFofocas = currentCategory === 'fofocas';
+      const trendKey = getTrendKey(trend);
+
       const cacheKey = createCacheKey(
         trend.id ?? trend.position ?? trend.title ?? '',
         topic.id ?? topic.number ?? topic.description ?? '',
@@ -464,7 +479,7 @@ export function TapNavigationPage() {
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
-      if (!options?.forceRefresh && cachedSummary) {
+      if (!isFofocas && !options?.forceRefresh && cachedSummary) {
         setSelectedSummary(cachedSummary.summary);
         setSummaryMetadata(cachedSummary.metadata);
         setSummaryFromCache(Boolean(cachedSummary.fromCache));
@@ -479,6 +494,18 @@ export function TapNavigationPage() {
       setSummaryStepIndex(0);
       setSummaryBubbleState('progress');
       setPendingSummary(null);
+
+      if (isFofocas) {
+        updateFofocasSummary(trendKey, (prev) => ({
+          ...prev,
+          topic,
+          summary: null,
+          metadata: null,
+          fromCache: false,
+          isLoading: true,
+          error: null,
+        }));
+      }
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
       const topicId = (topic.id ?? topic.number ?? topic.description ?? '').toString();
@@ -541,6 +568,15 @@ export function TapNavigationPage() {
           setSummaryError(message);
           setSummaryBubbleState('idle');
           setPendingSummary(null);
+          if (isFofocas) {
+            updateFofocasSummary(trendKey, (prev) => ({
+              ...prev,
+              isLoading: false,
+              summary: null,
+              metadata: null,
+              error: message,
+            }));
+          }
 
           console.error('[TapNavigationPage] Summary fetch failed (HTTP)', {
             ...startLogContext,
@@ -583,10 +619,23 @@ export function TapNavigationPage() {
           setLastSummaryContext({ ...context, category: currentCategory });
 
           if (isSameSelection) {
-            setSelectedSummary(summaryPayload.summary);
-            setSummaryMetadata(summaryPayload.metadata);
-            setSummaryFromCache(summaryPayload.fromCache);
-            setPendingSummary(null);
+            if (isFofocas) {
+              updateFofocasSummary(trendKey, (prev) => ({
+                ...prev,
+                topic,
+                summary: summaryPayload.summary,
+                metadata: summaryPayload.metadata,
+                fromCache: summaryPayload.fromCache,
+                isLoading: false,
+                error: null,
+              }));
+              setPendingSummary(null);
+            } else {
+              setSelectedSummary(summaryPayload.summary);
+              setSummaryMetadata(summaryPayload.metadata);
+              setSummaryFromCache(summaryPayload.fromCache);
+              setPendingSummary(null);
+            }
           } else {
             setPendingSummary({ ...summaryPayload, context });
           }
@@ -612,27 +661,29 @@ export function TapNavigationPage() {
           };
 
           const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
-      const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
+          const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId);
 
-      const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId, currentCategory);
-      const fallbackCacheKey = createCacheKey(trendId, topicId, currentCategory);
+          const cacheKey = createCacheKey(resolvedTrendId, resolvedTopicId, currentCategory);
+          const fallbackCacheKey = createCacheKey(trendId, topicId, currentCategory);
 
-      const cacheEntry = {
-        summary: normalizedSummary,
-        metadata: (data.metadata as Record<string, unknown>) ?? null,
-        fromCache: Boolean(data.fromCache),
-      };
+          const cacheEntry = {
+            summary: normalizedSummary,
+            metadata: (data.metadata as Record<string, unknown>) ?? null,
+            fromCache: Boolean(data.fromCache),
+          };
 
-      summaryCacheRef.current.set(cacheKey, cacheEntry);
-      if (cacheKey !== fallbackCacheKey) {
-        summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
-      }
-      persistSummaryCache();
+          if (!isFofocas) {
+            summaryCacheRef.current.set(cacheKey, cacheEntry);
+            if (cacheKey !== fallbackCacheKey) {
+              summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
+            }
+            persistSummaryCache();
+          }
 
-      console.log('[TapNavigationPage] Summary fetched successfully', {
-        event: 'summary_fetch',
-        status: 'succeeded' as const,
-        correlationId,
+          console.log('[TapNavigationPage] Summary fetched successfully', {
+            event: 'summary_fetch',
+            status: 'succeeded' as const,
+            correlationId,
             trendId,
             topicId,
             resolvedTrendId,
@@ -645,6 +696,13 @@ export function TapNavigationPage() {
         } else {
           const message = 'Não foi possível obter o resumo.';
           setSummaryError(message);
+          if (isFofocas) {
+            updateFofocasSummary(trendKey, (prev) => ({
+              ...prev,
+              isLoading: false,
+              error: message,
+            }));
+          }
 
           console.error('[TapNavigationPage] Summary fetch failed', {
             event: 'summary_fetch',
@@ -660,10 +718,17 @@ export function TapNavigationPage() {
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erro ao obter o resumo.';
-      setSummaryError(message);
-      setSummaryMetadata(null);
-      setSummaryBubbleState('idle');
-      setPendingSummary(null);
+        setSummaryError(message);
+        setSummaryMetadata(null);
+        setSummaryBubbleState('idle');
+        setPendingSummary(null);
+        if (isFofocas) {
+          updateFofocasSummary(trendKey, (prev) => ({
+            ...prev,
+            isLoading: false,
+            error: message,
+          }));
+        }
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
           event: 'summary_fetch',
@@ -678,9 +743,15 @@ export function TapNavigationPage() {
         });
       } finally {
         setIsLoadingSummary(false);
+        if (isFofocas) {
+          updateFofocasSummary(trendKey, (prev) => ({
+            ...prev,
+            isLoading: false,
+          }));
+        }
       }
     },
-    [createCacheKey, email, normalizeSummaryPayload, currentCategory],
+    [createCacheKey, email, normalizeSummaryPayload, currentCategory, getTrendKey, updateFofocasSummary],
   );
 
   const fetchLatestTrends = useCallback(
@@ -724,6 +795,10 @@ export function TapNavigationPage() {
         }
         lastBatchRef.current[category] = data.batch_ts ?? null;
         persistedBatchRef.current[category] = data.batch_ts ?? null;
+        if (category === 'fofocas') {
+          setFofocasSummaries({});
+          fofocasSummaryRefs.current = {};
+        }
 
         const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
         categoryDataRef.current[category] = {
@@ -973,9 +1048,7 @@ export function TapNavigationPage() {
       (ctx.trendId &&
         trends.some(
           (t) =>
-            (t.position === expandedTrendId ||
-              t.id === expandedTrendId ||
-              t.title === expandedTrendId) &&
+            (t.position === expandedTrendId || t.id === expandedTrendId) &&
             (t.id === ctx.trendId || t.title === ctx.trendId || t.position === ctx.trendPosition),
         ));
 
@@ -986,13 +1059,33 @@ export function TapNavigationPage() {
         ctx.topicId === selectedTopic.description);
 
     if (matchesTrend && matchesTopic) {
-      setSelectedSummary(pendingSummary.summary);
-      setSummaryMetadata(pendingSummary.metadata);
-      setSummaryFromCache(pendingSummary.fromCache);
+      const targetTrend =
+        trends.find((t) => t.position === ctx.trendPosition) ||
+        trends.find((t) => (t.id ?? t.title) === ctx.trendId) ||
+        null;
+      const trendKey = targetTrend ? getTrendKey(targetTrend) : null;
+
+      if ((ctx.category ?? currentCategory) === 'fofocas') {
+        if (trendKey) {
+          updateFofocasSummary(trendKey, (prev) => ({
+            ...prev,
+            topic: selectedTopic ?? prev.topic,
+            summary: pendingSummary.summary,
+            metadata: pendingSummary.metadata,
+            fromCache: pendingSummary.fromCache,
+            isLoading: false,
+            error: null,
+          }));
+        }
+      } else {
+        setSelectedSummary(pendingSummary.summary);
+        setSummaryMetadata(pendingSummary.metadata);
+        setSummaryFromCache(pendingSummary.fromCache);
+      }
       setPendingSummary(null);
       setSummaryBubbleState('ready');
     }
-  }, [pendingSummary, expandedTrendId, selectedTopic, trends, currentCategory]);
+  }, [pendingSummary, expandedTrendId, selectedTopic, trends, currentCategory, getTrendKey, updateFofocasSummary]);
 
   const handleTrendExpand = (trend: DailyTrend) => {
     setExpandedTrendId((current) => {
@@ -1032,6 +1125,8 @@ export function TapNavigationPage() {
             onExpand={() => handleTrendExpand(trend)}
             onCollapse={() => handleTrendExpand(trend)}
             onTopicSelect={(topic) => {
+              const isFofocasCategory = currentCategory === 'fofocas';
+              const trendKey = getTrendKey(trend);
               const trendEl = trendElementRefs.current[trend.position];
               const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel, candidates } =
                 resolveScrollContext(trendEl ?? pageContainerRef.current);
@@ -1085,6 +1180,18 @@ export function TapNavigationPage() {
               setSelectedTopic(topic);
               setSummaryError(null);
 
+              if (isFofocasCategory) {
+                updateFofocasSummary(trendKey, (prev) => ({
+                  ...prev,
+                  topic,
+                  error: null,
+                }));
+                setSelectedSummary(null);
+                setSummaryMetadata(null);
+                setSummaryFromCache(false);
+                return;
+              }
+
               const cachedSummary = summaryCacheRef.current.get(
                 createCacheKey(
                   trend.id ?? trend.position ?? trend.title ?? '',
@@ -1114,7 +1221,11 @@ export function TapNavigationPage() {
               return (
                 <div
                   className="mt-3 hidden lg:block"
-                  ref={summaryContainerRef}
+                  ref={(el) => {
+                    if (currentCategory !== 'fofocas') {
+                      summaryContainerRef.current = el;
+                    }
+                  }}
                   onClick={(event) => event.stopPropagation()}
                 >
                   {renderSummaryContent('desktop', trend)}
@@ -1160,7 +1271,15 @@ export function TapNavigationPage() {
     </div>
   );
 
-  const scrollToSummary = () => {
+  const scrollToSummary = (trendKey?: string | null) => {
+    if (currentCategory === 'fofocas' && trendKey) {
+      const target = fofocasSummaryRefs.current[trendKey];
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+
     if (summaryContainerRef.current) {
       summaryContainerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else if (mobileSummaryWrapperRef.current) {
@@ -1181,6 +1300,7 @@ export function TapNavigationPage() {
           null;
 
         if (targetTrend) {
+          const targetTrendKey = getTrendKey(targetTrend);
           setExpandedTrendId(targetTrend.position ?? null);
 
           const matchTopic =
@@ -1216,23 +1336,35 @@ export function TapNavigationPage() {
 
           const applySummary = (payload: typeof pendingSummary | typeof lastSummaryData | null) => {
             if (!payload) return false;
-            setSelectedSummary(payload.summary);
-            setSummaryMetadata(payload.metadata);
-            setSummaryFromCache(payload.fromCache);
+            if ((payload.context.category ?? currentCategory) === 'fofocas' && targetTrendKey) {
+              updateFofocasSummary(targetTrendKey, (prev) => ({
+                ...prev,
+                topic: matchTopic ?? prev.topic,
+                summary: payload.summary,
+                metadata: payload.metadata,
+                fromCache: payload.fromCache,
+                isLoading: false,
+                error: null,
+              }));
+            } else {
+              setSelectedSummary(payload.summary);
+              setSummaryMetadata(payload.metadata);
+              setSummaryFromCache(payload.fromCache);
+            }
             return true;
           };
 
-          if (matchesContext(pendingSummary?.context) && applySummary(pendingSummary)) {
+          if (matchesContext(pendingSummary?.context ?? null) && applySummary(pendingSummary)) {
             setPendingSummary(null);
-          } else if (matchesContext(lastSummaryData?.context) && applySummary(lastSummaryData)) {
+          } else if (matchesContext(lastSummaryData?.context ?? null) && applySummary(lastSummaryData)) {
             // keep lastSummaryData for future clicks
           }
-          setTimeout(() => scrollToSummary(), 100);
+          setTimeout(() => scrollToSummary(targetTrendKey), 100);
           return;
         }
       }
 
-      scrollToSummary();
+      scrollToSummary(currentCategory === 'fofocas' ? lastSummaryContext.trendId?.toString() ?? null : undefined);
     };
     return (
       <button
@@ -1281,8 +1413,34 @@ export function TapNavigationPage() {
     const footerPadding = isMobile ? 'px-4 py-3' : 'px-6 py-4';
     const currentTrend =
       (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
-    const topicEngagement = selectedTopic ? extractTopicEngagement(selectedTopic) : null;
-    const hasCachedSummary = summaryFromCache && Boolean(selectedSummary);
+    const currentTrendKey = currentTrend ? getTrendKey(currentTrend) : null;
+    const fofocasState =
+      currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
+    const activeTopic = currentCategory === 'fofocas' ? fofocasState?.topic ?? selectedTopic : selectedTopic;
+    const activeSummary = currentCategory === 'fofocas' ? fofocasState?.summary ?? null : selectedSummary;
+    const activeMetadata = currentCategory === 'fofocas' ? fofocasState?.metadata ?? null : summaryMetadata;
+    const activeFromCache = currentCategory === 'fofocas' ? fofocasState?.fromCache ?? false : summaryFromCache;
+    const activeError = currentCategory === 'fofocas' ? fofocasState?.error ?? null : summaryError;
+    const activeIsLoading = currentCategory === 'fofocas' ? fofocasState?.isLoading ?? false : isLoadingSummary;
+    const topicEngagement = activeTopic ? extractTopicEngagement(activeTopic) : null;
+    const hasCachedSummary = activeFromCache && Boolean(activeSummary);
+    const summaryTopicName =
+      activeSummary?.['topic-name'] ??
+      activeSummary?.topicName ??
+      ((activeMetadata?.['topic-name'] as string) || (activeMetadata?.topicName as string) || undefined);
+    const summaryTrendName =
+      (activeMetadata?.trendName as string) ?? (activeMetadata?.['trend-name'] as string);
+    const summaryLikesData = activeSummary?.['likes-data'] ?? activeSummary?.likesData;
+    const summaryTopicsSummary =
+      (activeMetadata?.topicsSummary as string) ?? (activeMetadata?.['topicsSummary'] as string);
+    const summaryContext =
+      Array.isArray(activeSummary?.context) && activeSummary?.context
+        ? activeSummary.context.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : [];
+    const summaryDebate =
+      Array.isArray(activeSummary?.debate) && activeSummary?.debate
+        ? activeSummary.debate.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+        : [];
 
     return (
       <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
@@ -1330,19 +1488,19 @@ export function TapNavigationPage() {
           </div>
         )}
         <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
-          {selectedTopic ? (
+          {activeTopic ? (
             <div className="space-y-3">
               {isMobile && (
                 <>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="font-semibold text-gray-700">
                       Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'} — Tópico #
-                      {selectedTopic.number}
+                      {activeTopic.number}
                     </span>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                     <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
-                    <p className="text-sm text-gray-800 leading-relaxed">{selectedTopic.description}</p>
+                    <p className="text-sm text-gray-800 leading-relaxed">{activeTopic.description}</p>
                   </div>
                   <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
@@ -1356,9 +1514,9 @@ export function TapNavigationPage() {
                       </span>
                       <span className="text-gray-500">(Debates do comentário)</span>
                     </div>
-                    {selectedTopic.posted_at && (
+                    {activeTopic.posted_at && (
                       <p className="text-xs text-gray-600">
-                        <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(selectedTopic.posted_at)}
+                        <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(activeTopic.posted_at)}
                       </p>
                     )}
                   </div>
@@ -1369,11 +1527,11 @@ export function TapNavigationPage() {
                 {!hasCachedSummary && (
                   <button
                     type="button"
-                    onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic)}
-                    disabled={isLoadingSummary || !currentTrend}
+                    onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, activeTopic)}
+                    disabled={activeIsLoading || !currentTrend}
                     className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    <RefreshCw className={`h-4 w-4 ${isLoadingSummary ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-4 w-4 ${activeIsLoading ? 'animate-spin' : ''}`} />
                     Gerar resumo
                   </button>
                 )}
@@ -1384,7 +1542,7 @@ export function TapNavigationPage() {
                     <button
                       type="button"
                       onClick={() =>
-                        currentTrend && fetchSummaryForTopic(currentTrend, selectedTopic, { forceRefresh: true })
+                        currentTrend && fetchSummaryForTopic(currentTrend, activeTopic, { forceRefresh: true })
                       }
                       className="ml-1 text-blue-600 hover:text-blue-700 underline"
                     >
@@ -1394,15 +1552,26 @@ export function TapNavigationPage() {
                 )}
               </div>
 
-              {isLoadingSummary && renderSummaryProgress()}
-              {summaryError && !isLoadingSummary && (
+              {activeIsLoading && renderSummaryProgress()}
+              {activeError && !activeIsLoading && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-                  {summaryError}
+                  {activeError}
                 </div>
               )}
-              {selectedSummary && !isLoadingSummary && !summaryError && (
+              {activeSummary && !activeIsLoading && !activeError && (
                 <div
-                  ref={summaryContainerRef}
+                  ref={(el) => {
+                    if (currentCategory === 'fofocas' && currentTrendKey) {
+                      if (!el) {
+                        const { [currentTrendKey]: _, ...rest } = fofocasSummaryRefs.current;
+                        fofocasSummaryRefs.current = rest;
+                      } else {
+                        fofocasSummaryRefs.current[currentTrendKey] = el;
+                      }
+                    } else {
+                      summaryContainerRef.current = el;
+                    }
+                  }}
                   className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3"
                 >
                   <div className="flex flex-col gap-1">
@@ -1439,23 +1608,23 @@ export function TapNavigationPage() {
 
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Resumo</p>
-                    {selectedSummary.thesis && (
+                    {activeSummary.thesis && (
                       <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
-                        {selectedSummary.thesis}
+                        {activeSummary.thesis}
                       </p>
                     )}
-                    {!selectedSummary.thesis && selectedSummary.personalization && (
+                    {!activeSummary.thesis && activeSummary.personalization && (
                       <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
-                        {selectedSummary.personalization}
+                        {activeSummary.personalization}
                       </p>
                     )}
                   </div>
 
-                  {selectedSummary.personalization && selectedSummary.thesis && (
+                  {activeSummary.personalization && activeSummary.thesis && (
                     <div>
                       <p className="text-xs font-semibold text-gray-900 mb-1">Personalização</p>
                       <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
-                        {selectedSummary.personalization}
+                        {activeSummary.personalization}
                       </p>
                     </div>
                   )}
@@ -1473,20 +1642,20 @@ export function TapNavigationPage() {
                     </div>
                   )}
 
-                  {(selectedSummary['why-it-matters'] || selectedSummary.whyItMatters) && (
+                  {(activeSummary['why-it-matters'] || activeSummary.whyItMatters) && (
                     <div>
                       <p className="text-xs font-semibold text-gray-900 mb-1">Por que importa</p>
                       <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
-                        {selectedSummary['why-it-matters'] || selectedSummary.whyItMatters}
+                        {activeSummary['why-it-matters'] || activeSummary.whyItMatters}
                       </p>
                     </div>
                   )}
 
-                  {Array.isArray(selectedSummary.sources) && selectedSummary.sources.length > 0 && (
+                  {Array.isArray(activeSummary.sources) && activeSummary.sources.length > 0 && (
                     <div>
                       <p className="text-xs font-semibold text-gray-900 mb-1">Fontes</p>
                       <ul className="space-y-1">
-                        {selectedSummary.sources.map((source, index) => (
+                        {activeSummary.sources.map((source, index) => (
                           <li key={`${source.url ?? index}`} className="text-xs text-blue-600 underline">
                             <a href={source.url} target="_blank" rel="noopener noreferrer">
                               {source.title || source.url}
