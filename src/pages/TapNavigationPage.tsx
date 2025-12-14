@@ -479,11 +479,11 @@ export function TapNavigationPage() {
       }
 
       const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
-      const topicIdRaw = topic?.id ?? topic?.number ?? topic?.description ?? '';
-      const topicId = isFofocas ? '' : topicIdRaw.toString();
+      const topicIdRaw = topic?.id ?? topic?.number ?? topic?.description ?? trendId;
+      const topicId = topicIdRaw.toString();
       const cacheKey = createCacheKey(
         trendId,
-        isFofocas ? '' : topicIdRaw,
+        isFofocas ? topicIdRaw : topicIdRaw,
         currentCategory,
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
@@ -562,13 +562,13 @@ export function TapNavigationPage() {
             'Content-Type': 'application/json',
           },
         body: JSON.stringify({
-            trendId,
-            ...(isFofocas ? {} : { topicId }),
-            email,
-            forceRefresh: options?.forceRefresh,
-            correlationId,
-          }),
-        });
+          trendId,
+            topicId,
+          email,
+          forceRefresh: options?.forceRefresh,
+          correlationId,
+        }),
+      });
 
         if (!response.ok) {
           const message = 'Não foi possível obter o resumo.';
@@ -613,7 +613,7 @@ export function TapNavigationPage() {
             trendPosition: trend.position ?? null,
             trendId: trend.id ?? trend.position ?? trend.title ?? null,
             topicNumber: topic?.number ?? null,
-            topicId: topic?.id ?? topic?.number ?? topic?.description ?? null,
+            topicId: topicId || topic?.id || topic?.number || topic?.description || null,
           };
           const isSameSelection =
             (isFofocas
@@ -672,8 +672,8 @@ export function TapNavigationPage() {
           const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
           const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId || trendId);
 
-          const cacheKey = createCacheKey(resolvedTrendId, isFofocas ? '' : resolvedTopicId, currentCategory);
-          const fallbackCacheKey = createCacheKey(trendId, isFofocas ? '' : topicId, currentCategory);
+          const cacheKey = createCacheKey(resolvedTrendId, isFofocas ? resolvedTrendId : resolvedTopicId, currentCategory);
+          const fallbackCacheKey = createCacheKey(trendId, isFofocas ? trendId : topicId, currentCategory);
 
           const cacheEntry = {
             summary: normalizedSummary,
