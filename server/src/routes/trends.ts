@@ -124,6 +124,24 @@ const extractSummaryFields = (data: any): SummaryExtraction | undefined => {
     return { summary: summaryCandidate, trendId, topicId, metadata: (data as any).metadata ?? null };
   }
 
+  // Special handling for fofocas structure: if we have an output object with thesis/context/debate
+  const outputCandidate = (data as any).output;
+  if (
+    outputCandidate &&
+    typeof outputCandidate === 'object' &&
+    (outputCandidate.thesis || outputCandidate.context || outputCandidate.debate || outputCandidate.topicName)
+  ) {
+    const extractedTrendId =
+      trendId ??
+      coalesceString(outputCandidate.thread_id, outputCandidate.threadId, outputCandidate['thread-id']);
+    return {
+      summary: outputCandidate,
+      trendId: extractedTrendId,
+      topicId: topicId ?? extractedTrendId,
+      metadata: (data as any).metadata ?? null,
+    };
+  }
+
   const nestedCandidates = [
     (data as any).output,
     (data as any).data,
