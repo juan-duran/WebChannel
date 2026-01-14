@@ -2031,7 +2031,12 @@ export function TapNavigationPage() {
                   ref={mobileSummaryWrapperRef}
                   className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
                 >
-                  {renderSummaryContent('mobile')}
+                  {renderSummaryContent(
+                    'mobile',
+                    currentCategory === 'fofocas' && fofocasActiveTrendKey
+                      ? trends.find((t) => getTrendKey(t) === fofocasActiveTrendKey) ?? null
+                      : null
+                  )}
                 </div>
               )}
             </div>
@@ -2075,3 +2080,4 @@ export function TapNavigationPage() {
     </div>
   );
 }
+
