@@ -563,7 +563,7 @@ export function TapNavigationPage() {
           },
         body: JSON.stringify({
           trendId,
-            topicId,
+            ...(isFofocas ? {} : { topicId }),
           email,
           forceRefresh: options?.forceRefresh,
           correlationId,

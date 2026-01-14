@@ -267,8 +267,8 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
   const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
   const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
 
-  if (!topicId) {
-    return res.status(400).json({ error: 'topicId is required' });
+  if (!trendId) {
+    return res.status(400).json({ error: 'trendId is required' });
   }
 
   if (!email) {
@@ -328,3 +328,4 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
 });
 
 export default trendsRouter;
+
