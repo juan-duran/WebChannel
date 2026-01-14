@@ -312,9 +312,15 @@ export function TapNavigationPage() {
   }, [resolveScrollContext]);
 
   const getTrendKey = useCallback((trend: DailyTrend | null | undefined) => {
+    // For fofocas, always use position as it's guaranteed unique
+    if (currentCategory === 'fofocas') {
+      const key = `fof-${trend?.position ?? 'unknown'}`;
+      console.log('[getTrendKey] fofocas key:', key, 'trend:', { id: trend?.id, position: trend?.position, title: trend?.title });
+      return key;
+    }
     const raw = trend?.id ?? trend?.position ?? trend?.title ?? '';
     return String(raw);
-  }, []);
+  }, [currentCategory]);
 
   const createEmptyFofocasState = useCallback(
     (topic?: DailyTrendTopic | null): FofocasSummaryState => ({
@@ -505,6 +511,7 @@ export function TapNavigationPage() {
       setPendingSummary(null);
 
       if (isFofocas) {
+        console.log('[fetchSummaryForTopic] Resetting summary for trendKey:', trendKey, 'trendId:', trendId);
         updateFofocasSummary(trendKey, (prev) => ({
           ...prev,
           topic: topic ?? null,
@@ -629,6 +636,7 @@ export function TapNavigationPage() {
 
           if (isSameSelection) {
             if (isFofocas) {
+              console.log('[fetchSummaryForTopic] Setting summary for trendKey:', trendKey, 'trendId:', trendId, 'summary:', summaryPayload.summary);
               updateFofocasSummary(trendKey, (prev) => ({
                 ...prev,
                 topic: topic ?? null,
@@ -1522,6 +1530,17 @@ export function TapNavigationPage() {
     const currentTrendKey = currentTrend ? getTrendKey(currentTrend) : null;
     const fofocasState =
       currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
+
+    console.log('[renderSummaryContent]', breakpoint, {
+      currentCategory,
+      currentTrendKey,
+      fofocasActiveTrendKey,
+      expandedTrendId,
+      currentTrend: currentTrend ? { id: currentTrend.id, position: currentTrend.position, title: currentTrend.title } : null,
+      hasSummary: !!fofocasState?.summary,
+      allKeys: Object.keys(fofocasSummaries)
+    });
+
     const activeTopic = currentCategory === 'fofocas' ? fofocasState?.topic ?? selectedTopic : selectedTopic;
     const activeSummary = currentCategory === 'fofocas' ? fofocasState?.summary ?? null : selectedSummary;
     const activeMetadata = currentCategory === 'fofocas' ? fofocasState?.metadata ?? null : summaryMetadata;
