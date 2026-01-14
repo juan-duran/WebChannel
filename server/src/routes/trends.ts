@@ -131,13 +131,11 @@ const extractSummaryFields = (data: any): SummaryExtraction | undefined => {
     typeof outputCandidate === 'object' &&
     (outputCandidate.thesis || outputCandidate.context || outputCandidate.debate || outputCandidate.topicName)
   ) {
-    const extractedTrendId =
-      trendId ??
-      coalesceString(outputCandidate.thread_id, outputCandidate.threadId, outputCandidate['thread-id']);
+    // For fofocas, always prefer the trendId we sent (position), not the thread_id from agent response
     return {
       summary: outputCandidate,
-      trendId: extractedTrendId,
-      topicId: topicId ?? extractedTrendId,
+      trendId: trendId,  // Use original trendId (position), not extracted from response
+      topicId: topicId ?? trendId,
       metadata: (data as any).metadata ?? null,
     };
   }
@@ -346,5 +344,6 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
 });
 
 export default trendsRouter;
+
 
 
