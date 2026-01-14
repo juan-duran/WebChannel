@@ -221,6 +221,8 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
   const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
 
+  console.log('[/summarize-fut] Request received:', { trendId, topicId, email });
+
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
@@ -244,7 +246,21 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       webhookUrl,
     );
 
+    console.log('[/summarize-fut] Agent response received:', {
+      responseType: typeof agentResponse,
+      isArray: Array.isArray(agentResponse),
+      keys: agentResponse && typeof agentResponse === 'object' ? Object.keys(agentResponse) : null,
+      preview: JSON.stringify(agentResponse).substring(0, 300),
+    });
+
     const extracted = extractSummaryFields(agentResponse);
+
+    console.log('[/summarize-fut] Extracted summary:', {
+      hasSummary: !!extracted?.summary,
+      summaryType: extracted?.summary ? typeof extracted.summary : null,
+      trendId: extracted?.trendId,
+      topicId: extracted?.topicId,
+    });
 
     const summary = extracted?.summary ?? coalesceString(agentResponse) ?? message;
     const resolvedTrendId =
@@ -269,7 +285,18 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       null;
     const metadata = (extracted?.metadata as Record<string, unknown> | null | undefined) ?? null;
 
-    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
+    const responsePayload = { summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId };
+
+    console.log('[/summarize-fut] Sending response to frontend:', {
+      hasSummary: !!summary,
+      summaryType: summary ? typeof summary : null,
+      summaryKeys: summary && typeof summary === 'object' ? Object.keys(summary) : null,
+      resolvedTrendId,
+      resolvedTopicId,
+      originalTrendId: trendId,
+    });
+
+    return res.json(responsePayload);
   } catch (error) {
     logger.error({ error, topicId, trendId, correlationId, webhookUrl }, 'Failed to summarize futebol trend');
     return res.status(500).json({ error: 'Failed to summarize trend' });
@@ -282,6 +309,8 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
   const email = coalesceString(req.body?.email, req.user?.email);
   const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
   const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
+
+  console.log('[/summarize-fof] Request received:', { trendId, topicId, email });
 
   if (!trendId) {
     return res.status(400).json({ error: 'trendId is required' });
@@ -301,6 +330,8 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
   const threadId = trendId || topicId || 'desconhecido';
   const message = threadId;
 
+  console.log('[/summarize-fof] Sending message to agent:', { message, threadId, trendId });
+
   try {
     const agentResponse = await n8nService.sendMessage(
       email,
@@ -311,7 +342,22 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
       webhookUrl,
     );
 
+    console.log('[/summarize-fof] Agent response received:', {
+      responseType: typeof agentResponse,
+      isArray: Array.isArray(agentResponse),
+      keys: agentResponse && typeof agentResponse === 'object' ? Object.keys(agentResponse) : null,
+      preview: JSON.stringify(agentResponse).substring(0, 300),
+    });
+
     const extracted = extractSummaryFields(agentResponse);
+
+    console.log('[/summarize-fof] Extracted summary:', {
+      hasSummary: !!extracted?.summary,
+      summaryType: extracted?.summary ? typeof extracted.summary : null,
+      extractedTrendId: extracted?.trendId,
+      originalTrendId: trendId,
+      extractedTopicId: extracted?.topicId,
+    });
 
     const summary = extracted?.summary ?? coalesceString(agentResponse) ?? message;
     const resolvedTrendId =
@@ -336,7 +382,18 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
       null;
     const metadata = (extracted?.metadata as Record<string, unknown> | null | undefined) ?? null;
 
-    return res.json({ summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId });
+    const responsePayload = { summary, trendId: resolvedTrendId, topicId: resolvedTopicId, metadata, correlationId };
+
+    console.log('[/summarize-fof] Sending response to frontend:', {
+      hasSummary: !!summary,
+      summaryType: summary ? typeof summary : null,
+      summaryKeys: summary && typeof summary === 'object' ? Object.keys(summary) : null,
+      resolvedTrendId,
+      resolvedTopicId,
+      originalTrendId: trendId,
+    });
+
+    return res.json(responsePayload);
   } catch (error) {
     logger.error({ error, topicId, trendId, correlationId, webhookUrl }, 'Failed to summarize fofocas trend');
     return res.status(500).json({ error: 'Failed to summarize trend' });
