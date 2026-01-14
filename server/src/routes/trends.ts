@@ -347,3 +347,4 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
 
 export default trendsRouter;
 
+
