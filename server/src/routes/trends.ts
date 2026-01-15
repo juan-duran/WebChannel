@@ -302,6 +302,7 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
   const message = threadId;
 
   try {
+    // Skip cache for fofocas summaries - each trend needs a unique response
     const agentResponse = await n8nService.sendMessage(
       email,
       message,
@@ -309,6 +310,7 @@ trendsRouter.post('/summarize-fof', async (req, res) => {
       correlationId,
       userId,
       webhookUrl,
+      { skipCache: true },
     );
 
     const extracted = extractSummaryFields(agentResponse);

@@ -15,7 +15,13 @@ export class N8nService {
     correlationId: string,
     userId: string,
     webhookUrlOverride?: string,
+    options?: { skipCache?: boolean },
   ): Promise<any> {
+    // Skip cache if explicitly requested (e.g., for fofocas summaries)
+    if (options?.skipCache) {
+      return await this.callWebhook(userEmail, message, sessionId, correlationId, webhookUrlOverride);
+    }
+
     const isCacheable = this.isCacheableRequest(message);
 
     if (isCacheable) {
