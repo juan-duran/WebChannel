@@ -26,7 +26,7 @@ const sharedSummaryCache = new Map<
 >();
 const SUMMARY_CACHE_STORAGE_KEY = 'tap_summary_cache';
 type TapCategory = 'brasil' | 'futebol' | 'fofocas';
-type FofocasSummaryState = {
+type TrendSummaryState = {
   topic: DailyTrendTopic | null;
   summary: SummaryData | null;
   metadata: Record<string, unknown> | null;
@@ -66,7 +66,9 @@ export function TapNavigationPage() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryFromCache, setSummaryFromCache] = useState(false);
   const [fofocasActiveTrendKey, setFofocasActiveTrendKey] = useState<string | null>(null);
-  const [fofocasSummaries, setFofocasSummaries] = useState<Record<string, FofocasSummaryState>>({});
+  const [fofocasSummaries, setFofocasSummaries] = useState<Record<string, TrendSummaryState>>({});
+  const [futebolActiveTrendKey, setFutebolActiveTrendKey] = useState<string | null>(null);
+  const [futebolSummaries, setFutebolSummaries] = useState<Record<string, TrendSummaryState>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -124,6 +126,7 @@ export function TapNavigationPage() {
   ];
   const summaryContainerRef = useRef<HTMLDivElement | null>(null);
   const fofocasSummaryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const futebolSummaryRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const desktopSummaryRef = useRef<HTMLDivElement | null>(null);
   const mobileSummaryTopRef = useRef<HTMLDivElement | null>(null);
   const lastListScrollYRef = useRef(0);
@@ -304,16 +307,19 @@ export function TapNavigationPage() {
   }, [resolveScrollContext]);
 
   const getTrendKey = useCallback((trend: DailyTrend | null | undefined) => {
-    // For fofocas, always use position as it's guaranteed unique
+    // For fofocas and futebol, always use position as it's guaranteed unique
     if (currentCategory === 'fofocas') {
       return `fof-${trend?.position ?? 'unknown'}`;
+    }
+    if (currentCategory === 'futebol') {
+      return `fut-${trend?.position ?? 'unknown'}`;
     }
     const raw = trend?.id ?? trend?.position ?? trend?.title ?? '';
     return String(raw);
   }, [currentCategory]);
 
-  const createEmptyFofocasState = useCallback(
-    (topic?: DailyTrendTopic | null): FofocasSummaryState => ({
+  const createEmptyTrendState = useCallback(
+    (topic?: DailyTrendTopic | null): TrendSummaryState => ({
       topic: topic ?? null,
       summary: null,
       metadata: null,
@@ -325,9 +331,9 @@ export function TapNavigationPage() {
   );
 
   const updateFofocasSummary = useCallback(
-    (trendKey: string, updater: (prev: FofocasSummaryState) => FofocasSummaryState) => {
+    (trendKey: string, updater: (prev: TrendSummaryState) => TrendSummaryState) => {
       setFofocasSummaries((prev) => {
-        const base = prev[trendKey] ?? createEmptyFofocasState();
+        const base = prev[trendKey] ?? createEmptyTrendState();
         const next = updater(base);
         if (next === base) return prev;
         // Log only when summary content changes (not just loading state)
@@ -342,7 +348,27 @@ export function TapNavigationPage() {
         return { ...prev, [trendKey]: next };
       });
     },
-    [createEmptyFofocasState],
+    [createEmptyTrendState],
+  );
+
+  const updateFutebolSummary = useCallback(
+    (trendKey: string, updater: (prev: TrendSummaryState) => TrendSummaryState) => {
+      setFutebolSummaries((prev) => {
+        const base = prev[trendKey] ?? createEmptyTrendState();
+        const next = updater(base);
+        if (next === base) return prev;
+        if (next.summary !== base.summary) {
+          console.log('[Futebol State Update]', {
+            trendKey,
+            hadSummary: !!base.summary,
+            hasSummary: !!next.summary,
+            thesis: next.summary?.thesis?.substring(0, 50),
+          });
+        }
+        return { ...prev, [trendKey]: next };
+      });
+    },
+    [createEmptyTrendState],
   );
 
   const createCacheKey = useCallback(
@@ -476,16 +502,18 @@ export function TapNavigationPage() {
       setSummaryError(null);
 
       const isFofocas = currentCategory === 'fofocas';
+      const isFutebol = currentCategory === 'futebol';
+      const isTrendLevelSummary = isFofocas || isFutebol;
       const trendKey = getTrendKey(trend);
 
-      if (!isFofocas && !topic) {
+      if (!isTrendLevelSummary && !topic) {
         setSummaryError('Selecione um tópico para gerar o resumo.');
         return;
       }
 
-      // For fofocas, use thread id (trend.id) so the AI agent can look up the correct thread
+      // For fofocas/futebol, use thread id (trend.id) so the AI agent can look up the correct thread
       // For caching we still use position (via getTrendKey), but the API needs the actual thread_id
-      const trendId = (isFofocas
+      const trendId = (isTrendLevelSummary
         ? (trend.id ?? trend.position ?? trend.title ?? '')
         : (trend.id ?? trend.position ?? trend.title ?? '')
       ).toString();
@@ -493,7 +521,7 @@ export function TapNavigationPage() {
       const topicId = topicIdRaw.toString();
       const cacheKey = createCacheKey(
         trendId,
-        isFofocas ? trendId : topicIdRaw,
+        isTrendLevelSummary ? trendId : topicIdRaw,
         currentCategory,
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
@@ -501,6 +529,16 @@ export function TapNavigationPage() {
       if (!options?.forceRefresh && cachedSummary) {
         if (isFofocas) {
           updateFofocasSummary(trendKey, (prev) => ({
+            ...prev,
+            topic: topic ?? null,
+            summary: cachedSummary.summary,
+            metadata: cachedSummary.metadata,
+            fromCache: Boolean(cachedSummary.fromCache),
+            isLoading: false,
+            error: null,
+          }));
+        } else if (isFutebol) {
+          updateFutebolSummary(trendKey, (prev) => ({
             ...prev,
             topic: topic ?? null,
             summary: cachedSummary.summary,
@@ -534,6 +572,22 @@ export function TapNavigationPage() {
           threadId: trend.id,
         });
         updateFofocasSummary(trendKey, (prev) => ({
+          ...prev,
+          topic: topic ?? null,
+          summary: null,
+          metadata: null,
+          fromCache: false,
+          isLoading: true,
+          error: null,
+        }));
+      } else if (isFutebol) {
+        console.log('[fetchSummaryForTopic] Futebol request:', {
+          trendKey,
+          trendId,
+          position: trend.position,
+          threadId: trend.id,
+        });
+        updateFutebolSummary(trendKey, (prev) => ({
           ...prev,
           topic: topic ?? null,
           summary: null,
@@ -591,7 +645,7 @@ export function TapNavigationPage() {
           },
         body: JSON.stringify({
           trendId,
-            ...(isFofocas ? {} : { topicId }),
+            ...(isTrendLevelSummary ? {} : { topicId }),
           email,
           forceRefresh: options?.forceRefresh,
           correlationId,
@@ -605,6 +659,14 @@ export function TapNavigationPage() {
           setPendingSummary(null);
           if (isFofocas) {
             updateFofocasSummary(trendKey, (prev) => ({
+              ...prev,
+              isLoading: false,
+              summary: null,
+              metadata: null,
+              error: message,
+            }));
+          } else if (isFutebol) {
+            updateFutebolSummary(trendKey, (prev) => ({
               ...prev,
               isLoading: false,
               summary: null,
@@ -644,7 +706,7 @@ export function TapNavigationPage() {
             topicId: topicId || topic?.id || topic?.number || topic?.description || null,
           };
           const isSameSelection =
-            (isFofocas
+            (isTrendLevelSummary
               ? expandedTrendId === trend.position
               : selectedTopic &&
                 (selectedTopic.number === topic?.number ||
@@ -677,6 +739,27 @@ export function TapNavigationPage() {
                 error: null,
               }));
               setPendingSummary(null);
+            } else if (isFutebol) {
+              console.log('[Futebol Summary Received]', {
+                trendKey,
+                trendId,
+                trendPosition: trend.position,
+                expandedTrendId,
+                isSameSelection,
+                summaryPreview: typeof summaryPayload.summary === 'string'
+                  ? summaryPayload.summary.substring(0, 50) + '...'
+                  : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
+              });
+              updateFutebolSummary(trendKey, (prev) => ({
+                ...prev,
+                topic: topic ?? null,
+                summary: summaryPayload.summary,
+                metadata: summaryPayload.metadata,
+                fromCache: summaryPayload.fromCache,
+                isLoading: false,
+                error: null,
+              }));
+              setPendingSummary(null);
             } else {
               setSelectedSummary(summaryPayload.summary);
               setSummaryMetadata(summaryPayload.metadata);
@@ -684,7 +767,7 @@ export function TapNavigationPage() {
               setPendingSummary(null);
             }
           } else {
-            console.log('[Fofocas Summary] Selection changed, going to pendingSummary', {
+            console.log('[Summary] Selection changed, going to pendingSummary', {
               originalTrendPosition: trend.position,
               currentExpandedTrendId: expandedTrendId,
               context,
@@ -715,8 +798,8 @@ export function TapNavigationPage() {
           const resolvedTrendId = resolveMetadataId(data.metadata, ['trendId', 'trend-id'], trendId);
           const resolvedTopicId = resolveMetadataId(data.metadata, ['topicId', 'topic-id'], topicId || trendId);
 
-          const cacheKey = createCacheKey(resolvedTrendId, isFofocas ? resolvedTrendId : resolvedTopicId, currentCategory);
-          const fallbackCacheKey = createCacheKey(trendId, isFofocas ? trendId : topicId, currentCategory);
+          const cacheKey = createCacheKey(resolvedTrendId, isTrendLevelSummary ? resolvedTrendId : resolvedTopicId, currentCategory);
+          const fallbackCacheKey = createCacheKey(trendId, isTrendLevelSummary ? trendId : topicId, currentCategory);
 
           const cacheEntry = {
             summary: normalizedSummary,
@@ -752,6 +835,12 @@ export function TapNavigationPage() {
               isLoading: false,
               error: message,
             }));
+          } else if (isFutebol) {
+            updateFutebolSummary(trendKey, (prev) => ({
+              ...prev,
+              isLoading: false,
+              error: message,
+            }));
           }
 
           console.error('[TapNavigationPage] Summary fetch failed', {
@@ -778,6 +867,12 @@ export function TapNavigationPage() {
             isLoading: false,
             error: message,
           }));
+        } else if (isFutebol) {
+          updateFutebolSummary(trendKey, (prev) => ({
+            ...prev,
+            isLoading: false,
+            error: message,
+          }));
         }
 
         console.error('[TapNavigationPage] Summary fetch threw unexpectedly', {
@@ -798,10 +893,15 @@ export function TapNavigationPage() {
             ...prev,
             isLoading: false,
           }));
+        } else if (isFutebol) {
+          updateFutebolSummary(trendKey, (prev) => ({
+            ...prev,
+            isLoading: false,
+          }));
         }
       }
     },
-    [createCacheKey, email, normalizeSummaryPayload, currentCategory, getTrendKey, updateFofocasSummary],
+    [createCacheKey, email, normalizeSummaryPayload, currentCategory, getTrendKey, updateFofocasSummary, updateFutebolSummary],
   );
 
   const fetchLatestTrends = useCallback(
@@ -849,6 +949,11 @@ export function TapNavigationPage() {
           setFofocasSummaries({});
           fofocasSummaryRefs.current = {};
           setFofocasActiveTrendKey(null);
+        }
+        if (category === 'futebol') {
+          setFutebolSummaries({});
+          futebolSummaryRefs.current = {};
+          setFutebolActiveTrendKey(null);
         }
 
         const nextTrends = Array.isArray(parsed.trends) ? parsed.trends : [];
@@ -936,6 +1041,9 @@ export function TapNavigationPage() {
     const cached = categoryDataRef.current[currentCategory];
     if (currentCategory !== 'fofocas') {
       setFofocasActiveTrendKey(null);
+    }
+    if (currentCategory !== 'futebol') {
+      setFutebolActiveTrendKey(null);
     }
     if (cached?.trends.length > 0) {
       setTrends(cached.trends);
@@ -1166,6 +1274,9 @@ export function TapNavigationPage() {
     if (currentCategory === 'fofocas') {
       setFofocasActiveTrendKey(null);
     }
+    if (currentCategory === 'futebol') {
+      setFutebolActiveTrendKey(null);
+    }
   };
 
   const renderTrendList = () => (
@@ -1294,7 +1405,7 @@ export function TapNavigationPage() {
                 <div
                   className="mt-3 hidden lg:block"
                   ref={(el) => {
-                    if (currentCategory !== 'fofocas') {
+                    if (currentCategory !== 'fofocas' && currentCategory !== 'futebol') {
                       summaryContainerRef.current = el;
                     }
                   }}
@@ -1304,97 +1415,101 @@ export function TapNavigationPage() {
                 </div>
               );
             }}
-            hideTopics={currentCategory === 'fofocas'}
+            hideTopics={currentCategory === 'fofocas' || currentCategory === 'futebol'}
             afterContent={
-              currentCategory === 'fofocas' ? (
-                <div className="mt-3 space-y-3">
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      const trendEl = trendElementRefs.current[trend.position];
-                      const { parent, parentOffset, windowOffset, documentOffset, bodyOffset, parentLabel, candidates } =
-                        resolveScrollContext(trendEl ?? pageContainerRef.current);
-                      scrollParentRef.current = parent;
+              currentCategory === 'fofocas' || currentCategory === 'futebol' ? (() => {
+                const isFofocasCategory = currentCategory === 'fofocas';
+                const summariesState = isFofocasCategory ? fofocasSummaries : futebolSummaries;
+                const setActiveTrendKey = isFofocasCategory ? setFofocasActiveTrendKey : setFutebolActiveTrendKey;
+                const updateSummary = isFofocasCategory ? updateFofocasSummary : updateFutebolSummary;
+                const trendKey = getTrendKey(trend);
+                const trendState = summariesState[trendKey];
 
-                      const effectiveOffset = Math.max(parentOffset, windowOffset);
-                      lastScrollBeforeSummaryRef.current = effectiveOffset;
-                      lastPageScrollRef.current = windowOffset;
+                return (
+                  <div className="mt-3 space-y-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const trendEl = trendElementRefs.current[trend.position];
+                        const { parent, parentOffset, windowOffset } =
+                          resolveScrollContext(trendEl ?? pageContainerRef.current);
+                        scrollParentRef.current = parent;
 
-                      if (trendEl) {
-                        const rect = trendEl.getBoundingClientRect();
-                        if (parent && parent !== window) {
-                          const parentRect = (parent as HTMLElement).getBoundingClientRect();
-                          lastAnchorYRef.current = Math.max(0, parentOffset + rect.top - parentRect.top - 80);
+                        const effectiveOffset = Math.max(parentOffset, windowOffset);
+                        lastScrollBeforeSummaryRef.current = effectiveOffset;
+                        lastPageScrollRef.current = windowOffset;
+
+                        if (trendEl) {
+                          const rect = trendEl.getBoundingClientRect();
+                          if (parent && parent !== window) {
+                            const parentRect = (parent as HTMLElement).getBoundingClientRect();
+                            lastAnchorYRef.current = Math.max(0, parentOffset + rect.top - parentRect.top - 80);
+                          } else {
+                            lastAnchorYRef.current = Math.max(0, effectiveOffset + rect.top - 80);
+                          }
                         } else {
-                          lastAnchorYRef.current = Math.max(0, effectiveOffset + rect.top - 80);
+                          lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
                         }
-                      } else {
-                        lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
-                      }
 
-                      const trendKey = getTrendKey(trend);
-                      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey)
-                      const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
-                      const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
-                      const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
+                        // Use position as it's guaranteed unique (consistent with getTrendKey)
+                        const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
+                        const cacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
+                        const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
-                      console.log('[Fofocas CTA Click]', {
-                        trendKey,
-                        trendPosition: trend.position,
-                        trendId: trend.id,
-                        cacheKey: fofocasCacheKey,
-                        hasCache: !!cachedFofocasSummary,
-                        currentFofocasKeys: Object.keys(fofocasSummaries),
-                      });
+                        console.log(`[${currentCategory} CTA Click]`, {
+                          trendKey,
+                          trendPosition: trend.position,
+                          trendId: trend.id,
+                          cacheKey,
+                          hasCache: !!cachedSummary,
+                          currentKeys: Object.keys(summariesState),
+                        });
 
-                      setExpandedTrendId(trend.position ?? null);
-                      setSelectedTopic(null);
-                      setSelectedSummary(null);
-                      setSummaryMetadata(null);
-                      setSummaryFromCache(false);
-                      setSummaryError(null);
-                      setFofocasActiveTrendKey(trendKey);
+                        setExpandedTrendId(trend.position ?? null);
+                        setSelectedTopic(null);
+                        setSelectedSummary(null);
+                        setSummaryMetadata(null);
+                        setSummaryFromCache(false);
+                        setSummaryError(null);
+                        setActiveTrendKey(trendKey);
 
-                      if (cachedFofocasSummary) {
-                        console.log('[Fofocas CTA] Using cached summary for', trendKey);
-                        updateFofocasSummary(trendKey, (prev) => ({
-                          ...prev,
-                          topic: null,
-                          summary: cachedFofocasSummary.summary,
-                          metadata: cachedFofocasSummary.metadata,
-                          fromCache: Boolean(cachedFofocasSummary.fromCache),
-                          isLoading: false,
-                          error: null,
-                        }));
-                      } else {
-                        console.log('[Fofocas CTA] Fetching new summary for', trendKey);
-                        updateFofocasSummary(trendKey, (prev) => ({
-                          ...prev,
-                          error: null,
-                        }));
-                        fetchSummaryForTopic(trend, null);
-                      }
-                    }}
-                    disabled={isLoading || isRefreshing || fofocasSummaries[getTrendKey(trend)]?.isLoading}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <RefreshCw
-                      className={`h-4 w-4 ${
-                        fofocasSummaries[getTrendKey(trend)]?.isLoading ? 'animate-spin' : ''
-                      }`}
-                    />
-                    Gerar resumo do assunto
-                  </button>
-                  <div className="hidden lg:block">
-                    {fofocasSummaries[getTrendKey(trend)]?.summary ||
-                    fofocasSummaries[getTrendKey(trend)]?.isLoading ||
-                    fofocasSummaries[getTrendKey(trend)]?.error ? (
-                      renderSummaryContent('desktop', trend)
-                    ) : null}
+                        if (cachedSummary) {
+                          console.log(`[${currentCategory} CTA] Using cached summary for`, trendKey);
+                          updateSummary(trendKey, (prev) => ({
+                            ...prev,
+                            topic: null,
+                            summary: cachedSummary.summary,
+                            metadata: cachedSummary.metadata,
+                            fromCache: Boolean(cachedSummary.fromCache),
+                            isLoading: false,
+                            error: null,
+                          }));
+                        } else {
+                          console.log(`[${currentCategory} CTA] Fetching new summary for`, trendKey);
+                          updateSummary(trendKey, (prev) => ({
+                            ...prev,
+                            error: null,
+                          }));
+                          fetchSummaryForTopic(trend, null);
+                        }
+                      }}
+                      disabled={isLoading || isRefreshing || trendState?.isLoading}
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <RefreshCw
+                        className={`h-4 w-4 ${trendState?.isLoading ? 'animate-spin' : ''}`}
+                      />
+                      Gerar resumo do assunto
+                    </button>
+                    <div className="hidden lg:block">
+                      {trendState?.summary || trendState?.isLoading || trendState?.error ? (
+                        renderSummaryContent('desktop', trend)
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ) : null
+                );
+              })() : null
             }
             disabled={isLoading || isRefreshing}
           />
@@ -1436,8 +1551,9 @@ export function TapNavigationPage() {
   );
 
   const scrollToSummary = (trendKey?: string | null) => {
-    if (currentCategory === 'fofocas' && trendKey) {
-      const target = fofocasSummaryRefs.current[trendKey];
+    if ((currentCategory === 'fofocas' || currentCategory === 'futebol') && trendKey) {
+      const refs = currentCategory === 'fofocas' ? fofocasSummaryRefs : futebolSummaryRefs;
+      const target = refs.current[trendKey];
       if (target) {
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
@@ -1535,7 +1651,7 @@ export function TapNavigationPage() {
         }
       }
 
-      scrollToSummary(currentCategory === 'fofocas' ? lastSummaryContext.trendId?.toString() ?? null : undefined);
+      scrollToSummary((currentCategory === 'fofocas' || currentCategory === 'futebol') ? lastSummaryContext.trendId?.toString() ?? null : undefined);
     };
     return (
       <button
@@ -1585,16 +1701,19 @@ export function TapNavigationPage() {
     const currentTrend =
       (currentTrendOverride ?? trends.find((trend) => trend.position === expandedTrendId)) || null;
     const currentTrendKey = currentTrend ? getTrendKey(currentTrend) : null;
-    const fofocasState =
-      currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
+    const isTrendLevel = currentCategory === 'fofocas' || currentCategory === 'futebol';
+    const trendLevelState =
+      isTrendLevel && currentTrendKey
+        ? (currentCategory === 'fofocas' ? fofocasSummaries[currentTrendKey] : futebolSummaries[currentTrendKey])
+        : undefined;
 
-    // For fofocas, never fallback to global state to avoid showing stale data from previous trend
-    const activeTopic = currentCategory === 'fofocas' ? (fofocasState?.topic ?? null) : selectedTopic;
-    const activeSummary = currentCategory === 'fofocas' ? (fofocasState?.summary ?? null) : selectedSummary;
-    const activeMetadata = currentCategory === 'fofocas' ? (fofocasState?.metadata ?? null) : summaryMetadata;
-    const activeFromCache = currentCategory === 'fofocas' ? (fofocasState?.fromCache ?? false) : summaryFromCache;
-    const activeError = currentCategory === 'fofocas' ? (fofocasState?.error ?? null) : summaryError;
-    const activeIsLoading = currentCategory === 'fofocas' ? (fofocasState?.isLoading ?? false) : isLoadingSummary;
+    // For fofocas/futebol, never fallback to global state to avoid showing stale data from previous trend
+    const activeTopic = isTrendLevel ? (trendLevelState?.topic ?? null) : selectedTopic;
+    const activeSummary = isTrendLevel ? (trendLevelState?.summary ?? null) : selectedSummary;
+    const activeMetadata = isTrendLevel ? (trendLevelState?.metadata ?? null) : summaryMetadata;
+    const activeFromCache = isTrendLevel ? (trendLevelState?.fromCache ?? false) : summaryFromCache;
+    const activeError = isTrendLevel ? (trendLevelState?.error ?? null) : summaryError;
+    const activeIsLoading = isTrendLevel ? (trendLevelState?.isLoading ?? false) : isLoadingSummary;
     const topicEngagement = activeTopic ? extractTopicEngagement(activeTopic) : null;
     const hasCachedSummary = activeFromCache && Boolean(activeSummary);
     const summaryTopicName =
@@ -1635,6 +1754,8 @@ export function TapNavigationPage() {
                 setSelectedSummary(null);
                 if (currentCategory === 'fofocas') {
                   setFofocasActiveTrendKey(null);
+                } else if (currentCategory === 'futebol') {
+                  setFutebolActiveTrendKey(null);
                 }
                 requestAnimationFrame(() => {
                   requestAnimationFrame(() => {
@@ -1655,17 +1776,17 @@ export function TapNavigationPage() {
         )}
         <div ref={!isMobile ? desktopSummaryRef : undefined} className={`flex-1 overflow-y-auto ${contentPadding}`}>
           {activeTopic ||
-          (currentCategory === 'fofocas' && (activeIsLoading || activeSummary || activeError)) ? (
+          (isTrendLevel && (activeIsLoading || activeSummary || activeError)) ? (
             <div className="space-y-3">
               {isMobile && (
                 <>
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="font-semibold text-gray-700">
                       Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'}
-                      {activeTopic && currentCategory !== 'fofocas' ? ` — Tópico #${activeTopic.number}` : ''}
+                      {activeTopic && !isTrendLevel ? ` — Tópico #${activeTopic.number}` : ''}
                     </span>
                   </div>
-                  {activeTopic && currentCategory !== 'fofocas' && (
+                  {activeTopic && !isTrendLevel && (
                     <>
                       <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                         <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
@@ -1694,7 +1815,7 @@ export function TapNavigationPage() {
                 </>
               )}
 
-              {currentCategory !== 'fofocas' && (
+              {!isTrendLevel && (
                 <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2">
                   {!hasCachedSummary && (
                     <button
@@ -1734,12 +1855,13 @@ export function TapNavigationPage() {
               {activeSummary && !activeIsLoading && !activeError && (
                 <div
                   ref={(el) => {
-                    if (currentCategory === 'fofocas' && currentTrendKey) {
+                    if (isTrendLevel && currentTrendKey) {
+                      const refs = currentCategory === 'fofocas' ? fofocasSummaryRefs : futebolSummaryRefs;
                       if (!el) {
-                        const { [currentTrendKey]: _, ...rest } = fofocasSummaryRefs.current;
-                        fofocasSummaryRefs.current = rest;
+                        const { [currentTrendKey]: _, ...rest } = refs.current;
+                        refs.current = rest;
                       } else {
-                        fofocasSummaryRefs.current[currentTrendKey] = el;
+                        refs.current[currentTrendKey] = el;
                       }
                     } else {
                       summaryContainerRef.current = el;
@@ -1851,7 +1973,7 @@ export function TapNavigationPage() {
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500">
               <p>
-                {currentCategory === 'fofocas'
+                {isTrendLevel
                   ? 'Peça um resumo do assunto para ver aqui.'
                   : 'Selecione um tópico para ver detalhes.'}
               </p>
@@ -1868,6 +1990,7 @@ export function TapNavigationPage() {
   };
 
   const activeFofocasState = fofocasActiveTrendKey ? fofocasSummaries[fofocasActiveTrendKey] : null;
+  const activeFutebolState = futebolActiveTrendKey ? futebolSummaries[futebolActiveTrendKey] : null;
   const showMobileSummary =
     currentCategory === 'fofocas'
       ? Boolean(
@@ -1877,7 +2000,15 @@ export function TapNavigationPage() {
               activeFofocasState?.error ||
               !activeFofocasState),
         )
-      : Boolean(selectedTopic || selectedSummary);
+      : currentCategory === 'futebol'
+        ? Boolean(
+            futebolActiveTrendKey &&
+              (activeFutebolState?.isLoading ||
+                activeFutebolState?.summary ||
+                activeFutebolState?.error ||
+                !activeFutebolState),
+          )
+        : Boolean(selectedTopic || selectedSummary);
   const prevShowMobileSummaryRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -2073,7 +2204,9 @@ export function TapNavigationPage() {
                     'mobile',
                     currentCategory === 'fofocas' && fofocasActiveTrendKey
                       ? trends.find((t) => getTrendKey(t) === fofocasActiveTrendKey) ?? null
-                      : null
+                      : currentCategory === 'futebol' && futebolActiveTrendKey
+                        ? trends.find((t) => getTrendKey(t) === futebolActiveTrendKey) ?? null
+                        : null
                   )}
                 </div>
               )}

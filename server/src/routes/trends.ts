@@ -221,6 +221,10 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   const sessionId = coalesceString(req.body?.sessionId, req.body?.session_id) ?? `trends-${randomUUID()}`;
   const userId = coalesceString(req.body?.userId, req.body?.user_id, req.user?.id) ?? 'anonymous';
 
+  if (!trendId) {
+    return res.status(400).json({ error: 'trendId is required' });
+  }
+
   if (!email) {
     return res.status(400).json({ error: 'email is required' });
   }
@@ -232,9 +236,12 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
   }
 
   const correlationId = randomUUID();
-  const message = trendId ? `Assunto ${trendId}` : topicId ? `Assunto ${topicId}` : 'Assunto';
+  // Send threadId directly so AI agent can look up the correct thread
+  const threadId = trendId || topicId || 'desconhecido';
+  const message = threadId;
 
   try {
+    // Skip cache for futebol summaries - each trend needs a unique response
     const agentResponse = await n8nService.sendMessage(
       email,
       message,
@@ -242,6 +249,7 @@ trendsRouter.post('/summarize-fut', async (req, res) => {
       correlationId,
       userId,
       webhookUrl,
+      { skipCache: true },
     );
 
     const extracted = extractSummaryFields(agentResponse);
