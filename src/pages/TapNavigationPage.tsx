@@ -299,24 +299,14 @@ export function TapNavigationPage() {
   }, []);
 
   useEffect(() => {
-    const { parent, parentLabel, parentOffset, windowOffset, documentOffset, bodyOffset } = resolveScrollContext();
+    const { parent } = resolveScrollContext();
     scrollParentRef.current = parent;
-    console.log('[TapNavLog][mobile] scroll parent detected', { parent: parentLabel });
-    console.log('[TapNavLog][mobile] scroll metrics init', {
-      parentLabel,
-      parentOffset,
-      windowOffset,
-      documentOffset,
-      bodyOffset,
-    });
   }, [resolveScrollContext]);
 
   const getTrendKey = useCallback((trend: DailyTrend | null | undefined) => {
     // For fofocas, always use position as it's guaranteed unique
     if (currentCategory === 'fofocas') {
-      const key = `fof-${trend?.position ?? 'unknown'}`;
-      console.log('[getTrendKey] fofocas key:', key, 'trend:', { id: trend?.id, position: trend?.position, title: trend?.title });
-      return key;
+      return `fof-${trend?.position ?? 'unknown'}`;
     }
     const raw = trend?.id ?? trend?.position ?? trend?.title ?? '';
     return String(raw);
@@ -652,7 +642,16 @@ export function TapNavigationPage() {
 
           if (isSameSelection) {
             if (isFofocas) {
-              console.log('[fetchSummaryForTopic] Setting summary for trendKey:', trendKey, 'trendId:', trendId, 'summary:', summaryPayload.summary);
+              console.log('[Fofocas Summary Received]', {
+                trendKey,
+                trendId,
+                trendPosition: trend.position,
+                expandedTrendId,
+                isSameSelection,
+                summaryPreview: typeof summaryPayload.summary === 'string'
+                  ? summaryPayload.summary.substring(0, 50) + '...'
+                  : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
+              });
               updateFofocasSummary(trendKey, (prev) => ({
                 ...prev,
                 topic: topic ?? null,
@@ -670,6 +669,11 @@ export function TapNavigationPage() {
               setPendingSummary(null);
             }
           } else {
+            console.log('[Fofocas Summary] Selection changed, going to pendingSummary', {
+              originalTrendPosition: trend.position,
+              currentExpandedTrendId: expandedTrendId,
+              context,
+            });
             setPendingSummary({ ...summaryPayload, context });
           }
 
@@ -1100,6 +1104,14 @@ export function TapNavigationPage() {
         null;
       const trendKey = targetTrend ? getTrendKey(targetTrend) : null;
 
+      console.log('[Fofocas] Applying pendingSummary', {
+        trendKey,
+        targetTrendPosition: targetTrend?.position,
+        expandedTrendId,
+        fofocasActiveTrendKey,
+        ctx,
+      });
+
       if ((ctx.category ?? currentCategory) === 'fofocas') {
         if (trendKey) {
           updateFofocasSummary(trendKey, (prev) => ({
@@ -1186,19 +1198,6 @@ export function TapNavigationPage() {
                 lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
               }
 
-              console.log('[TapNavLog][mobile] topic select', {
-                savedY: lastScrollBeforeSummaryRef.current,
-                expandedTrendId: trend.position,
-                parent: parentLabel,
-                anchorY: lastAnchorYRef.current,
-                windowOffset,
-                parentOffset,
-                documentOffset,
-                bodyOffset,
-                candidates: candidates
-                  ?.slice(0, 5)
-                  .map((c) => ({ label: c.label, scrollTop: c.scrollTop, scrollHeight: c.scrollHeight, clientHeight: c.clientHeight })),
-              });
               const isSameTopic =
                 expandedTrendId === trend.position &&
                 selectedTopic &&
@@ -1319,25 +1318,21 @@ export function TapNavigationPage() {
                         lastAnchorYRef.current = lastScrollBeforeSummaryRef.current;
                       }
 
-                      console.log('[TapNavLog][mobile] summary cta (fofocas)', {
-                        savedY: lastScrollBeforeSummaryRef.current,
-                        expandedTrendId: trend.position,
-                        parent: parentLabel,
-                        anchorY: lastAnchorYRef.current,
-                        windowOffset,
-                        parentOffset,
-                        documentOffset,
-                        bodyOffset,
-                        candidates: candidates
-                          ?.slice(0, 5)
-                          .map((c) => ({
-                            label: c.label,
-                            scrollTop: c.scrollTop,
-                            scrollHeight: c.scrollHeight,
-                            clientHeight: c.clientHeight,
-                          })),
-                      });
                       const trendKey = getTrendKey(trend);
+                      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey)
+                      const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
+                      const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
+                      const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
+
+                      console.log('[Fofocas CTA Click]', {
+                        trendKey,
+                        trendPosition: trend.position,
+                        trendId: trend.id,
+                        cacheKey: fofocasCacheKey,
+                        hasCache: !!cachedFofocasSummary,
+                        currentFofocasKeys: Object.keys(fofocasSummaries),
+                      });
+
                       setExpandedTrendId(trend.position ?? null);
                       setSelectedTopic(null);
                       setSelectedSummary(null);
@@ -1346,12 +1341,8 @@ export function TapNavigationPage() {
                       setSummaryError(null);
                       setFofocasActiveTrendKey(trendKey);
 
-                      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey)
-                      const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
-                      const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
-                      const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
-
                       if (cachedFofocasSummary) {
+                        console.log('[Fofocas CTA] Using cached summary for', trendKey);
                         updateFofocasSummary(trendKey, (prev) => ({
                           ...prev,
                           topic: null,
@@ -1362,6 +1353,7 @@ export function TapNavigationPage() {
                           error: null,
                         }));
                       } else {
+                        console.log('[Fofocas CTA] Fetching new summary for', trendKey);
                         updateFofocasSummary(trendKey, (prev) => ({
                           ...prev,
                           error: null,
@@ -1581,16 +1573,6 @@ export function TapNavigationPage() {
     const fofocasState =
       currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
 
-    console.log('[renderSummaryContent]', breakpoint, {
-      currentCategory,
-      currentTrendKey,
-      fofocasActiveTrendKey,
-      expandedTrendId,
-      currentTrend: currentTrend ? { id: currentTrend.id, position: currentTrend.position, title: currentTrend.title } : null,
-      hasSummary: !!fofocasState?.summary,
-      allKeys: Object.keys(fofocasSummaries)
-    });
-
     // For fofocas, never fallback to global state to avoid showing stale data from previous trend
     const activeTopic = currentCategory === 'fofocas' ? (fofocasState?.topic ?? null) : selectedTopic;
     const activeSummary = currentCategory === 'fofocas' ? (fofocasState?.summary ?? null) : selectedSummary;
@@ -1645,16 +1627,6 @@ export function TapNavigationPage() {
                     if (targetEl) {
                       targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
                     }
-                    console.log('[TapNavLog][mobile] back scroll restore', {
-                      savedY,
-                      targetExists: Boolean(targetEl),
-                      currentOffset: getScrollPosition(parent),
-                      scrollParent: parentLabel,
-                      windowOffset,
-                      parentOffset,
-                      documentOffset,
-                      bodyOffset,
-                    });
                   });
                 });
               }}
@@ -1906,15 +1878,6 @@ export function TapNavigationPage() {
       }
       lastListScrollYRef.current = Math.max(parentOffset, windowOffset);
       lastPageScrollRef.current = windowOffset;
-      console.log('[TapNavLog][mobile] open summary', {
-        scrollParent: parentLabel,
-        scrollTop: lastListScrollYRef.current,
-        expandedTrendId,
-        windowOffset,
-        parentOffset,
-        documentOffset,
-        bodyOffset,
-      });
 
       if (mobileSummaryWrapperRef.current) {
         mobileSummaryWrapperRef.current.scrollTo({ top: 0, behavior: 'auto' });
@@ -1935,16 +1898,6 @@ export function TapNavigationPage() {
         if (targetEl) {
           targetEl.scrollIntoView({ behavior: 'auto', block: 'start' });
         }
-        console.log('[TapNavLog][mobile] close summary', {
-          scrollParent: parentLabel,
-          targetY,
-          expandedTrendId,
-          targetElExists: Boolean(targetEl),
-          windowOffset,
-          parentOffset,
-          documentOffset,
-          bodyOffset,
-        });
       };
       // Only restore when we are actually closing a summary, not on plain list expand/collapse.
       if (prevShowMobileSummaryRef.current) {
