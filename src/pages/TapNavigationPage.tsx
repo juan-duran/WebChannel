@@ -353,9 +353,18 @@ export function TapNavigationPage() {
 
   const updateFutebolSummary = useCallback(
     (trendKey: string, updater: (prev: TrendSummaryState) => TrendSummaryState) => {
+      console.log('[updateFutebolSummary] Called with trendKey:', trendKey);
       setFutebolSummaries((prev) => {
         const base = prev[trendKey] ?? createEmptyTrendState();
         const next = updater(base);
+        console.log('[updateFutebolSummary] State update:', {
+          trendKey,
+          prevKeys: Object.keys(prev),
+          baseHasSummary: !!base.summary,
+          nextHasSummary: !!next.summary,
+          nextIsLoading: next.isLoading,
+          nextError: next.error,
+        });
         if (next === base) return prev;
         if (next.summary !== base.summary) {
           console.log('[Futebol State Update]', {
@@ -714,58 +723,68 @@ export function TapNavigationPage() {
                   selectedTopic.description === topic?.description) &&
                 expandedTrendId === trend.position);
 
+          console.log('[Summary Response] isSameSelection check:', {
+            isTrendLevelSummary,
+            isFutebol,
+            expandedTrendId,
+            trendPosition: trend.position,
+            isSameSelection,
+            trendKey,
+          });
+
           setLastSummaryData({ ...summaryPayload, context });
           setLastSummaryContext({ ...context, category: currentCategory });
 
-          if (isSameSelection) {
-            if (isFofocas) {
-              console.log('[Fofocas Summary Received]', {
-                trendKey,
-                trendId,
-                trendPosition: trend.position,
-                expandedTrendId,
-                isSameSelection,
-                summaryPreview: typeof summaryPayload.summary === 'string'
-                  ? summaryPayload.summary.substring(0, 50) + '...'
-                  : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
-              });
-              updateFofocasSummary(trendKey, (prev) => ({
-                ...prev,
-                topic: topic ?? null,
-                summary: summaryPayload.summary,
-                metadata: summaryPayload.metadata,
-                fromCache: summaryPayload.fromCache,
-                isLoading: false,
-                error: null,
-              }));
-              setPendingSummary(null);
-            } else if (isFutebol) {
-              console.log('[Futebol Summary Received]', {
-                trendKey,
-                trendId,
-                trendPosition: trend.position,
-                expandedTrendId,
-                isSameSelection,
-                summaryPreview: typeof summaryPayload.summary === 'string'
-                  ? summaryPayload.summary.substring(0, 50) + '...'
-                  : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
-              });
-              updateFutebolSummary(trendKey, (prev) => ({
-                ...prev,
-                topic: topic ?? null,
-                summary: summaryPayload.summary,
-                metadata: summaryPayload.metadata,
-                fromCache: summaryPayload.fromCache,
-                isLoading: false,
-                error: null,
-              }));
-              setPendingSummary(null);
-            } else {
-              setSelectedSummary(summaryPayload.summary);
-              setSummaryMetadata(summaryPayload.metadata);
-              setSummaryFromCache(summaryPayload.fromCache);
-              setPendingSummary(null);
-            }
+          // For trend-level summaries (fofocas/futebol), ALWAYS update the trend state
+          // because each trend maintains its own summary state independent of selection
+          if (isFofocas) {
+            console.log('[Fofocas Summary Received]', {
+              trendKey,
+              trendId,
+              trendPosition: trend.position,
+              expandedTrendId,
+              isSameSelection,
+              summaryPreview: typeof summaryPayload.summary === 'string'
+                ? summaryPayload.summary.substring(0, 50) + '...'
+                : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
+            });
+            updateFofocasSummary(trendKey, (prev) => ({
+              ...prev,
+              topic: topic ?? null,
+              summary: summaryPayload.summary,
+              metadata: summaryPayload.metadata,
+              fromCache: summaryPayload.fromCache,
+              isLoading: false,
+              error: null,
+            }));
+            setPendingSummary(null);
+          } else if (isFutebol) {
+            console.log('[Futebol Summary Received]', {
+              trendKey,
+              trendId,
+              trendPosition: trend.position,
+              expandedTrendId,
+              isSameSelection,
+              summaryPreview: typeof summaryPayload.summary === 'string'
+                ? summaryPayload.summary.substring(0, 50) + '...'
+                : summaryPayload.summary?.thesis?.substring(0, 50) + '...',
+            });
+            updateFutebolSummary(trendKey, (prev) => ({
+              ...prev,
+              topic: topic ?? null,
+              summary: summaryPayload.summary,
+              metadata: summaryPayload.metadata,
+              fromCache: summaryPayload.fromCache,
+              isLoading: false,
+              error: null,
+            }));
+            setPendingSummary(null);
+          } else if (isSameSelection) {
+            // For topic-based summaries (brasil), only update if still on same selection
+            setSelectedSummary(summaryPayload.summary);
+            setSummaryMetadata(summaryPayload.metadata);
+            setSummaryFromCache(summaryPayload.fromCache);
+            setPendingSummary(null);
           } else {
             console.log('[Summary] Selection changed, going to pendingSummary', {
               originalTrendPosition: trend.position,
@@ -1503,6 +1522,18 @@ export function TapNavigationPage() {
                       Gerar resumo do assunto
                     </button>
                     <div className="hidden lg:block">
+                      {(() => {
+                        console.log(`[${currentCategory} afterContent render]`, {
+                          trendKey,
+                          trendPosition: trend.position,
+                          hasTrendState: !!trendState,
+                          hasSummary: !!trendState?.summary,
+                          isLoading: trendState?.isLoading,
+                          hasError: !!trendState?.error,
+                          summariesKeys: Object.keys(summariesState),
+                        });
+                        return null;
+                      })()}
                       {trendState?.summary || trendState?.isLoading || trendState?.error ? (
                         renderSummaryContent('desktop', trend)
                       ) : null}
