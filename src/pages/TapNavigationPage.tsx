@@ -484,7 +484,11 @@ export function TapNavigationPage() {
         return;
       }
 
-      const trendId = (trend.id ?? trend.position ?? trend.title ?? '').toString();
+      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey and click handlers)
+      const trendId = (isFofocas
+        ? (trend.position ?? trend.id ?? trend.title ?? '')
+        : (trend.id ?? trend.position ?? trend.title ?? '')
+      ).toString();
       const topicIdRaw = topic?.id ?? topic?.number ?? topic?.description ?? trendId;
       const topicId = topicIdRaw.toString();
       const cacheKey = createCacheKey(
@@ -1220,7 +1224,8 @@ export function TapNavigationPage() {
                 setSummaryMetadata(null);
                 setSummaryFromCache(false);
 
-                const trendIdForCache = trend.id ?? trend.position ?? trend.title ?? '';
+                // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey)
+                const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
                 const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
                 const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
 
@@ -1341,7 +1346,8 @@ export function TapNavigationPage() {
                       setSummaryError(null);
                       setFofocasActiveTrendKey(trendKey);
 
-                      const trendIdForCache = trend.id ?? trend.position ?? trend.title ?? '';
+                      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey)
+                      const trendIdForCache = (trend.position ?? trend.id ?? trend.title ?? '').toString();
                       const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
                       const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
 
@@ -1585,12 +1591,13 @@ export function TapNavigationPage() {
       allKeys: Object.keys(fofocasSummaries)
     });
 
-    const activeTopic = currentCategory === 'fofocas' ? fofocasState?.topic ?? selectedTopic : selectedTopic;
-    const activeSummary = currentCategory === 'fofocas' ? fofocasState?.summary ?? null : selectedSummary;
-    const activeMetadata = currentCategory === 'fofocas' ? fofocasState?.metadata ?? null : summaryMetadata;
-    const activeFromCache = currentCategory === 'fofocas' ? fofocasState?.fromCache ?? false : summaryFromCache;
-    const activeError = currentCategory === 'fofocas' ? fofocasState?.error ?? null : summaryError;
-    const activeIsLoading = currentCategory === 'fofocas' ? fofocasState?.isLoading ?? false : isLoadingSummary;
+    // For fofocas, never fallback to global state to avoid showing stale data from previous trend
+    const activeTopic = currentCategory === 'fofocas' ? (fofocasState?.topic ?? null) : selectedTopic;
+    const activeSummary = currentCategory === 'fofocas' ? (fofocasState?.summary ?? null) : selectedSummary;
+    const activeMetadata = currentCategory === 'fofocas' ? (fofocasState?.metadata ?? null) : summaryMetadata;
+    const activeFromCache = currentCategory === 'fofocas' ? (fofocasState?.fromCache ?? false) : summaryFromCache;
+    const activeError = currentCategory === 'fofocas' ? (fofocasState?.error ?? null) : summaryError;
+    const activeIsLoading = currentCategory === 'fofocas' ? (fofocasState?.isLoading ?? false) : isLoadingSummary;
     const topicEngagement = activeTopic ? extractTopicEngagement(activeTopic) : null;
     const hasCachedSummary = activeFromCache && Boolean(activeSummary);
     const summaryTopicName =
