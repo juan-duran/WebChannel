@@ -483,15 +483,27 @@ export function TapNavigationPage() {
       const topicId = topicIdRaw.toString();
       const cacheKey = createCacheKey(
         trendId,
-        isFofocas ? topicIdRaw : topicIdRaw,
+        isFofocas ? trendId : topicIdRaw,
         currentCategory,
       );
       const cachedSummary = summaryCacheRef.current.get(cacheKey);
 
-      if (!isFofocas && !options?.forceRefresh && cachedSummary) {
-        setSelectedSummary(cachedSummary.summary);
-        setSummaryMetadata(cachedSummary.metadata);
-        setSummaryFromCache(Boolean(cachedSummary.fromCache));
+      if (!options?.forceRefresh && cachedSummary) {
+        if (isFofocas) {
+          updateFofocasSummary(trendKey, (prev) => ({
+            ...prev,
+            topic: topic ?? null,
+            summary: cachedSummary.summary,
+            metadata: cachedSummary.metadata,
+            fromCache: Boolean(cachedSummary.fromCache),
+            isLoading: false,
+            error: null,
+          }));
+        } else {
+          setSelectedSummary(cachedSummary.summary);
+          setSummaryMetadata(cachedSummary.metadata);
+          setSummaryFromCache(Boolean(cachedSummary.fromCache));
+        }
         setSummaryBubbleState('ready');
         return;
       }
@@ -681,13 +693,11 @@ export function TapNavigationPage() {
             fromCache: Boolean(data.fromCache),
           };
 
-          if (!isFofocas) {
-            summaryCacheRef.current.set(cacheKey, cacheEntry);
-            if (cacheKey !== fallbackCacheKey) {
-              summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
-            }
-            persistSummaryCache();
+          summaryCacheRef.current.set(cacheKey, cacheEntry);
+          if (cacheKey !== fallbackCacheKey) {
+            summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
           }
+          persistSummaryCache();
 
           console.log('[TapNavigationPage] Summary fetched successfully', {
             event: 'summary_fetch',
@@ -1197,16 +1207,33 @@ export function TapNavigationPage() {
               setSummaryError(null);
 
               if (isFofocasCategory) {
-                updateFofocasSummary(trendKey, (prev) => ({
-                  ...prev,
-                  topic,
-                  error: null,
-                }));
                 setFofocasActiveTrendKey(trendKey);
                 setSelectedSummary(null);
                 setSummaryMetadata(null);
                 setSummaryFromCache(false);
-                fetchSummaryForTopic(trend, null);
+
+                const trendIdForCache = trend.id ?? trend.position ?? trend.title ?? '';
+                const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
+                const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
+
+                if (cachedFofocasSummary) {
+                  updateFofocasSummary(trendKey, (prev) => ({
+                    ...prev,
+                    topic: null,
+                    summary: cachedFofocasSummary.summary,
+                    metadata: cachedFofocasSummary.metadata,
+                    fromCache: Boolean(cachedFofocasSummary.fromCache),
+                    isLoading: false,
+                    error: null,
+                  }));
+                } else {
+                  updateFofocasSummary(trendKey, (prev) => ({
+                    ...prev,
+                    topic: null,
+                    error: null,
+                  }));
+                  fetchSummaryForTopic(trend, null);
+                }
                 return;
               }
 
@@ -1305,11 +1332,28 @@ export function TapNavigationPage() {
                       setSummaryFromCache(false);
                       setSummaryError(null);
                       setFofocasActiveTrendKey(trendKey);
-                      updateFofocasSummary(trendKey, (prev) => ({
-                        ...prev,
-                        error: null,
-                      }));
-                      fetchSummaryForTopic(trend, null);
+
+                      const trendIdForCache = trend.id ?? trend.position ?? trend.title ?? '';
+                      const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
+                      const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
+
+                      if (cachedFofocasSummary) {
+                        updateFofocasSummary(trendKey, (prev) => ({
+                          ...prev,
+                          topic: null,
+                          summary: cachedFofocasSummary.summary,
+                          metadata: cachedFofocasSummary.metadata,
+                          fromCache: Boolean(cachedFofocasSummary.fromCache),
+                          isLoading: false,
+                          error: null,
+                        }));
+                      } else {
+                        updateFofocasSummary(trendKey, (prev) => ({
+                          ...prev,
+                          error: null,
+                        }));
+                        fetchSummaryForTopic(trend, null);
+                      }
                     }}
                     disabled={isLoading || isRefreshing || fofocasSummaries[getTrendKey(trend)]?.isLoading}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
