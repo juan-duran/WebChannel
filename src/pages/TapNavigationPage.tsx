@@ -330,6 +330,15 @@ export function TapNavigationPage() {
         const base = prev[trendKey] ?? createEmptyFofocasState();
         const next = updater(base);
         if (next === base) return prev;
+        // Log only when summary content changes (not just loading state)
+        if (next.summary !== base.summary) {
+          console.log('[Fofocas State Update]', {
+            trendKey,
+            hadSummary: !!base.summary,
+            hasSummary: !!next.summary,
+            thesis: next.summary?.thesis?.substring(0, 50),
+          });
+        }
         return { ...prev, [trendKey]: next };
       });
     },
@@ -1572,19 +1581,6 @@ export function TapNavigationPage() {
     const currentTrendKey = currentTrend ? getTrendKey(currentTrend) : null;
     const fofocasState =
       currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
-
-    // Debug log for rendering - only log when we have a summary to show
-    if (currentCategory === 'fofocas' && (fofocasState?.summary || fofocasState?.isLoading)) {
-      console.log('[Fofocas Render]', breakpoint, {
-        currentTrendKey,
-        currentTrendPosition: currentTrend?.position,
-        currentTrendTitle: currentTrend?.title?.substring(0, 30),
-        fofocasActiveTrendKey,
-        hasSummary: !!fofocasState?.summary,
-        summaryThesis: fofocasState?.summary?.thesis?.substring(0, 40),
-        allFofocasKeys: Object.keys(fofocasSummaries),
-      });
-    }
 
     // For fofocas, never fallback to global state to avoid showing stale data from previous trend
     const activeTopic = currentCategory === 'fofocas' ? (fofocasState?.topic ?? null) : selectedTopic;
