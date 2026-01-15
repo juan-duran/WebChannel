@@ -1573,6 +1573,19 @@ export function TapNavigationPage() {
     const fofocasState =
       currentCategory === 'fofocas' && currentTrendKey ? fofocasSummaries[currentTrendKey] : undefined;
 
+    // Debug log for rendering - only log when we have a summary to show
+    if (currentCategory === 'fofocas' && (fofocasState?.summary || fofocasState?.isLoading)) {
+      console.log('[Fofocas Render]', breakpoint, {
+        currentTrendKey,
+        currentTrendPosition: currentTrend?.position,
+        currentTrendTitle: currentTrend?.title?.substring(0, 30),
+        fofocasActiveTrendKey,
+        hasSummary: !!fofocasState?.summary,
+        summaryThesis: fofocasState?.summary?.thesis?.substring(0, 40),
+        allFofocasKeys: Object.keys(fofocasSummaries),
+      });
+    }
+
     // For fofocas, never fallback to global state to avoid showing stale data from previous trend
     const activeTopic = currentCategory === 'fofocas' ? (fofocasState?.topic ?? null) : selectedTopic;
     const activeSummary = currentCategory === 'fofocas' ? (fofocasState?.summary ?? null) : selectedSummary;
