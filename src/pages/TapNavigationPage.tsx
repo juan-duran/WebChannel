@@ -483,9 +483,10 @@ export function TapNavigationPage() {
         return;
       }
 
-      // For fofocas, use position as it's guaranteed unique (consistent with getTrendKey and click handlers)
+      // For fofocas, use thread id (trend.id) so the AI agent can look up the correct thread
+      // For caching we still use position (via getTrendKey), but the API needs the actual thread_id
       const trendId = (isFofocas
-        ? (trend.position ?? trend.id ?? trend.title ?? '')
+        ? (trend.id ?? trend.position ?? trend.title ?? '')
         : (trend.id ?? trend.position ?? trend.title ?? '')
       ).toString();
       const topicIdRaw = topic?.id ?? topic?.number ?? topic?.description ?? trendId;
@@ -526,7 +527,12 @@ export function TapNavigationPage() {
       setPendingSummary(null);
 
       if (isFofocas) {
-        console.log('[fetchSummaryForTopic] Resetting summary for trendKey:', trendKey, 'trendId:', trendId);
+        console.log('[fetchSummaryForTopic] Fofocas request:', {
+          trendKey,
+          trendId,
+          position: trend.position,
+          threadId: trend.id,
+        });
         updateFofocasSummary(trendKey, (prev) => ({
           ...prev,
           topic: topic ?? null,
