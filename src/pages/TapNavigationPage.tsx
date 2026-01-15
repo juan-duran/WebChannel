@@ -693,6 +693,17 @@ export function TapNavigationPage() {
             fromCache: Boolean(data.fromCache),
           };
 
+          console.log('[Fofocas Cache Debug] Saving to cache', {
+            isFofocas,
+            trendId,
+            resolvedTrendId,
+            topicId,
+            resolvedTopicId,
+            cacheKey,
+            fallbackCacheKey,
+            summaryPreview: normalizedSummary?.thesis?.substring(0, 100),
+          });
+
           summaryCacheRef.current.set(cacheKey, cacheEntry);
           if (cacheKey !== fallbackCacheKey) {
             summaryCacheRef.current.set(fallbackCacheKey, cacheEntry);
@@ -1216,6 +1227,17 @@ export function TapNavigationPage() {
                 const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
                 const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
 
+                console.log('[Fofocas Cache Debug] Topic select', {
+                  trendKey,
+                  trendId: trend.id,
+                  trendPosition: trend.position,
+                  trendTitle: trend.title,
+                  trendIdForCache,
+                  fofocasCacheKey,
+                  hasCachedSummary: !!cachedFofocasSummary,
+                  cachedSummaryPreview: cachedFofocasSummary?.summary?.thesis?.substring(0, 100),
+                });
+
                 if (cachedFofocasSummary) {
                   updateFofocasSummary(trendKey, (prev) => ({
                     ...prev,
@@ -1336,6 +1358,18 @@ export function TapNavigationPage() {
                       const trendIdForCache = trend.id ?? trend.position ?? trend.title ?? '';
                       const fofocasCacheKey = createCacheKey(trendIdForCache, trendIdForCache, currentCategory);
                       const cachedFofocasSummary = summaryCacheRef.current.get(fofocasCacheKey);
+
+                      console.log('[Fofocas Cache Debug] CTA button click', {
+                        trendKey,
+                        trendId: trend.id,
+                        trendPosition: trend.position,
+                        trendTitle: trend.title,
+                        trendIdForCache,
+                        fofocasCacheKey,
+                        hasCachedSummary: !!cachedFofocasSummary,
+                        cachedSummaryPreview: cachedFofocasSummary?.summary?.thesis?.substring(0, 100),
+                        allCacheKeys: Array.from(summaryCacheRef.current.keys()),
+                      });
 
                       if (cachedFofocasSummary) {
                         updateFofocasSummary(trendKey, (prev) => ({
