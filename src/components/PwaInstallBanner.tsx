@@ -57,19 +57,19 @@ export function PwaInstallBanner() {
   };
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-auto md:max-w-md bg-slate-900 text-white rounded-xl shadow-lg p-4 z-50">
-      <div className="font-semibold mb-1">Instale o app Quenty</div>
-      <div className="text-sm mb-3">Acesse seu resumo diário mais rápido, como se fosse um app nativo.</div>
+    <div className="fixed bottom-4 left-4 right-4 md:left-8 md:right-auto md:max-w-md bg-dark-secondary border border-border-primary text-text-primary rounded-xl shadow-lg p-4 z-50">
+      <div className="font-semibold mb-1 text-text-primary">Instale o app Quenty</div>
+      <div className="text-sm mb-3 text-text-secondary">Acesse seu resumo diário mais rápido, como se fosse um app nativo.</div>
       <div className="flex gap-2 justify-end">
         <button
-          className="px-3 py-1 rounded-lg text-xs border border-slate-500"
+          className="px-3 py-1 rounded-lg text-xs border border-border-secondary text-text-secondary hover:bg-dark-tertiary"
           onClick={onDismiss}
           type="button"
         >
           Agora não
         </button>
         <button
-          className="px-3 py-1 rounded-lg text-xs bg-white text-slate-900 font-semibold"
+          className="px-3 py-1 rounded-lg text-xs bg-accent text-dark-primary font-semibold hover:bg-accent-hover"
           onClick={onInstall}
           type="button"
         >

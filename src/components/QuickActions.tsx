@@ -41,7 +41,7 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
   return (
     <div className="px-4 py-6">
       <div className="max-w-4xl mx-auto">
-        <h3 className="text-sm font-medium text-gray-500 mb-3 text-center">
+        <h3 className="text-sm font-medium text-text-muted mb-3 text-center">
           Comece Aqui
         </h3>
         <div className="hidden flex-wrap justify-center gap-4 sm:flex">
@@ -52,12 +52,12 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
                 key={suggestion.label}
                 onClick={() => handleSelect(suggestion.message)}
                 disabled={disabled}
-                className="flex min-w-[160px] flex-col items-center gap-2 rounded-xl border-2 border-gray-200 bg-white p-4 transition-all hover:border-blue-500 hover:bg-blue-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-gray-200 disabled:hover:bg-white group"
+                className="flex min-w-[160px] flex-col items-center gap-2 rounded-xl border-2 border-border-primary bg-dark-secondary p-4 transition-all hover:border-accent hover:bg-accent-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-border-primary disabled:hover:bg-dark-secondary group"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 transition-colors group-hover:bg-blue-200">
-                  <Icon className="h-6 w-6 text-blue-600" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-muted transition-colors group-hover:bg-accent/20">
+                  <Icon className="h-6 w-6 text-accent" />
                 </div>
-                <span className="text-sm font-medium text-gray-900">{suggestion.label}</span>
+                <span className="text-sm font-medium text-text-primary">{suggestion.label}</span>
               </button>
             );
           })}
@@ -70,14 +70,14 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
               onClick={() => setIsMenuOpen(prev => !prev)}
               disabled={disabled}
               aria-expanded={isMenuOpen}
-              className="flex items-center gap-2 rounded-full border-2 border-gray-200 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition-all hover:border-blue-500 hover:bg-blue-50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-2 rounded-full border-2 border-border-primary bg-dark-secondary px-5 py-3 text-sm font-medium text-text-secondary transition-all hover:border-accent hover:bg-accent-muted active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus className="h-5 w-5" />
               Opções rápidas
             </button>
 
             {isMenuOpen && (
-              <div className="absolute bottom-full mb-3 w-56 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg">
+              <div className="absolute bottom-full mb-3 w-56 rounded-2xl border border-border-primary bg-dark-elevated p-2 shadow-lg">
                 {suggestions.map(suggestion => {
                   const Icon = suggestion.icon;
                   return (
@@ -85,10 +85,10 @@ export function QuickActions({ onSelect, disabled = false }: QuickActionsProps) 
                       key={suggestion.label}
                       onClick={() => handleSelect(suggestion.message)}
                       disabled={disabled}
-                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-gray-800 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm font-medium text-text-primary transition-colors hover:bg-accent-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100">
-                        <Icon className="h-5 w-5 text-blue-600" />
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-muted">
+                        <Icon className="h-5 w-5 text-accent" />
                       </div>
                       <span>{suggestion.label}</span>
                     </button>

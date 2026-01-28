@@ -14,18 +14,11 @@ export function TrialBanner({ trialState }: Props) {
       : `Seu teste grátis termina em ${days} dias.`;
 
   return (
-    <div
-      style={{
-        padding: '8px 12px',
-        background: '#FFF5CC',
-        borderBottom: '1px solid #F5D46B',
-        fontSize: 13,
-      }}
-    >
-      <strong>Teste grátis ativo</strong> — {label}{' '}
+    <div className="px-3 py-2 bg-amber-500/20 border-b border-amber-500/30 text-[13px] text-amber-300">
+      <strong className="text-amber-200">Teste grátis ativo</strong> — {label}{' '}
       <a
         href="https://www.quenty.com.br/pricing-plans/list"
-        style={{ marginLeft: 8, textDecoration: 'underline' }}
+        className="ml-2 text-accent underline hover:text-accent-hover"
       >
         Ver planos
       </a>

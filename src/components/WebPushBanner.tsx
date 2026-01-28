@@ -68,40 +68,40 @@ export function WebPushBanner() {
 
   return (
     <div className="max-w-screen-md w-full mx-auto mt-4">
-      <div className="relative overflow-hidden rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 shadow-sm">
+      <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 shadow-sm">
         <button
           type="button"
           onClick={handleDismiss}
-          className="absolute top-3 right-3 text-amber-800/80 hover:text-amber-900"
+          className="absolute top-3 right-3 text-amber-400/80 hover:text-amber-300"
           aria-label="Fechar"
         >
           <X className="w-4 h-4" />
         </button>
         <div className="flex items-start gap-3">
-          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-dark-tertiary text-amber-400 shadow-sm">
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="flex-1 space-y-2">
-            <p className="text-sm font-semibold text-amber-900">
+            <p className="text-sm font-semibold text-text-primary">
               Ative as notificações para receber seu resumo diário.
             </p>
-            <p className="text-xs text-amber-900/90">
+            <p className="text-xs text-text-secondary">
               Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que seu resumo ficar pronto.
             </p>
-            {actionError && <p className="text-xs text-red-700">{actionError}</p>}
+            {actionError && <p className="text-xs text-red-400">{actionError}</p>}
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={handleEnable}
                 disabled={actionLoading || loading}
-                className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {actionLoading ? 'Ativando...' : 'Ativar notificações'}
               </button>
               <button
                 type="button"
                 onClick={handleDismiss}
-                className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-dark-tertiary px-3 py-2 text-xs font-semibold text-amber-400 transition-colors hover:bg-dark-elevated"
               >
                 Agora não
               </button>

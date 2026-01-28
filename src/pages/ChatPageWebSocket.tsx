@@ -631,7 +631,7 @@ export function ChatPageWebSocket() {
             key={`${button.value}-${index}`}
             onClick={() => handleSendMessage(button.value)}
             disabled={disabled}
-            className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-full border border-accent/30 bg-dark-secondary px-4 py-2 text-sm font-medium text-accent shadow-sm transition-colors hover:bg-accent-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
           >
             {button.label}
           </button>
@@ -946,28 +946,28 @@ export function ChatPageWebSocket() {
 
   if (isLoadingHistory) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-dark-primary">
         <div className="text-center">
-          <MessageCircle className="w-12 h-12 text-blue-600 animate-pulse mx-auto mb-3" />
-          <p className="text-gray-600">Loading chat history...</p>
+          <MessageCircle className="w-12 h-12 text-accent animate-pulse mx-auto mb-3" />
+          <p className="text-text-secondary">Loading chat history...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-blue-50 to-white">
+    <div className="min-h-screen flex flex-col bg-dark-primary">
       <ConnectionStatus status={connectionStatus} onReconnect={handleReconnect} />
 
-      <header className="bg-white border-b border-gray-200 shadow-sm">
+      <header className="bg-dark-secondary border-b border-border-primary shadow-sm">
         <div className="max-w-screen-md mx-auto w-full px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
-              <MessageCircle className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-gradient-to-br from-accent to-accent-hover rounded-xl flex items-center justify-center shadow-md">
+              <MessageCircle className="w-6 h-6 text-dark-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">WebChannel</h1>
-              <p className="text-xs text-gray-500">
+              <h1 className="text-lg font-bold text-text-primary">WebChannel</h1>
+              <p className="text-xs text-text-muted">
                 {isProcessing ? 'Quenty-AI is thinking...' : connectionStatus === 'connected' ? 'Ready to help' : 'Connecting...'}
               </p>
             </div>
@@ -976,7 +976,7 @@ export function ChatPageWebSocket() {
             <button
               onClick={handleClearChat}
               disabled={isProcessing}
-              className="text-sm text-gray-600 hover:text-gray-900 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="text-sm text-text-secondary hover:text-text-primary px-3 py-1.5 rounded-lg hover:bg-dark-tertiary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Clear
             </button>
@@ -993,19 +993,19 @@ export function ChatPageWebSocket() {
           <div className="max-w-screen-md mx-auto w-full flex flex-col gap-6">
             {messages.length === 0 && !isProcessing && !error && (
               <div className="flex flex-col items-center text-center gap-4 py-16 px-4">
-                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-blue-200 rounded-3xl flex items-center justify-center shadow-lg">
-                  <MessageCircle className="w-10 h-10 text-blue-600" />
+                <div className="w-20 h-20 bg-gradient-to-br from-accent-muted to-accent/20 rounded-3xl flex items-center justify-center shadow-lg">
+                  <MessageCircle className="w-10 h-10 text-accent" />
                 </div>
                 <div className="space-y-2 max-w-sm">
-                  <h2 className="text-2xl font-bold text-gray-900">Welcome to WebChannel</h2>
-                  <p className="text-gray-600">
+                  <h2 className="text-2xl font-bold text-text-primary">Welcome to WebChannel</h2>
+                  <p className="text-text-secondary">
                     Tap to explore the hottest trends or ask a question whenever you like.
                   </p>
                 </div>
                 <button
                   onClick={() => handleSendMessage('assuntos')}
                   disabled={isSendDisabled}
-                  className="mt-2 inline-flex items-center justify-center rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 disabled:cursor-not-allowed disabled:bg-blue-300"
+                  className="mt-2 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-semibold text-dark-primary shadow-md transition-all hover:bg-accent-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Ver assuntos do momento
                 </button>
@@ -1022,16 +1022,16 @@ export function ChatPageWebSocket() {
 
             {error && (
               <div className="flex justify-center animate-fadeIn">
-                <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 shadow-sm max-w-[85%] sm:max-w-[75%]">
+                <div className="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 shadow-sm max-w-[85%] sm:max-w-[75%]">
                   <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm text-red-900 font-medium mb-1">Error</p>
-                      <p className="text-sm text-red-700">{error}</p>
+                      <p className="text-sm text-red-400 font-medium mb-1">Error</p>
+                      <p className="text-sm text-red-300">{error}</p>
                       <button
                         onClick={handleRetry}
                         disabled={isProcessing}
-                        className="mt-3 flex items-center gap-2 text-sm text-red-700 hover:text-red-900 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="mt-3 flex items-center gap-2 text-sm text-red-400 hover:text-red-300 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <RefreshCw className="w-4 h-4" />
                         Retry

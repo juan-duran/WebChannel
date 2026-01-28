@@ -1407,7 +1407,7 @@ export function TapNavigationPage() {
                         }
                       }}
                       disabled={isLoading || isRefreshing || trendState?.isLoading}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <RefreshCw
                         className={`h-4 w-4 ${trendState?.isLoading ? 'animate-spin' : ''}`}
@@ -1431,8 +1431,8 @@ export function TapNavigationPage() {
   );
 
   const renderSummaryProgress = () => (
-    <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-3 text-xs text-blue-900 space-y-2">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-blue-800">
+    <div className="rounded-lg border border-accent/30 bg-accent-muted px-3 py-3 text-xs text-text-primary space-y-2">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-accent">
         <Loader2 className="w-4 h-4 animate-spin" />
         QUENTY-IA em ação (pode levar ~1–2 minutos)
       </div>
@@ -1444,15 +1444,15 @@ export function TapNavigationPage() {
             <li
               key={step}
               className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
-                active ? 'bg-white border border-blue-200' : done ? 'text-blue-700' : 'text-blue-900/80'
+                active ? 'bg-dark-tertiary border border-accent/30' : done ? 'text-accent' : 'text-text-secondary'
               }`}
             >
               {done ? (
-                <CheckCircle className="w-4 h-4 text-blue-600" />
+                <CheckCircle className="w-4 h-4 text-accent" />
               ) : active ? (
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <Loader2 className="w-4 h-4 animate-spin text-accent" />
               ) : (
-                <span className="w-4 h-4 rounded-full border border-blue-200" />
+                <span className="w-4 h-4 rounded-full border border-border-primary" />
               )}
               <span className="text-[12px]">{step}</span>
             </li>
@@ -1571,8 +1571,8 @@ export function TapNavigationPage() {
         onClick={handleClick}
         className={`fixed right-4 bottom-20 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
           isReady
-            ? 'bg-green-600 text-white hover:bg-green-700'
-            : 'bg-amber-500 text-white hover:bg-amber-600'
+            ? 'bg-accent text-dark-primary hover:bg-accent-hover'
+            : 'bg-amber-500 text-dark-primary hover:bg-amber-600'
         }`}
       >
         {isReady ? (
@@ -1591,13 +1591,13 @@ export function TapNavigationPage() {
     if (!isRevealingTrends) return null;
 
     return (
-      <div className="fixed right-4 bottom-36 z-40 flex max-w-xs items-start gap-3 rounded-xl border border-blue-200 bg-blue-50/95 px-3 py-3 shadow-lg backdrop-blur lg:right-6 lg:bottom-24">
-        <Loader2 className="w-4 h-4 animate-spin text-blue-700 mt-0.5" />
-        <div className="flex-1 space-y-1 text-xs text-blue-800">
-          <p className="font-semibold text-blue-900">Quenty AI capturando em tempo real…</p>
-          <p className="text-[12px] text-blue-800">{captureSteps[captureStepIndex] ?? captureSteps[0]}</p>
+      <div className="fixed right-4 bottom-36 z-40 flex max-w-xs items-start gap-3 rounded-xl border border-accent/30 bg-dark-secondary/95 px-3 py-3 shadow-lg backdrop-blur lg:right-6 lg:bottom-24">
+        <Loader2 className="w-4 h-4 animate-spin text-accent mt-0.5" />
+        <div className="flex-1 space-y-1 text-xs text-text-secondary">
+          <p className="font-semibold text-accent">Quenty AI capturando em tempo real…</p>
+          <p className="text-[12px] text-text-secondary">{captureSteps[captureStepIndex] ?? captureSteps[0]}</p>
           {totalTrends > 0 && (
-            <p className="text-[11px] text-blue-700">
+            <p className="text-[11px] text-text-muted">
               {revealedCount}/{totalTrends} assuntos prontos
             </p>
           )}
@@ -1647,11 +1647,11 @@ export function TapNavigationPage() {
         : [];
 
     return (
-      <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-full">
+      <div className="rounded-2xl border border-border-primary bg-dark-secondary shadow-sm flex flex-col h-full">
         {isMobile && (
           <div
             ref={mobileSummaryTopRef}
-            className="sticky top-0 z-10 flex items-center gap-2 border-b border-gray-200 bg-white px-4 py-3 scroll-mt-24"
+            className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-primary bg-dark-secondary px-4 py-3 scroll-mt-24"
           >
             <button
               type="button"
@@ -1678,7 +1678,7 @@ export function TapNavigationPage() {
                   });
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-dark-elevated focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
               aria-label="Voltar para lista"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -1692,33 +1692,33 @@ export function TapNavigationPage() {
             <div className="space-y-3">
               {isMobile && (
                 <>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <span className="font-semibold text-gray-700">
+                  <div className="flex items-center gap-2 text-xs text-text-muted">
+                    <span className="font-semibold text-text-secondary">
                       Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'}
                       {activeTopic && !isTrendLevel ? ` — Tópico #${activeTopic.number}` : ''}
                     </span>
                   </div>
                   {activeTopic && !isTrendLevel && (
                     <>
-                      <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                        <p className="text-xs font-semibold text-gray-900 mb-1">Comentário</p>
-                        <p className="text-sm text-gray-800 leading-relaxed">{activeTopic.description}</p>
+                      <div className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2">
+                        <p className="text-xs font-semibold text-text-primary mb-1">Comentário</p>
+                        <p className="text-sm text-text-secondary leading-relaxed">{activeTopic.description}</p>
                       </div>
-                      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
-                          <span className="font-semibold text-gray-900">
+                      <div className="rounded-lg border border-border-primary bg-dark-secondary px-3 py-2 text-sm text-text-secondary space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                          <span className="font-semibold text-text-primary">
                             👍 {topicEngagement?.likesLabel ?? 'Não informado'}
                           </span>
-                          <span className="text-gray-500">(Likes)</span>
-                          <span className="text-gray-400">·</span>
-                          <span className="font-semibold text-gray-900">
+                          <span className="text-text-muted">(Likes)</span>
+                          <span className="text-text-muted">·</span>
+                          <span className="font-semibold text-text-primary">
                             💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}
                           </span>
-                          <span className="text-gray-500">(Debates do comentário)</span>
+                          <span className="text-text-muted">(Debates do comentário)</span>
                         </div>
                         {activeTopic.posted_at && (
-                          <p className="text-xs text-gray-600">
-                            <span className="font-semibold text-gray-900">Publicado:</span> {formatDate(activeTopic.posted_at)}
+                          <p className="text-xs text-text-secondary">
+                            <span className="font-semibold text-text-primary">Publicado:</span> {formatDate(activeTopic.posted_at)}
                           </p>
                         )}
                       </div>
@@ -1734,14 +1734,14 @@ export function TapNavigationPage() {
                       type="button"
                       onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, activeTopic)}
                       disabled={activeIsLoading || !currentTrend}
-                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       <RefreshCw className={`h-4 w-4 ${activeIsLoading ? 'animate-spin' : ''}`} />
                       Gerar resumo
                     </button>
                   )}
                   {hasCachedSummary && (
-                    <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                    <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-400 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1">
                       <CheckCircle className="w-3 h-3" />
                       Resumo em cache
                       <button
@@ -1749,7 +1749,7 @@ export function TapNavigationPage() {
                         onClick={() =>
                           currentTrend && fetchSummaryForTopic(currentTrend, activeTopic, { forceRefresh: true })
                         }
-                        className="ml-1 text-blue-600 hover:text-blue-700 underline"
+                        className="ml-1 text-accent hover:text-accent-hover underline"
                       >
                         Reprocessar
                       </button>
@@ -1760,7 +1760,7 @@ export function TapNavigationPage() {
 
               {activeIsLoading && renderSummaryProgress()}
               {activeError && !activeIsLoading && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
                   {activeError}
                 </div>
               )}
@@ -1779,20 +1779,20 @@ export function TapNavigationPage() {
                       summaryContainerRef.current = el;
                     }
                   }}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 space-y-3"
+                  className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 space-y-3"
                 >
                   <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
                       {summaryTopicName && (
-                        <span className="font-semibold text-gray-900">{summaryTopicName}</span>
+                        <span className="font-semibold text-text-primary">{summaryTopicName}</span>
                       )}
                       {summaryTrendName && (
-                        <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-700">
+                        <span className="rounded-full bg-dark-elevated px-2 py-0.5 text-[11px] text-text-secondary">
                           {summaryTrendName}
                         </span>
                       )}
                       {summaryLikesData && (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700">
+                        <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[11px] text-accent">
                           {summaryLikesData}
                         </span>
                       )}
@@ -1802,10 +1802,10 @@ export function TapNavigationPage() {
 
                   {summaryContext.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Contexto</p>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Contexto</p>
                       <ul className="space-y-1">
                         {summaryContext.map((item, index) => (
-                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-gray-800 leading-relaxed">
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-text-secondary leading-relaxed">
                             • {item}
                           </li>
                         ))}
@@ -1814,14 +1814,14 @@ export function TapNavigationPage() {
                   )}
 
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">Resumo</p>
+                    <p className="text-sm font-semibold text-text-primary">Resumo</p>
                     {activeSummary.thesis && (
-                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
+                      <p className="text-sm text-text-secondary whitespace-pre-line leading-relaxed mt-1">
                         {activeSummary.thesis}
                       </p>
                     )}
                     {!activeSummary.thesis && activeSummary.personalization && (
-                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed mt-1">
+                      <p className="text-sm text-text-secondary whitespace-pre-line leading-relaxed mt-1">
                         {activeSummary.personalization}
                       </p>
                     )}
@@ -1829,8 +1829,8 @@ export function TapNavigationPage() {
 
                   {activeSummary.personalization && activeSummary.thesis && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Personalização</p>
-                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                      <p className="text-xs font-semibold text-text-primary mb-1">Personalização</p>
+                      <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">
                         {activeSummary.personalization}
                       </p>
                     </div>
@@ -1838,10 +1838,10 @@ export function TapNavigationPage() {
 
                   {summaryDebate.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Pontos de debate</p>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Pontos de debate</p>
                       <ul className="space-y-1">
                         {summaryDebate.map((item, index) => (
-                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-gray-800 leading-relaxed">
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-text-secondary leading-relaxed">
                             • {item}
                           </li>
                         ))}
@@ -1851,8 +1851,8 @@ export function TapNavigationPage() {
 
                   {(activeSummary['why-it-matters'] || activeSummary.whyItMatters) && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Por que importa</p>
-                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">
+                      <p className="text-xs font-semibold text-text-primary mb-1">Por que importa</p>
+                      <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">
                         {activeSummary['why-it-matters'] || activeSummary.whyItMatters}
                       </p>
                     </div>
@@ -1860,10 +1860,10 @@ export function TapNavigationPage() {
 
                   {Array.isArray(activeSummary.sources) && activeSummary.sources.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Fontes</p>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Fontes</p>
                       <ul className="space-y-1">
                         {activeSummary.sources.map((source, index) => (
-                          <li key={`${source.url ?? index}`} className="text-xs text-blue-600 underline">
+                          <li key={`${source.url ?? index}`} className="text-xs text-accent underline">
                             <a href={source.url} target="_blank" rel="noopener noreferrer">
                               {source.title || source.url}
                             </a>
@@ -1875,15 +1875,15 @@ export function TapNavigationPage() {
 
                   {summaryTopicsSummary && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 mb-1">Resumo dos tópicos</p>
-                      <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{summaryTopicsSummary}</p>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Resumo dos tópicos</p>
+                      <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">{summaryTopicsSummary}</p>
                     </div>
                   )}
                 </div>
               )}
             </div>
           ) : (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-gray-500">
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-sm text-text-muted">
               <p>
                 {isTrendLevel
                   ? 'Peça um resumo do assunto para ver aqui.'
@@ -1893,7 +1893,7 @@ export function TapNavigationPage() {
           )}
         </div>
         {isMobile && (
-          <div className={`border-t border-gray-200 bg-gray-50 ${footerPadding} text-xs text-gray-500`}>
+          <div className={`border-t border-border-primary bg-dark-tertiary ${footerPadding} text-xs text-text-muted`}>
             {formatTimestamp ? `Atualizado em ${formatTimestamp}` : 'Aguardando dados recentes...'}
           </div>
         )}
@@ -1974,35 +1974,35 @@ export function TapNavigationPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white" ref={pageContainerRef}>
+    <div className="min-h-screen bg-dark-primary" ref={pageContainerRef}>
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         {showTapPushCta && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 shadow-sm">
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 shadow-sm">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-white text-amber-600 shadow-sm">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-dark-tertiary text-amber-400 shadow-sm">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="flex-1 space-y-2">
-                <p className="text-sm font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-text-primary">
                   Ative as notificações para receber seu resumo diário.
                 </p>
-                <p className="text-xs text-gray-700">
+                <p className="text-xs text-text-secondary">
                   Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que o resumo ficar pronto.
                 </p>
-                {tapPushError && <p className="text-xs text-red-700">{tapPushError}</p>}
+                {tapPushError && <p className="text-xs text-red-400">{tapPushError}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={handleTapEnablePush}
                     disabled={tapPushLoading}
-                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {tapPushLoading ? 'Ativando...' : 'Ativar notificações'}
                   </button>
                   <button
                     type="button"
                     onClick={dismissTapPush}
-                    className="inline-flex items-center gap-2 rounded-lg border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100"
+                    className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-dark-tertiary px-3 py-2 text-xs font-semibold text-amber-400 transition-colors hover:bg-dark-elevated"
                   >
                     Agora não
                   </button>
@@ -2013,14 +2013,14 @@ export function TapNavigationPage() {
         )}
 
         {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 animate-fadeIn">
-            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex gap-3 animate-fadeIn">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-900">Erro</p>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <p className="text-sm font-medium text-red-400">Erro</p>
+              <p className="text-sm text-red-300 mt-1">{error}</p>
               <button
                 onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
-                className="mt-2 text-sm text-red-700 font-medium hover:text-red-800"
+                className="mt-2 text-sm text-red-400 font-medium hover:text-red-300"
               >
                 Tentar novamente
               </button>
@@ -2041,7 +2041,7 @@ export function TapNavigationPage() {
                   }
                 }}
                 className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  isActive ? 'bg-accent text-dark-primary shadow-sm' : 'bg-dark-tertiary text-text-secondary hover:bg-dark-elevated'
                 }`}
               >
                 {label}
@@ -2053,18 +2053,18 @@ export function TapNavigationPage() {
         {isLoading && revealedCount === 0 && totalTrends === 0 ? (
           <TrendSkeleton />
         ) : !isLoading && revealedCount === 0 && !isRevealingTrends && totalTrends === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-200 bg-white px-6 py-12 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-50">
-              <RefreshCw className="h-6 w-6 text-blue-600" />
+          <div className="rounded-2xl border border-dashed border-border-primary bg-dark-secondary px-6 py-12 text-center shadow-sm">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-muted">
+              <RefreshCw className="h-6 w-6 text-accent" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">Nenhuma tendência disponível</h2>
-            <p className="mt-2 text-sm text-gray-600">Tente atualizar para carregar as últimas tendências.</p>
+            <h2 className="text-xl font-semibold text-text-primary">Nenhuma tendência disponível</h2>
+            <p className="mt-2 text-sm text-text-secondary">Tente atualizar para carregar as últimas tendências.</p>
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
                 disabled={isLoading || isRefreshing}
-                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 Buscar tendências
@@ -2074,21 +2074,21 @@ export function TapNavigationPage() {
         ) : (
           <>
             {trendsSummary && trends.length > 0 && (
-              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+              <div className="rounded-lg border border-border-primary bg-dark-secondary px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <p className="text-xs font-semibold text-gray-900">Panorama do Dia</p>
+                  <p className="text-xs font-semibold text-text-primary">Panorama do Dia</p>
                   {formatTimestamp && (
-                    <span className="text-[11px] text-gray-500">(atualizado em {formatTimestamp})</span>
+                    <span className="text-[11px] text-text-muted">(atualizado em {formatTimestamp})</span>
                   )}
                 </div>
-                <p className="text-xs text-gray-700 whitespace-pre-line leading-relaxed">{trendsSummary}</p>
+                <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">{trendsSummary}</p>
               </div>
             )}
 
             <TapInstallAndPushCTA />
 
             <div className="mt-3 mb-2">
-              <h2 className="text-lg font-semibold text-gray-900">
+              <h2 className="text-lg font-semibold text-text-primary">
                 Assuntos mais quentes nas redes sociais hoje
               </h2>
             </div>
@@ -2137,13 +2137,13 @@ export function TapNavigationPage() {
       {renderCaptureBubble()}
       {renderSummaryBubble()}
       {!onboardingStatus.loading && !onboardingStatus.complete && (
-        <div className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[2px] flex items-center justify-center px-4">
-          <div className="max-w-lg w-full bg-white border border-blue-100 shadow-xl rounded-2xl p-6 space-y-3 text-center">
+        <div className="fixed inset-0 z-40 bg-dark-primary/80 backdrop-blur-[2px] flex items-center justify-center px-4">
+          <div className="max-w-lg w-full bg-dark-secondary border border-accent/30 shadow-xl rounded-2xl p-6 space-y-3 text-center">
             <div className="flex justify-center">
-              <AlertCircle className="w-8 h-8 text-blue-600" />
+              <AlertCircle className="w-8 h-8 text-accent" />
             </div>
-            <h2 className="text-xl font-bold text-gray-900">Finalize sua personalização</h2>
-            <p className="text-sm text-gray-700">
+            <h2 className="text-xl font-bold text-text-primary">Finalize sua personalização</h2>
+            <p className="text-sm text-text-secondary">
               Para explorar os Assuntos Quentes do dia, conclua primeiro a personalização do Quenty AI. Assim
               ajustamos exemplos, linguagem e debates ao seu contexto.
             </p>
@@ -2153,7 +2153,7 @@ export function TapNavigationPage() {
                 window.history.pushState(null, '', '/onboarding');
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="mt-2 inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+              className="mt-2 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover"
             >
               Ir para Personalização
             </button>

@@ -25,7 +25,7 @@ export function TypingIndicator({ startTime }: TypingIndicatorProps) {
   };
 
   return (
-    <div className="text-sm italic text-gray-500 mb-2 animate-pulse transition-opacity duration-300">
+    <div className="text-sm italic text-accent animate-pulse transition-opacity duration-300">
       {getEstimatedTime()}
     </div>
   );

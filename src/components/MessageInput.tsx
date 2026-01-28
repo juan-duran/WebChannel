@@ -51,7 +51,7 @@ export function MessageInput({
   };
 
   return (
-    <div className="border-t border-gray-200 bg-white px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+    <div className="border-t border-border-primary bg-dark-secondary px-4 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-end gap-2">
           <div className="flex-1 relative">
@@ -64,10 +64,10 @@ export function MessageInput({
               placeholder={placeholder}
               disabled={disabled}
               rows={1}
-              className="w-full resize-none rounded-2xl border border-gray-300 px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:text-gray-500 text-[15px] leading-relaxed max-h-[120px] overflow-y-auto scrollbar-none"
+              className="w-full resize-none rounded-2xl border border-border-primary bg-dark-tertiary px-4 py-3 pr-12 text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent disabled:bg-dark-primary disabled:text-text-muted text-[15px] leading-relaxed max-h-[120px] overflow-y-auto scrollbar-none"
               style={{ minHeight: '48px' }}
             />
-            <div className="absolute bottom-3 right-3 text-xs text-gray-400">
+            <div className="absolute bottom-3 right-3 text-xs text-text-muted">
               {message.length > 0 && `${message.length}`}
             </div>
           </div>
@@ -76,8 +76,8 @@ export function MessageInput({
             disabled={disabled || !message.trim()}
             className={`flex items-center justify-center w-12 h-12 rounded-full transition-all ${
               disabled || !message.trim()
-                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-md hover:shadow-lg'
+                ? 'bg-dark-tertiary text-text-muted cursor-not-allowed'
+                : 'bg-accent text-dark-primary hover:bg-accent-hover active:scale-95 shadow-md hover:shadow-lg glow-accent'
             }`}
           >
             <Send className="w-5 h-5" />

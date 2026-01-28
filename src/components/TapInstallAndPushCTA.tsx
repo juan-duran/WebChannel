@@ -35,13 +35,13 @@ export function TapInstallAndPushCTA() {
   // iOS web (não standalone): instrução de adicionar à Tela Inicial
   if (ios && !standalone) {
     return (
-      <div className="mb-4 p-3 rounded-xl border border-yellow-500/70 bg-yellow-900/20 text-sm">
+      <div className="mb-4 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
         <div className="font-semibold mb-1">Quer usar o Quenty como app no iPhone?</div>
-        <div className="mb-2">
-          Toque em Compartilhar → <span className="font-semibold">Adicionar à Tela de Início</span>. Depois abra o
+        <div className="mb-2 text-text-secondary">
+          Toque em Compartilhar → <span className="font-semibold text-text-primary">Adicionar à Tela de Início</span>. Depois abra o
           Quenty pelo ícone para ativar notificações.
         </div>
-        <div className="text-xs text-slate-300">
+        <div className="text-xs text-text-muted">
           Enquanto isso, você continua recebendo seu resumo diário pelo WhatsApp.
         </div>
       </div>
@@ -76,11 +76,11 @@ export function TapInstallAndPushCTA() {
   };
 
   return (
-    <div className="mb-4 p-3 rounded-xl bg-slate-800/60 text-sm flex flex-col gap-2">
-      <div className="font-semibold">Facilite seu dia:</div>
+    <div className="mb-4 p-3 rounded-xl bg-dark-secondary border border-border-primary text-sm flex flex-col gap-2">
+      <div className="font-semibold text-text-primary">Facilite seu dia:</div>
       {showInstallButton && (
         <button
-          className="self-start px-3 py-1 rounded-lg bg-white text-slate-900 text-xs font-semibold"
+          className="self-start px-3 py-1 rounded-lg bg-accent text-dark-primary text-xs font-semibold hover:bg-accent-hover transition-colors"
           onClick={onInstall}
           type="button"
         >
@@ -89,7 +89,7 @@ export function TapInstallAndPushCTA() {
       )}
       {showPushButton && (
         <button
-          className="self-start px-3 py-1 rounded-lg bg-slate-100 text-slate-900 text-xs font-semibold"
+          className="self-start px-3 py-1 rounded-lg bg-dark-tertiary border border-border-secondary text-text-primary text-xs font-semibold hover:bg-dark-elevated transition-colors"
           onClick={onEnablePush}
           type="button"
         >

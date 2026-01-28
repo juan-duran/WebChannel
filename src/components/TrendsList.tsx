@@ -36,16 +36,16 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-blue-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Assuntos Quentes</h3>
+        <TrendingUp className="w-5 h-5 text-accent" />
+        <h3 className="text-lg font-semibold text-text-primary">Assuntos Quentes</h3>
       </div>
 
       {summary && (
-        <div className="bg-gradient-to-br from-blue-50 via-white to-white border border-blue-100 rounded-2xl p-5 shadow-sm">
-          <p className="text-sm font-semibold text-blue-900 uppercase tracking-wide mb-2">
+        <div className="bg-gradient-to-br from-accent-muted via-dark-secondary to-dark-secondary border border-border-accent rounded-2xl p-5 shadow-sm">
+          <p className="text-sm font-semibold text-accent uppercase tracking-wide mb-2">
             Panorama do dia
           </p>
-          <p className="text-gray-700 leading-relaxed whitespace-pre-line">{summary}</p>
+          <p className="text-text-secondary leading-relaxed whitespace-pre-line">{summary}</p>
         </div>
       )}
 
@@ -76,32 +76,32 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
                 }
               }}
               onKeyDown={(event) => handleKeyDown(event, trend)}
-              className={`group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-5 transition-all hover:border-blue-400 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              className={`group relative overflow-hidden rounded-2xl border border-border-primary bg-dark-secondary p-5 transition-all hover:border-accent hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 disabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'
               }`}
             >
               <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-sm font-bold text-blue-600">{trend.number}</span>
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full bg-accent-muted flex items-center justify-center">
+                      <span className="text-sm font-bold text-accent">{trend.number}</span>
                     </div>
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-base font-semibold text-gray-900">{trend.name}</h4>
+                        <h4 className="text-base font-semibold text-text-primary">{trend.name}</h4>
                         {categoryLabel && (
-                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                          <span className="inline-flex items-center rounded-full bg-accent-muted px-2.5 py-0.5 text-xs font-medium text-accent">
                             {categoryLabel}
                           </span>
                         )}
                       </div>
                       {headline && (
-                        <p className="text-sm text-gray-700 leading-relaxed">{headline}</p>
+                        <p className="text-sm text-text-secondary leading-relaxed">{headline}</p>
                       )}
                     </div>
                   </div>
                   {metricsLabel && (
-                    <span className="text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 rounded-full px-3 py-1">
+                    <span className="text-xs font-semibold text-accent bg-accent-muted border border-border-accent rounded-full px-3 py-1">
                       {metricsLabel}
                     </span>
                   )}
@@ -115,10 +115,10 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
                 />
 
                 {whyItMatters && (
-                  <div className="rounded-xl border border-amber-100 bg-amber-50/80 p-3">
+                  <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-3">
                     <div className="flex items-start gap-2">
-                      <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-                      <p className="text-sm text-amber-900 leading-relaxed whitespace-pre-line">{whyItMatters}</p>
+                      <ArrowRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-yellow-500" />
+                      <p className="text-sm text-yellow-400 leading-relaxed whitespace-pre-line">{whyItMatters}</p>
                     </div>
                   </div>
                 )}
@@ -130,7 +130,7 @@ export function TrendsList({ trends, summary, onSelect, disabled = false }: Tren
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(event) => event.stopPropagation()}
-                      className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-accent hover:text-accent-hover"
                     >
                       Abrir cobertura
                       <ExternalLink className="h-4 w-4" />

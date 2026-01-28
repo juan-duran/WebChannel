@@ -25,20 +25,20 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+    <div className="min-h-screen bg-dark-primary flex flex-col">
+      <header className="bg-dark-secondary border-b border-border-primary sticky top-0 z-40">
         <div className="max-w-screen-md w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-md">
-                <MessageCircle className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-gradient-to-br from-accent to-accent-hover rounded-xl flex items-center justify-center shadow-md glow-accent">
+                <MessageCircle className="w-6 h-6 text-dark-primary" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900">QUENTY AI</h1>
+              <h1 className="text-xl font-bold text-text-primary">QUENTY AI</h1>
             </div>
 
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="lg:hidden min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              className="lg:hidden min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-dark-tertiary active:bg-dark-elevated text-text-secondary"
               aria-label="Toggle menu"
             >
               {showMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -53,8 +53,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                     onClick={() => onNavigate(item.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
                       currentPage === item.id
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-accent-muted text-accent'
+                        : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -67,7 +67,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
 
         {showMenu && (
-          <div className="lg:hidden border-t border-gray-200 bg-white">
+          <div className="lg:hidden border-t border-border-primary bg-dark-secondary">
             <nav className="px-4 py-2 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
@@ -80,8 +80,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                       currentPage === item.id
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-accent-muted text-accent'
+                        : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
@@ -107,7 +107,7 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
       </main>
 
-      <nav className="lg:hidden bg-white border-t border-gray-200 sticky bottom-0">
+      <nav className="lg:hidden bg-dark-secondary border-t border-border-primary sticky bottom-0">
         <div className="max-w-screen-md w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-around items-center h-16">
             {navItems.map((item) => {
@@ -118,8 +118,8 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                   onClick={() => onNavigate(item.id)}
                   className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
                     currentPage === item.id
-                      ? 'text-blue-600'
-                      : 'text-gray-500'
+                      ? 'text-accent'
+                      : 'text-text-muted hover:text-text-secondary'
                   }`}
                 >
                   <Icon className="w-6 h-6" />

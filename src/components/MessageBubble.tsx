@@ -9,9 +9,9 @@ type MessageBubbleProps = {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const isError = message.status === 'error';
-  const baseStatusClass = isUser ? 'text-blue-100' : 'text-gray-500';
-  const errorStatusClass = isUser ? 'text-white' : 'text-red-600';
-  const errorIconClass = isUser ? 'text-white' : 'text-red-500';
+  const baseStatusClass = isUser ? 'text-dark-primary/70' : 'text-text-muted';
+  const errorStatusClass = isUser ? 'text-dark-primary' : 'text-red-400';
+  const errorIconClass = isUser ? 'text-dark-primary' : 'text-red-400';
 
   const normalizeContent = (content: string) =>
     content
@@ -26,8 +26,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const isUrl = (segment: string) => /^https?:\/\/[^\s]+$/i.test(segment);
     const linkClass = isUser
-      ? 'font-medium underline text-blue-100 hover:text-white break-words'
-      : 'font-medium text-blue-600 underline hover:text-blue-700 break-words';
+      ? 'font-medium underline text-dark-primary/90 hover:text-dark-primary break-words'
+      : 'font-medium text-accent underline hover:text-accent-hover break-words';
 
     return normalized.split('\n').map((line, lineIndex) => {
       const segments = line.split(urlRegex);
@@ -82,8 +82,8 @@ export function MessageBubble({ message }: MessageBubbleProps) {
           isUser
             ? isError
               ? 'bg-red-500 text-white'
-              : 'bg-blue-600 text-white'
-            : 'bg-white text-gray-900 border border-gray-200'
+              : 'bg-accent text-dark-primary'
+            : 'bg-dark-secondary text-text-primary border border-border-primary'
         }`}
       >
         <div className="break-words text-[15px] leading-relaxed">{renderContent(message.content)}</div>

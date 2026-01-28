@@ -27,72 +27,32 @@ export function TrialExpiredOverlay({ trialState }: Props) {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.5)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 460,
-          width: '100%',
-          background: '#0f172a',
-          color: '#f8fafc',
-          borderRadius: 16,
-          padding: 24,
-          boxShadow: '0 12px 30px rgba(0,0,0,0.2)',
-        }}
-      >
-        <h3 style={{ marginBottom: 12, fontSize: 18, fontWeight: 700 }}>
+    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4">
+      <div className="max-w-[460px] w-full bg-dark-secondary border border-border-primary rounded-2xl p-6 shadow-2xl">
+        <h3 className="mb-3 text-lg font-bold text-text-primary">
           Seu teste grátis terminou 🚪
         </h3>
-        <p style={{ marginBottom: 16, fontSize: 14, color: '#cbd5e1' }}>
+        <p className="mb-4 text-sm text-text-secondary">
           Antes de sair, responda uma pesquisa rápida (30 segundos) para nos contar como foi a sua experiência com o
           Quenty. Depois você pode escolher um plano para continuar recebendo os resumos.
         </p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           <button
             onClick={handleSurveyClick}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              borderRadius: 12,
-              border: '1px solid transparent',
-              background: '#f8fafc',
-              color: '#0f172a',
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
+            className="w-full px-3.5 py-3 rounded-xl border border-transparent bg-accent text-dark-primary font-bold text-sm cursor-pointer transition-colors hover:bg-accent-hover"
             type="button"
           >
             Responder pesquisa rápida (30s)
           </button>
           <button
             onClick={handlePricingClick}
-            style={{
-              width: '100%',
-              padding: '12px 14px',
-              borderRadius: 12,
-              border: '1px solid #334155',
-              background: 'transparent',
-              color: '#e2e8f0',
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
+            className="w-full px-3.5 py-3 rounded-xl border border-border-secondary bg-transparent text-text-primary font-semibold text-sm cursor-pointer transition-colors hover:bg-dark-tertiary"
             type="button"
           >
             Ver planos e continuar com o Quenty
           </button>
         </div>
-        <p style={{ marginTop: 12, fontSize: 12, color: '#94a3b8', lineHeight: 1.4 }}>
+        <p className="mt-3 text-xs text-text-muted leading-relaxed">
           O acesso continua bloqueado até você escolher um plano. Seu feedback ajuda muito a melhorar o produto.
         </p>
       </div>

@@ -24,7 +24,7 @@ export function TopicsList({ topics, trendName, onSelect, onBack, disabled = fal
         <button
           onClick={onBack}
           disabled={disabled}
-          className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4 disabled:opacity-50"
+          className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary mb-4 disabled:opacity-50 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Voltar para Assuntos
@@ -32,12 +32,12 @@ export function TopicsList({ topics, trendName, onSelect, onBack, disabled = fal
       )}
 
       <div className="flex items-center gap-2 mb-4">
-        <FileText className="w-5 h-5 text-blue-600" />
+        <FileText className="w-5 h-5 text-accent" />
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-text-primary">
             Tópicos
           </h3>
-          <p className="text-sm text-gray-600">{trendName}</p>
+          <p className="text-sm text-text-secondary">{trendName}</p>
         </div>
       </div>
 
@@ -47,27 +47,27 @@ export function TopicsList({ topics, trendName, onSelect, onBack, disabled = fal
             key={topic.id}
             onClick={() => onSelect(topic)}
             disabled={disabled}
-            className="flex items-center gap-3 p-4 rounded-xl border border-gray-200 bg-white hover:border-blue-500 hover:bg-blue-50 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-3 p-4 rounded-xl border border-border-primary bg-dark-secondary hover:border-accent hover:bg-accent-muted transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-              <span className="text-sm font-bold text-green-600">
+            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-cat-futebol/20 flex items-center justify-center">
+              <span className="text-sm font-bold text-cat-futebol">
                 {topic.number}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-gray-900 truncate">
+              <h4 className="font-medium text-text-primary truncate">
                 {topic.name}
               </h4>
               {topic.description && (
-                <p className="text-sm text-gray-600 line-clamp-2 mt-1">
+                <p className="text-sm text-text-secondary line-clamp-2 mt-1">
                   {topic.description}
                 </p>
               )}
               {topic.likesData && (
-                <p className="text-xs text-gray-500 mt-1">{topic.likesData}</p>
+                <p className="text-xs text-text-muted mt-1">{topic.likesData}</p>
               )}
             </div>
-            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 flex-shrink-0" />
+            <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-accent flex-shrink-0" />
           </button>
         ))}
       </div>

@@ -73,33 +73,33 @@ export function AuthForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-dark-primary flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-dark-secondary border border-border-primary rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-blue-700 rounded-2xl mb-4 shadow-md">
-              <MessageCircle className="w-8 h-8 text-white" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-accent to-accent-hover rounded-2xl mb-4 shadow-md">
+              <MessageCircle className="w-8 h-8 text-dark-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-text-primary mb-2">
               WebChannel
             </h1>
-            <p className="text-gray-600">
+            <p className="text-text-secondary">
               {mode === 'login' ? 'Welcome back! Sign in to continue' : 'Create your account to get started'}
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Email Address
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 border border-border-primary bg-dark-tertiary text-text-primary rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all placeholder:text-text-muted"
                   placeholder="you@example.com"
                   required
                   disabled={loading}
@@ -108,16 +108,16 @@ export function AuthForm() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-12 py-3 border border-border-primary bg-dark-tertiary text-text-primary rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all placeholder:text-text-muted"
                   placeholder="••••••••"
                   required
                   disabled={loading}
@@ -126,14 +126,14 @@ export function AuthForm() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 active:text-gray-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary p-2 rounded-full hover:bg-dark-elevated active:bg-dark-elevated active:text-text-primary"
                   disabled={loading}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {mode === 'signup' && (
-                <p className="mt-1.5 text-xs text-gray-500">
+                <p className="mt-1.5 text-xs text-text-muted">
                   Minimum 6 characters
                 </p>
               )}
@@ -141,16 +141,16 @@ export function AuthForm() {
 
             {mode === 'signup' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
                   Confirm Password
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-4 py-3 border border-border-primary bg-dark-tertiary text-text-primary rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent transition-all placeholder:text-text-muted"
                     placeholder="••••••••"
                     required
                     disabled={loading}
@@ -161,7 +161,7 @@ export function AuthForm() {
             )}
 
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
                 {error}
               </div>
             )}
@@ -169,7 +169,7 @@ export function AuthForm() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
+              className="w-full bg-accent hover:bg-accent-hover text-dark-primary font-semibold py-3 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg active:scale-[0.98]"
             >
               {loading && <Loader2 className="w-5 h-5 animate-spin" />}
               {loading ? (mode === 'login' ? 'Signing in...' : 'Creating account...') : (mode === 'login' ? 'Sign In' : 'Create Account')}
@@ -181,15 +181,15 @@ export function AuthForm() {
               type="button"
               onClick={toggleMode}
               disabled={loading}
-              className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+              className="text-sm text-text-secondary hover:text-text-primary disabled:opacity-50"
             >
               {mode === 'login' ? (
                 <>
-                  Don't have an account? <span className="text-blue-600 font-medium">Sign up</span>
+                  Don't have an account? <span className="text-accent font-medium">Sign up</span>
                 </>
               ) : (
                 <>
-                  Already have an account? <span className="text-blue-600 font-medium">Sign in</span>
+                  Already have an account? <span className="text-accent font-medium">Sign in</span>
                 </>
               )}
             </button>

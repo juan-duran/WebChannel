@@ -153,7 +153,7 @@ export function TrendAssetPreview({
     event.stopPropagation();
   };
 
-  const containerClasses = `rounded-xl border border-gray-200 bg-white/80 shadow-sm ${className ?? ''}`.trim();
+  const containerClasses = `rounded-xl border border-border-primary bg-dark-tertiary shadow-sm ${className ?? ''}`.trim();
 
   if (normalizedType === 'article' && assetUrl) {
     return (
@@ -174,13 +174,13 @@ export function TrendAssetPreview({
             />
           ) : null}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 line-clamp-2">
+            <p className="text-sm font-semibold text-text-primary line-clamp-2">
               {normalizedTitle ?? 'Visualizar conteúdo'}
             </p>
             {normalizedDescription ? (
-              <p className="mt-1 text-xs text-gray-600 line-clamp-3">{normalizedDescription}</p>
+              <p className="mt-1 text-xs text-text-secondary line-clamp-3">{normalizedDescription}</p>
             ) : null}
-            <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600">
+            <span className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-accent">
               Abrir matéria
               <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </span>
@@ -205,12 +205,12 @@ export function TrendAssetPreview({
     return (
       <div className={containerClasses} onClick={handleContainerClick}>
         <div className="flex items-center justify-between gap-2 px-4 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Prévia do conteúdo</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-text-secondary">Prévia do conteúdo</p>
           {shouldShowToggle ? (
             <button
               type="button"
               onClick={handleToggle}
-              className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2.5 py-1 text-[11px] font-medium text-gray-600 hover:border-blue-300 hover:text-blue-600"
+              className="inline-flex items-center gap-1 rounded-full border border-border-primary px-2.5 py-1 text-[11px] font-medium text-text-secondary hover:border-accent hover:text-accent"
             >
               {isCollapsed ? (
                 <React.Fragment>
@@ -268,7 +268,7 @@ export function TrendAssetPreview({
           target="_blank"
           rel="noopener noreferrer"
           onClick={(event) => event.stopPropagation()}
-          className="flex items-center justify-between gap-3 p-4 text-sm font-semibold text-blue-600 hover:text-blue-700"
+          className="flex items-center justify-between gap-3 p-4 text-sm font-semibold text-accent hover:text-accent-hover"
         >
           <span className="truncate">Abrir conteúdo relacionado</span>
           <ExternalLink className="h-4 w-4 flex-shrink-0" aria-hidden="true" />

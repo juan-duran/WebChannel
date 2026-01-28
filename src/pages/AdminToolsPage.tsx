@@ -120,14 +120,14 @@ export function AdminToolsPage() {
     <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Admin Tools · QUENTY AI</h1>
-          <p className="text-sm text-gray-600">Cache observability and invalidation controls.</p>
+          <h1 className="text-2xl font-bold text-text-primary">Admin Tools · QUENTY AI</h1>
+          <p className="text-sm text-text-secondary">Cache observability and invalidation controls.</p>
         </div>
         <button
           type="button"
           onClick={fetchData}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-100 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-dark-secondary px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-dark-tertiary disabled:opacity-60"
         >
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
           Atualizar
@@ -135,7 +135,7 @@ export function AdminToolsPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400 flex items-start gap-2">
           <AlertCircle className="w-4 h-4 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold">Erro</p>
@@ -145,78 +145,78 @@ export function AdminToolsPage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+        <div className="rounded-xl border border-border-primary bg-dark-secondary p-4 shadow-sm space-y-3">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-green-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Cache Stats</h2>
+            <CheckCircle2 className="w-5 h-5 text-accent" />
+            <h2 className="text-lg font-semibold text-text-primary">Cache Stats</h2>
           </div>
           {loading ? (
-            <p className="text-sm text-gray-500">Carregando...</p>
+            <p className="text-sm text-text-muted">Carregando...</p>
           ) : stats ? (
-            <dl className="grid grid-cols-2 gap-3 text-sm text-gray-700">
+            <dl className="grid grid-cols-2 gap-3 text-sm text-text-secondary">
               <div>
-                <dt className="text-gray-500">Entries</dt>
-                <dd className="font-semibold">{stats.entries ?? stats.size ?? 0}</dd>
+                <dt className="text-text-muted">Entries</dt>
+                <dd className="font-semibold text-text-primary">{stats.entries ?? stats.size ?? 0}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Hits</dt>
-                <dd className="font-semibold">{stats.hits ?? 0}</dd>
+                <dt className="text-text-muted">Hits</dt>
+                <dd className="font-semibold text-text-primary">{stats.hits ?? 0}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Misses</dt>
-                <dd className="font-semibold">{stats.misses ?? 0}</dd>
+                <dt className="text-text-muted">Misses</dt>
+                <dd className="font-semibold text-text-primary">{stats.misses ?? 0}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Evictions</dt>
-                <dd className="font-semibold">{stats.evictions ?? 0}</dd>
+                <dt className="text-text-muted">Evictions</dt>
+                <dd className="font-semibold text-text-primary">{stats.evictions ?? 0}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">TTL</dt>
-                <dd className="font-semibold">{ttlMinutes ? `${ttlMinutes} min` : 'N/D'}</dd>
+                <dt className="text-text-muted">TTL</dt>
+                <dd className="font-semibold text-text-primary">{ttlMinutes ? `${ttlMinutes} min` : 'N/D'}</dd>
               </div>
               <div>
-                <dt className="text-gray-500">Max size</dt>
-                <dd className="font-semibold">{stats.maxSize ?? 'N/D'}</dd>
+                <dt className="text-text-muted">Max size</dt>
+                <dd className="font-semibold text-text-primary">{stats.maxSize ?? 'N/D'}</dd>
               </div>
             </dl>
           ) : (
-            <p className="text-sm text-gray-500">Sem dados.</p>
+            <p className="text-sm text-text-muted">Sem dados.</p>
           )}
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+        <div className="rounded-xl border border-border-primary bg-dark-secondary p-4 shadow-sm space-y-3">
           <div className="flex items-center gap-2">
-            <Trash2 className="w-5 h-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Invalidar Cache</h2>
+            <Trash2 className="w-5 h-5 text-red-400" />
+            <h2 className="text-lg font-semibold text-text-primary">Invalidar Cache</h2>
           </div>
           <div className="space-y-3">
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Prefixo (opcional)</span>
+              <span className="text-sm font-medium text-text-secondary">Prefixo (opcional)</span>
               <input
                 type="text"
                 value={invalidatePrefix}
                 onChange={(e) => setInvalidatePrefix(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                 placeholder="ex: summary:"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Keys (opcional, separadas por vírgula)</span>
+              <span className="text-sm font-medium text-text-secondary">Keys (opcional, separadas por vírgula)</span>
               <input
                 type="text"
                 value={invalidateKeys}
                 onChange={(e) => setInvalidateKeys(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                 placeholder="ex: summary:assunto=1&topico=2, trends:d=2025-11-27"
               />
             </label>
             <label className="block">
-              <span className="text-sm font-medium text-gray-700">Motivo (opcional)</span>
+              <span className="text-sm font-medium text-text-secondary">Motivo (opcional)</span>
               <input
                 type="text"
                 value={invalidateReason}
                 onChange={(e) => setInvalidateReason(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="mt-1 w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
                 placeholder="ex: nova carga de trends"
               />
             </label>
@@ -224,7 +224,7 @@ export function AdminToolsPage() {
               type="button"
               onClick={handleInvalidate}
               disabled={submitting}
-              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-60"
+              className="inline-flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-600 disabled:opacity-60"
             >
               {submitting ? 'Invalidando...' : 'Invalidar'}
             </button>
@@ -232,29 +232,29 @@ export function AdminToolsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-xl border border-border-primary bg-dark-secondary p-4 shadow-sm space-y-3">
         <div className="flex items-center gap-2">
-          <AlertCircle className="w-5 h-5 text-gray-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Histórico de Invalidações</h2>
+          <AlertCircle className="w-5 h-5 text-text-muted" />
+          <h2 className="text-lg font-semibold text-text-primary">Histórico de Invalidações</h2>
         </div>
         {loading ? (
-          <p className="text-sm text-gray-500">Carregando...</p>
+          <p className="text-sm text-text-muted">Carregando...</p>
         ) : invalidations.length === 0 ? (
-          <p className="text-sm text-gray-500">Nenhuma invalidação registrada.</p>
+          <p className="text-sm text-text-muted">Nenhuma invalidação registrada.</p>
         ) : (
           <div className="space-y-2">
             {invalidations.map((inv) => (
               <div
                 key={inv.id}
-                className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-800"
+                className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm text-text-secondary"
               >
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 mb-1">
-                  <span className="font-semibold">{inv.invalidated_by}</span>
-                  <span className="text-gray-400">·</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted mb-1">
+                  <span className="font-semibold text-accent">{inv.invalidated_by}</span>
+                  <span className="text-text-muted">·</span>
                   <span>{new Date(inv.invalidated_at).toLocaleString('pt-BR')}</span>
                 </div>
-                <p className="font-semibold text-gray-900">Prefix/Keys: {inv.key_prefix}</p>
-                {inv.reason && <p className="text-gray-700">Motivo: {inv.reason}</p>}
+                <p className="font-semibold text-text-primary">Prefix/Keys: {inv.key_prefix}</p>
+                {inv.reason && <p className="text-text-secondary">Motivo: {inv.reason}</p>}
               </div>
             ))}
           </div>

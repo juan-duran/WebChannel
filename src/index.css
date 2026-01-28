@@ -2,14 +2,48 @@
 @tailwind components;
 @tailwind utilities;
 
+/* CSS Custom Properties for easy access */
+:root {
+  /* Backgrounds */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #141414;
+  --bg-tertiary: #1f1f1f;
+  --bg-elevated: #262626;
+
+  /* Accent */
+  --accent: #00ff88;
+  --accent-hover: #00cc6a;
+  --accent-muted: rgba(0, 255, 136, 0.12);
+
+  /* Text */
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1a1;
+  --text-muted: #666666;
+
+  /* Borders */
+  --border-primary: #262626;
+  --border-secondary: #333333;
+  --border-accent: rgba(0, 255, 136, 0.25);
+
+  /* Categories */
+  --cat-brasil: #3b82f6;
+  --cat-futebol: #22c55e;
+  --cat-fofocas: #f472b6;
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+
 @layer base {
   html,
   body {
-    @apply text-sm sm:text-base;
+    @apply text-sm sm:text-base bg-dark-primary text-text-primary;
   }
 
   .form-card {
-    @apply bg-white border border-gray-200 rounded-2xl p-4 sm:p-6 shadow-sm;
+    @apply bg-dark-secondary border border-border-primary rounded-2xl p-4 sm:p-6 shadow-sm;
   }
 
   .field-stack {
@@ -18,6 +52,75 @@
 
   .form-card h3 {
     @apply leading-tight;
+  }
+
+  /* Focus styles with accent color */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    @apply outline-none ring-2 ring-accent ring-opacity-50;
+  }
+
+  /* Default link styles */
+  a {
+    @apply text-accent hover:text-accent-hover transition-colors;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn-primary {
+    @apply bg-accent text-dark-primary font-semibold px-4 py-2 rounded-lg
+           hover:bg-accent-hover active:bg-accent-hover transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-tertiary text-text-primary font-medium px-4 py-2 rounded-lg
+           border border-border-primary hover:bg-dark-elevated hover:border-border-secondary
+           transition-colors;
+  }
+
+  .btn-ghost {
+    @apply text-text-secondary font-medium px-4 py-2 rounded-lg
+           hover:bg-dark-tertiary hover:text-text-primary transition-colors;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-dark-secondary border border-border-primary rounded-xl;
+  }
+
+  .card-elevated {
+    @apply bg-dark-elevated border border-border-secondary rounded-xl;
+  }
+
+  /* Input styles */
+  .input-dark {
+    @apply bg-dark-tertiary border border-border-primary rounded-lg px-4 py-2
+           text-text-primary placeholder-text-muted
+           focus:border-accent focus:ring-2 focus:ring-accent focus:ring-opacity-30
+           transition-colors;
+  }
+
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-accent {
+    @apply bg-accent-muted text-accent;
+  }
+
+  .badge-brasil {
+    @apply bg-cat-brasil/20 text-cat-brasil;
+  }
+
+  .badge-futebol {
+    @apply bg-cat-futebol/20 text-cat-futebol;
+  }
+
+  .badge-fofocas {
+    @apply bg-cat-fofocas/20 text-cat-fofocas;
   }
 }
 
@@ -58,6 +161,15 @@
     }
   }
 
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+    }
+    50% {
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+    }
+  }
+
   .animate-fadeIn {
     animation: fadeIn 300ms ease-in;
   }
@@ -71,9 +183,13 @@
   }
 
   .animate-shimmer {
-    background: linear-gradient(90deg, #f3f4f6 0%, #e5e7eb 50%, #f3f4f6 100%);
+    background: linear-gradient(90deg, #1f1f1f 0%, #262626 50%, #1f1f1f 100%);
     background-size: 1000px 100%;
     animation: shimmer 800ms linear infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
   }
 
   .transition-250 {
@@ -88,26 +204,20 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
+  /* Neon glow effect */
+  .glow-accent {
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3), 0 0 20px rgba(0, 255, 136, 0.1);
+  }
+
+  .text-glow-accent {
+    text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  }
 }
 
 @layer utilities {
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .animate-fadeIn {
-    animation: fadeIn 0.3s ease-in-out;
-  }
-
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
 
   .animate-bounce {
@@ -132,6 +242,7 @@ body,
   height: 100%;
   min-height: 100%;
   overflow-y: auto;
+  background-color: var(--bg-primary);
 }
 
 @supports (-webkit-touch-callout: none) {
