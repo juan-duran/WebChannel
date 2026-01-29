@@ -36,13 +36,20 @@ export function TapInstallAndPushCTA() {
   if (ios && !standalone) {
     return (
       <div className="mb-4 p-4 bg-white border-[3px] border-black shadow-brutal text-sm">
-        <div className="font-mono font-bold text-black uppercase tracking-wide mb-2">Quer usar o Quenty como app no iPhone?</div>
-        <div className="mb-2 text-gray-700">
-          Toque em Compartilhar → <span className="font-bold text-black">Adicionar à Tela de Início</span>. Depois abra o
-          Quenty pelo ícone para ativar notificações.
-        </div>
-        <div className="text-xs text-gray-500">
-          Enquanto isso, você continua recebendo seu resumo diário pelo WhatsApp.
+        <div className="font-mono font-bold text-black uppercase tracking-wide mb-3">Instale o Quenty no seu iPhone</div>
+        <div className="space-y-2 text-gray-700">
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">1</span>
+            <span>Toque no ícone <span className="font-bold text-black">Compartilhar</span> (quadrado com seta para cima)</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">2</span>
+            <span>Role e toque em <span className="font-bold text-black">Adicionar à Tela de Início</span></span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">3</span>
+            <span>Abra o app pela tela inicial para ativar notificações</span>
+          </div>
         </div>
       </div>
     );
