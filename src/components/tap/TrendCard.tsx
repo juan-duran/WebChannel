@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle, Flame } from 'lucide-react';
+import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { extractTopicEngagement } from '../../utils/topicEngagement';
 import { TopicSkeleton } from './LoadingProgress';
@@ -87,7 +87,6 @@ export function TrendCard({
     }
   };
 
-  const engagementValue = trend.value ?? trend.upvotes ?? 'N/A';
   const isTopTrend = (trend.position ?? 99) <= 3;
   const categoryColors = getCategoryColor(trend.category);
 
@@ -105,13 +104,6 @@ export function TrendCard({
         ${isExpanded ? 'ring-2 ring-brutal-yellow ring-offset-2 ring-offset-brutal-yellow' : ''}
       `}
     >
-      {/* NEW Badge for top 3 trends */}
-      {isTopTrend && !isExpanded && (
-        <div className="absolute -top-2 -right-2 z-10 px-3 py-1 bg-brutal-cyan border-2 border-black text-[10px] font-mono font-extrabold uppercase transform rotate-3 shadow-[2px_2px_0_0_#000000]">
-          HOT
-        </div>
-      )}
-
       <button
         type="button"
         onClick={handleToggle}
@@ -121,69 +113,71 @@ export function TrendCard({
         aria-controls={contentId}
         aria-disabled={disabled || undefined}
       >
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-3">
           {/* Position Badge - Square brutalist style */}
-          <div className="flex-shrink-0 w-12 h-12 bg-brutal-yellow border-2 border-black flex items-center justify-center shadow-[3px_3px_0_0_#000000]">
-            <span className="font-mono font-extrabold text-lg text-black">#{trend.position}</span>
+          <div className="flex-shrink-0 w-11 h-11 bg-brutal-yellow border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000000]">
+            <span className="font-mono font-extrabold text-base text-black">#{trend.position}</span>
           </div>
 
           <div className="flex-1 min-w-0 space-y-2">
-            {/* Category Tag */}
+            {/* Category Tag + HOT badge inline */}
             <div className="flex flex-wrap items-center gap-2">
               {trend.category ? (
-                <span className={`${categoryColors.bg} ${categoryColors.text} ${categoryColors.border} border-2 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider`}>
+                <span className={`${categoryColors.bg} ${categoryColors.text} ${categoryColors.border} border-2 px-2 py-0.5 text-[10px] font-mono font-bold uppercase tracking-wider`}>
                   {trend.category}
                 </span>
               ) : (
-                <span className="bg-gray-200 text-gray-600 border-2 border-black px-3 py-1 text-[11px] font-mono font-bold uppercase">
+                <span className="bg-gray-200 text-gray-600 border-2 border-black px-2 py-0.5 text-[10px] font-mono font-bold uppercase">
                   SEM CATEGORIA
+                </span>
+              )}
+              {isTopTrend && (
+                <span className="px-2 py-0.5 bg-brutal-cyan border-2 border-black text-[10px] font-mono font-extrabold uppercase">
+                  HOT
                 </span>
               )}
             </div>
 
             {/* Title */}
-            <h3 className="font-bold text-black text-lg leading-tight tracking-tight">
+            <h3 className="font-bold text-black text-base leading-tight tracking-tight pr-8">
               {trend.title}
             </h3>
 
             {/* Snippet */}
             {trend.snippet && (
-              <p className={`text-sm text-gray-700 ${isExpanded ? 'line-clamp-10' : 'line-clamp-3'}`}>
+              <p className={`text-sm text-gray-600 ${isExpanded ? 'line-clamp-10' : 'line-clamp-2'}`}>
                 {trend.snippet}
               </p>
             )}
 
-            {/* Engagement Badges - Brutalist style */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brutal-orange border-2 border-black text-white text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
-                <Flame className="w-3.5 h-3.5" aria-hidden="true" />
-                {engagementValue}
+            {/* Simple stats row */}
+            {(typeof trend.comments_total === 'number' || typeof trend.comments_last_4h === 'number') && (
+              <div className="flex items-center gap-3 text-xs text-gray-500">
+                {typeof trend.comments_total === 'number' && (
+                  <span className="inline-flex items-center gap-1">
+                    <MessageCircle className="w-3 h-3" aria-hidden="true" />
+                    {trend.comments_total} comentários
+                  </span>
+                )}
+                {typeof trend.comments_last_4h === 'number' && trend.comments_last_4h > 0 && (
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="w-3 h-3" aria-hidden="true" />
+                    +{trend.comments_last_4h} nas últimas 4h
+                  </span>
+                )}
               </div>
-              {typeof trend.comments_total === 'number' && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
-                  <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                  {trend.comments_total}
-                </div>
-              )}
-              {typeof trend.comments_last_4h === 'number' && (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
-                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
-                  {trend.comments_last_4h}
-                </div>
-              )}
-            </div>
+            )}
 
-            {/* External Link */}
+            {/* VER FONTE - Primary CTA Button */}
             {trend.asset_short_url && !isExpanded && (
               <a
                 href={trend.asset_short_url}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-black hover:text-brutal-orange underline underline-offset-2"
-                title="Ver matéria completa"
+                className="inline-flex items-center gap-2 mt-1 px-4 py-2 bg-black border-2 border-black text-white text-xs font-mono font-bold uppercase tracking-wide shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
               >
-                <Link2 className="w-3 h-3" aria-hidden="true" />
+                <Link2 className="w-4 h-4" aria-hidden="true" />
                 VER FONTE
               </a>
             )}
@@ -191,10 +185,10 @@ export function TrendCard({
             {renderInlineCta && <div className="pt-2">{renderInlineCta}</div>}
           </div>
 
-          {/* Chevron - More prominent */}
-          <div className="flex-shrink-0 w-10 h-10 bg-black flex items-center justify-center rounded">
+          {/* Chevron */}
+          <div className="flex-shrink-0 w-9 h-9 bg-black flex items-center justify-center rounded">
             <ChevronDown
-              className={`w-6 h-6 text-white transition-transform duration-200 ${
+              className={`w-5 h-5 text-white transition-transform duration-200 ${
                 isExpanded ? 'rotate-180' : ''
               }`}
               aria-hidden="true"
