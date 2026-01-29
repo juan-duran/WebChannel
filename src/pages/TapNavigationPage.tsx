@@ -2010,9 +2010,6 @@ export function TapNavigationPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFFFFF]">
-                15 ASSUNTOS MAIS QUENTES
-              </div>
               {formatTimestamp && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFDD00]">
                   ATUALIZADO: {formatTimestamp}
