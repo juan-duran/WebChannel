@@ -1203,7 +1203,7 @@ export function TapNavigationPage() {
   };
 
   const renderTrendList = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className="space-y-4">
       {visibleTrends.map((trend, index) => (
         <div
           key={`${trend.position}-${trend.title}`}
@@ -1213,7 +1213,7 @@ export function TapNavigationPage() {
             }
             trendElementRefs.current[trend.position] = el;
           }}
-          className={`scroll-mt-28 animate-card-enter ${index % 2 === 0 ? 'lg:tilt-left' : 'lg:tilt-right'} ${expandedTrendId === trend.position ? 'md:col-span-2 lg:col-span-3' : ''}`}
+          className={`scroll-mt-28 animate-card-enter ${index % 2 === 0 ? 'tilt-left' : 'tilt-right'}`}
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <TrendCard
