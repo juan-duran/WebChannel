@@ -236,9 +236,15 @@ export function TrendCard({
 
             {/* Topics Section */}
             {!hideTopics && uniqueTopics.length > 0 && (
-              <div className="flex items-center gap-2">
-                <h4 className="text-xs font-mono font-bold text-black uppercase tracking-widest">TÓPICOS</h4>
-                <div className="flex-1 h-[3px] bg-black"></div>
+              <div className="bg-brutal-cyan/20 border-2 border-black p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-mono font-extrabold text-black uppercase tracking-wide">TÓPICOS EM DEBATE</h4>
+                  <div className="flex-1 h-[3px] bg-black"></div>
+                </div>
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  Diferentes ângulos e opiniões sobre este assunto nas redes sociais.
+                  <span className="font-bold text-black"> Toque em um tópico</span> para gerar um resumo personalizado.
+                </p>
               </div>
             )}
 
