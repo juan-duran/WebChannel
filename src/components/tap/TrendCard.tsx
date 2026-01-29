@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
+import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle, TrendingUp } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { extractTopicEngagement } from '../../utils/topicEngagement';
 import { TopicSkeleton } from './LoadingProgress';
@@ -90,6 +90,18 @@ export function TrendCard({
   const isTopTrend = (trend.position ?? 99) <= 3;
   const categoryColors = getCategoryColor(trend.category);
 
+  // Format engagement number (e.g., 1234 -> "1.2K")
+  const formatNumber = (num: number | string | null | undefined): string => {
+    if (num === null || num === undefined) return 'N/A';
+    const n = typeof num === 'string' ? parseInt(num, 10) : num;
+    if (isNaN(n)) return 'N/A';
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+    return n.toString();
+  };
+
+  const engagementValue = trend.upvotes ?? trend.value;
+
   return (
     <div
       className={`
@@ -150,23 +162,36 @@ export function TrendCard({
               </p>
             )}
 
-            {/* Simple stats row */}
-            {(typeof trend.comments_total === 'number' || typeof trend.comments_last_4h === 'number') && (
-              <div className="flex items-center gap-3 text-xs text-gray-500">
-                {typeof trend.comments_total === 'number' && (
-                  <span className="inline-flex items-center gap-1">
-                    <MessageCircle className="w-3 h-3" aria-hidden="true" />
-                    {trend.comments_total} comentários
-                  </span>
-                )}
-                {typeof trend.comments_last_4h === 'number' && trend.comments_last_4h > 0 && (
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="w-3 h-3" aria-hidden="true" />
-                    +{trend.comments_last_4h} nas últimas 4h
-                  </span>
-                )}
-              </div>
-            )}
+            {/* Engagement Stats - Orange box with labels */}
+            <div className="flex flex-wrap items-center gap-2">
+              {engagementValue && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-brutal-orange border-2 border-black text-white text-xs font-mono shadow-[2px_2px_0_0_#000000]">
+                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
+                  <div className="flex flex-col leading-tight">
+                    <span className="font-extrabold">{formatNumber(engagementValue)}</span>
+                    <span className="text-[9px] opacity-80">engajamento</span>
+                  </div>
+                </div>
+              )}
+              {typeof trend.comments_total === 'number' && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-white border-2 border-black text-black text-xs font-mono shadow-[2px_2px_0_0_#000000]">
+                  <MessageCircle className="w-4 h-4" aria-hidden="true" />
+                  <div className="flex flex-col leading-tight">
+                    <span className="font-extrabold">{formatNumber(trend.comments_total)}</span>
+                    <span className="text-[9px] text-gray-500">comentários</span>
+                  </div>
+                </div>
+              )}
+              {typeof trend.comments_last_4h === 'number' && trend.comments_last_4h > 0 && (
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-brutal-cyan border-2 border-black text-black text-xs font-mono shadow-[2px_2px_0_0_#000000]">
+                  <Clock className="w-4 h-4" aria-hidden="true" />
+                  <div className="flex flex-col leading-tight">
+                    <span className="font-extrabold">+{trend.comments_last_4h}</span>
+                    <span className="text-[9px]">últimas 4h</span>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* VER FONTE - Primary CTA Button */}
             {trend.asset_short_url && !isExpanded && (
