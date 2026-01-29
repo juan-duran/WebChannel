@@ -638,11 +638,11 @@ export function OnboardingPage() {
 
   return (
     <div className="py-6 sm:relative">
-      <div className="bg-dark-secondary border border-border-primary rounded-2xl shadow-sm p-4 sm:p-6 mb-5">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-accent">Seu perfil</p>
-          <h2 className="text-2xl font-bold text-text-primary">Personalização do Quenty AI</h2>
-          <p className="text-text-secondary">
+      <div className="bg-white border-[3px] border-black shadow-brutal p-4 sm:p-6 mb-5">
+        <div className="space-y-3">
+          <p className="text-xs font-mono font-bold text-brutal-orange uppercase tracking-widest">Seu perfil</p>
+          <h2 className="text-2xl font-mono font-extrabold text-black uppercase tracking-tight">Personalização do Quenty AI</h2>
+          <p className="text-sm text-gray-700 leading-relaxed">
             Conte um pouco sobre você para que o Quenty adapte os resumos ao seu mundo. Usamos essas informações para
             calibrar os 3 pilares de consciência artificial — quem você é, no que você acredita e o ambiente ao seu
             redor — e assim escolher exemplos, linguagem e debates que façam sentido para a sua rotina. Nada de feed
@@ -650,18 +650,18 @@ export function OnboardingPage() {
             Quenty prepara para você.
           </p>
           {isOnboardingLoading ? (
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-text-muted bg-dark-tertiary border border-border-primary rounded-full px-3 py-1 mt-2">
-              <span className="h-2 w-2 rounded-full bg-text-muted animate-pulse" aria-hidden />
-              <span>Carregando status...</span>
+            <div className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 border-2 border-black text-black text-xs font-mono font-bold mt-2">
+              <span className="h-2 w-2 bg-black animate-pulse" aria-hidden />
+              <span className="uppercase">Carregando status...</span>
             </div>
           ) : onboardingComplete ? (
-            <span className="inline-flex items-center gap-2 mt-2 text-xs font-semibold text-green-400 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1">
+            <span className="inline-flex items-center gap-2 mt-2 px-3 py-2 bg-green-100 border-2 border-black text-green-700 text-xs font-mono font-bold uppercase shadow-[2px_2px_0_0_#22c55e]">
               <CheckCircle2 className="w-4 h-4" />
               Perfil completo
             </span>
           ) : (
-            <div className="inline-flex items-center gap-2 text-sm font-semibold text-text-secondary mt-2">
-              <AlertCircle className="w-4 h-4 text-amber-400" />
+            <div className="inline-flex items-center gap-2 mt-2 px-3 py-2 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold uppercase shadow-[2px_2px_0_0_#000000]">
+              <AlertCircle className="w-4 h-4" />
               <span>Onboarding pendente</span>
             </div>
           )}
@@ -670,53 +670,55 @@ export function OnboardingPage() {
 
       {status.type && (
         <div
-          className={`mb-5 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+          className={`mb-5 flex items-start gap-3 border-[3px] px-4 py-4 ${
             status.type === 'success'
-              ? 'bg-green-500/10 border-green-500/30 text-green-400'
-              : 'bg-red-500/10 border-red-500/30 text-red-400'
+              ? 'bg-green-50 border-green-600 shadow-[4px_4px_0_0_#22c55e]'
+              : 'bg-red-50 border-red-600 shadow-[4px_4px_0_0_#ef4444]'
           }`}
         >
-          {status.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 mt-0.5" />
-          ) : (
-            <AlertCircle className="w-5 h-5 mt-0.5" />
-          )}
+          <div className={`w-10 h-10 flex-shrink-0 flex items-center justify-center border-2 border-black ${status.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
+            {status.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5" />
+            ) : (
+              <AlertCircle className="w-5 h-5" />
+            )}
+          </div>
           <div className="space-y-1">
-            <p className="font-semibold">
+            <p className={`font-mono font-bold uppercase text-sm ${status.type === 'success' ? 'text-green-700' : 'text-red-700'}`}>
               {status.type === 'success' ? 'Tudo certo!' : 'Ops, algo deu errado'}
             </p>
-            <p>{status.message}</p>
+            <p className={`text-sm ${status.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>{status.message}</p>
           </div>
         </div>
       )}
 
       {showPushCta && (
-        <div className="mb-5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 shadow-sm">
+        <div className="mb-5 bg-white border-[3px] border-black p-4 shadow-brutal">
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-dark-tertiary text-amber-400 shadow-sm">
-              <AlertTriangle className="w-5 h-5" />
+            <div className="flex-shrink-0 w-10 h-10 bg-brutal-orange border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000000]">
+              <AlertTriangle className="w-5 h-5 text-white" />
             </div>
-            <div className="flex-1 space-y-2">
-              <p className="text-sm font-semibold text-text-primary">
-                Último passo: ative as notificações para receber seu resumo diário.
+            <div className="flex-1 space-y-3">
+              <p className="font-mono font-bold text-black uppercase text-sm">
+                Último passo: ative as notificações
               </p>
-              <p className="text-xs text-text-secondary">
+              <p className="text-xs text-gray-700">
                 Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que o resumo ficar pronto.
               </p>
-              {pushCtaError && <p className="text-xs text-red-400">{pushCtaError}</p>}
+              {pushCtaError && <p className="text-xs font-mono font-bold text-red-600">{pushCtaError}</p>}
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={handlePushEnable}
                   disabled={pushCtaLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-black border-2 border-black text-white text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {pushCtaLoading ? 'Ativando...' : 'Ativar notificações'}
                 </button>
                 <button
                   type="button"
                   onClick={handlePushDismiss}
-                  className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-dark-tertiary px-3 py-2 text-xs font-semibold text-amber-400 transition-colors hover:bg-dark-elevated"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#000000] transition-all"
                 >
                   Pular agora
                 </button>
@@ -727,54 +729,54 @@ export function OnboardingPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-5 pb-28 sm:pb-32 sm:relative">
-        <section className="form-card">
-          <header className="flex flex-col gap-1 mb-4">
-            <p className="text-xs uppercase font-semibold text-accent tracking-wide">
+        <section className="bg-white border-[3px] border-black p-4 sm:p-6 shadow-brutal">
+          <header className="flex flex-col gap-2 mb-5">
+            <p className="text-xs font-mono font-bold text-brutal-orange uppercase tracking-widest">
               Informações básicas
             </p>
-            <h3 className="text-lg font-semibold text-text-primary">Como podemos te chamar?</h3>
-            <p className="text-sm text-text-secondary">
+            <h3 className="text-lg font-mono font-bold text-black uppercase">Como podemos te chamar?</h3>
+            <p className="text-sm text-gray-600">
               Usaremos esse nome para te enviar conteúdos e sugestões personalizadas.
             </p>
           </header>
 
-          <div className="field-stack">
-            <label className="space-y-1" htmlFor="handle">
-              <span className="font-medium text-text-primary">Apelido ou forma de tratamento</span>
+          <div className="space-y-4">
+            <label className="block space-y-2" htmlFor="handle">
+              <span className="font-mono font-bold text-black text-sm uppercase">Apelido ou forma de tratamento</span>
               <input
                 id="handle"
                 name="handle"
                 type="text"
                 value={formState.handle}
                 onChange={(e) => updateField('handle', e.target.value)}
-                className={`w-full rounded-lg border bg-dark-tertiary px-3 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent ${
-                  errors.handle ? 'border-red-400' : 'border-border-primary'
+                className={`w-full border-2 bg-white px-4 py-3 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brutal-yellow ${
+                  errors.handle ? 'border-red-500' : 'border-black'
                 }`}
                 placeholder="Ex.: João e Ana Silva"
                 maxLength={80}
                 required
               />
               {errors.handle && (
-                <p className="flex items-center gap-1 text-sm text-red-400">
+                <p className="flex items-center gap-1 text-sm font-mono text-red-600">
                   <AlertCircle className="w-4 h-4" /> {errors.handle}
                 </p>
               )}
             </label>
 
-            <div className="space-y-2">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <label className="space-y-1" htmlFor="preferred_send_time">
-                  <span className="font-medium text-text-primary">Horário preferido para receber mensagens</span>
-                  <p className="text-sm text-text-secondary">Selecione um horário para receber o lembrete diário.</p>
+            <div className="space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="block space-y-2" htmlFor="preferred_send_time">
+                  <span className="font-mono font-bold text-black text-sm uppercase">Horário preferido para mensagens</span>
+                  <p className="text-sm text-gray-600">Selecione um horário para receber o lembrete diário.</p>
                 </label>
-                <label className="inline-flex items-center gap-2 text-sm font-medium text-text-primary">
+                <label className="inline-flex items-center gap-2 px-3 py-2 bg-gray-100 border-2 border-black text-sm font-mono font-bold text-black cursor-pointer hover:bg-brutal-yellow transition-colors">
                   <input
                     type="checkbox"
-                    className="rounded border-border-secondary bg-dark-tertiary text-accent focus:ring-accent"
+                    className="w-4 h-4 border-2 border-black bg-white text-black focus:ring-brutal-yellow accent-black"
                     checked={formState.preferred_send_time_opt_out}
                     onChange={(e) => togglePreferredSendTimeOptOut(e.target.checked)}
                   />
-                  <span>Não quero receber mensagens diárias</span>
+                  <span>Não quero mensagens diárias</span>
                 </label>
               </div>
 
@@ -788,8 +790,8 @@ export function OnboardingPage() {
                 onChange={(e) =>
                   updateField('preferred_send_time', normalizePreferredSendTime(e.target.value))
                 }
-                className={`w-full min-w-0 appearance-none rounded-lg border bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent disabled:cursor-not-allowed disabled:bg-dark-elevated disabled:text-text-muted ${
-                  errors.preferred_send_time ? 'border-red-400' : 'border-border-primary'
+                className={`w-full min-w-0 appearance-none border-2 bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 ${
+                  errors.preferred_send_time ? 'border-red-500' : 'border-black'
                 }`}
                 disabled={formState.preferred_send_time_opt_out}
                 aria-disabled={formState.preferred_send_time_opt_out}
@@ -797,7 +799,7 @@ export function OnboardingPage() {
                 required={!formState.preferred_send_time_opt_out}
               />
               {errors.preferred_send_time && (
-                <p className="flex items-center gap-1 text-sm text-red-400">
+                <p className="flex items-center gap-1 text-sm font-mono text-red-600">
                   <AlertCircle className="w-4 h-4" /> {errors.preferred_send_time}
                 </p>
               )}
@@ -805,22 +807,22 @@ export function OnboardingPage() {
           </div>
         </section>
 
-        <section className="form-card">
-          <header className="flex flex-col gap-1 mb-4">
-            <p className="text-xs uppercase font-semibold text-accent tracking-wide">Perfil</p>
-            <h3 className="text-lg font-semibold text-text-primary">Sua rotina e contexto</h3>
-            <p className="text-sm text-text-secondary">Esses dados ajudam a adaptar exemplos e referências do conteúdo.</p>
+        <section className="bg-white border-[3px] border-black p-4 sm:p-6 shadow-brutal">
+          <header className="flex flex-col gap-2 mb-5">
+            <p className="text-xs font-mono font-bold text-brutal-orange uppercase tracking-widest">Perfil</p>
+            <h3 className="text-lg font-mono font-bold text-black uppercase">Sua rotina e contexto</h3>
+            <p className="text-sm text-gray-600">Esses dados ajudam a adaptar exemplos e referências do conteúdo.</p>
           </header>
 
-          <div className="field-stack">
-            <label className="space-y-1" htmlFor="employment_status">
-              <span className="font-medium text-text-primary">Situação profissional</span>
+          <div className="space-y-4">
+            <label className="block space-y-2" htmlFor="employment_status">
+              <span className="font-mono font-bold text-black text-sm uppercase">Situação profissional</span>
               <select
                 id="employment_status"
                 name="employment_status"
                 value={formState.employment_status}
                 onChange={(e) => updateField('employment_status', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {employmentStatusOptions.map((option) => (
@@ -831,14 +833,14 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="education_level">
-              <span className="font-medium text-text-primary">Escolaridade</span>
+            <label className="block space-y-2" htmlFor="education_level">
+              <span className="font-mono font-bold text-black text-sm uppercase">Escolaridade</span>
               <select
                 id="education_level"
                 name="education_level"
                 value={formState.education_level}
                 onChange={(e) => updateField('education_level', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {educationLevelOptions.map((option) => (
@@ -849,14 +851,14 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="family_status">
-              <span className="font-medium text-text-primary">Estado civil</span>
+            <label className="block space-y-2" htmlFor="family_status">
+              <span className="font-mono font-bold text-black text-sm uppercase">Estado civil</span>
               <select
                 id="family_status"
                 name="family_status"
                 value={formState.family_status}
                 onChange={(e) => updateField('family_status', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {familyStatusOptions.map((option) => (
@@ -867,14 +869,14 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="living_with">
-              <span className="font-medium text-text-primary">Com quem você mora?</span>
+            <label className="block space-y-2" htmlFor="living_with">
+              <span className="font-mono font-bold text-black text-sm uppercase">Com quem você mora?</span>
               <select
                 id="living_with"
                 name="living_with"
                 value={formState.living_with}
                 onChange={(e) => updateField('living_with', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {livingWithOptions.map((option) => (
@@ -885,14 +887,14 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <label className="space-y-1" htmlFor="income_bracket">
-              <span className="font-medium text-text-primary">Faixa de renda familiar</span>
+            <label className="block space-y-2" htmlFor="income_bracket">
+              <span className="font-mono font-bold text-black text-sm uppercase">Faixa de renda familiar</span>
               <select
                 id="income_bracket"
                 name="income_bracket"
                 value={formState.income_bracket}
                 onChange={(e) => updateField('income_bracket', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {incomeBracketOptions.map((option) => (
@@ -901,17 +903,17 @@ export function OnboardingPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-text-muted">Usamos apenas para personalizar exemplos e sugestões.</p>
+              <p className="text-xs text-gray-500 mt-1">Usamos apenas para personalizar exemplos e sugestões.</p>
             </label>
 
-            <label className="space-y-1" htmlFor="religion">
-              <span className="font-medium text-text-primary">Caminho de fé</span>
+            <label className="block space-y-2" htmlFor="religion">
+              <span className="font-mono font-bold text-black text-sm uppercase">Caminho de fé</span>
               <select
                 id="religion"
                 name="religion"
                 value={formState.religion}
                 onChange={(e) => updateField('religion', e.target.value)}
-                className="w-full rounded-lg border border-border-primary bg-dark-tertiary px-3 py-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+                className="w-full border-2 border-black bg-white px-4 py-3 text-sm text-black focus:outline-none focus:ring-2 focus:ring-brutal-yellow"
               >
                 <option value="">Selecione uma opção</option>
                 {religionOptions.map((option) => (
@@ -922,17 +924,19 @@ export function OnboardingPage() {
               </select>
             </label>
 
-            <fieldset className="space-y-2">
-              <legend className="font-medium text-text-primary">Valores que guiam suas escolhas</legend>
-              <p className="text-sm text-text-secondary">Selecione quantos quiser para ajustar o tom das mensagens.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <fieldset className="space-y-3">
+              <legend className="font-mono font-bold text-black text-sm uppercase">Valores que guiam suas escolhas</legend>
+              <p className="text-sm text-gray-600">Selecione quantos quiser para ajustar o tom das mensagens.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {moralValuesOptions.map((option) => {
                   const checked = formState.moral_values.includes(option.value);
                   return (
                     <label
                       key={option.value}
-                      className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm text-text-primary cursor-pointer transition-colors ${
-                        checked ? 'border-accent bg-accent-muted' : 'border-border-primary hover:border-accent/50'
+                      className={`flex items-center gap-3 border-2 px-4 py-3 text-sm cursor-pointer transition-all ${
+                        checked
+                          ? 'border-black bg-brutal-yellow shadow-[3px_3px_0_0_#000000] -translate-x-0.5 -translate-y-0.5'
+                          : 'border-black bg-white hover:bg-gray-50'
                       }`}
                     >
                       <input
@@ -940,9 +944,9 @@ export function OnboardingPage() {
                         value={option.value}
                         checked={checked}
                         onChange={() => toggleMoralValue(option.value)}
-                        className="rounded border-border-secondary bg-dark-tertiary text-accent focus:ring-accent"
+                        className="w-5 h-5 border-2 border-black bg-white accent-black focus:ring-brutal-yellow"
                       />
-                      <span>{option.label}</span>
+                      <span className={`font-mono font-bold ${checked ? 'text-black' : 'text-gray-700'}`}>{option.label}</span>
                     </label>
                   );
                 })}
@@ -950,18 +954,18 @@ export function OnboardingPage() {
             </fieldset>
           </div>
         </section>
-        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 bg-dark-secondary/95 px-4 py-4 backdrop-blur shadow-[0_-4px_20px_rgba(0,0,0,0.3)] pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:fixed sm:inset-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:bottom-6 sm:w-full sm:max-w-screen-md sm:px-0 sm:bg-transparent sm:shadow-none sm:backdrop-blur-0 sm:pb-0">
-          <div className="sm:flex sm:items-center sm:justify-between sm:gap-6 sm:rounded-xl sm:border sm:border-border-primary sm:bg-dark-secondary sm:p-4 sm:shadow-sm">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 bg-white/95 border-t-[3px] border-black px-4 py-4 backdrop-blur pb-[calc(env(safe-area-inset-bottom)+1rem)] sm:fixed sm:inset-auto sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:bottom-6 sm:w-full sm:max-w-screen-md sm:px-0 sm:bg-transparent sm:border-none sm:backdrop-blur-0 sm:pb-0">
+          <div className="sm:flex sm:items-center sm:justify-between sm:gap-6 sm:border-[3px] sm:border-black sm:bg-white sm:p-4 sm:shadow-brutal">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <button
                 type="submit"
                 disabled={submitting || isEmailMissing}
-                className="inline-flex w-full justify-center items-center gap-2 rounded-lg bg-accent text-dark-primary px-4 py-3 text-sm font-semibold shadow-sm transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                className="inline-flex w-full justify-center items-center gap-2 px-6 py-3 bg-black border-2 border-black text-white text-sm font-mono font-bold uppercase shadow-[4px_4px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
               >
                 {submitting ? 'Salvando...' : 'Salvar preferências'}
               </button>
               {isEmailMissing && (
-                <p className="text-sm text-red-400 flex items-center gap-2">
+                <p className="text-sm font-mono text-red-600 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4" />
                   Não encontramos seu email para salvar as preferências.
                 </p>
