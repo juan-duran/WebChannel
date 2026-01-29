@@ -40,15 +40,19 @@ export function TapInstallAndPushCTA() {
         <div className="space-y-2 text-gray-700">
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">1</span>
-            <span>Toque no ícone <span className="font-bold text-black">Compartilhar</span> (quadrado com seta para cima)</span>
+            <span>Toque no ícone <span className="font-bold text-black">Compartilhar</span> (quadrado com seta para cima) no <span className="font-bold text-black">canto superior direito</span></span>
           </div>
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">2</span>
-            <span>Role e toque em <span className="font-bold text-black">Adicionar à Tela de Início</span></span>
+            <span>Toque em <span className="font-bold text-black">Mais...</span></span>
           </div>
           <div className="flex items-start gap-2">
             <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">3</span>
-            <span>Abra o app pela tela inicial para ativar notificações</span>
+            <span>Toque em <span className="font-bold text-black">Adicionar à Tela de Início</span></span>
+          </div>
+          <div className="flex items-start gap-2">
+            <span className="flex-shrink-0 w-6 h-6 bg-black text-white font-mono font-bold text-xs flex items-center justify-center">4</span>
+            <span>Abra o app com logo <span className="font-bold text-black">"Q"</span> pela tela inicial para ativar notificações</span>
           </div>
         </div>
       </div>
