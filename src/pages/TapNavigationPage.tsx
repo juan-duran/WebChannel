@@ -277,7 +277,6 @@ export function TapNavigationPage() {
     if (Number.isNaN(date.getTime())) return null;
     return new Intl.DateTimeFormat('pt-BR', {
       dateStyle: 'short',
-      timeStyle: 'short',
     }).format(date);
   }, [lastUpdated]);
 
@@ -2009,13 +2008,13 @@ export function TapNavigationPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex gap-2 md:gap-3">
               {formatTimestamp && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFDD00]">
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 md:px-4 md:py-2 bg-white border-2 border-black text-black text-[10px] md:text-xs font-mono font-bold shadow-[2px_2px_0_0_#FFDD00] md:shadow-[3px_3px_0_0_#FFDD00]">
                   ATUALIZADO: {formatTimestamp}
                 </div>
               )}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-brutal-cyan border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFFFFF]">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 md:px-4 md:py-2 bg-brutal-cyan border-2 border-black text-black text-[10px] md:text-xs font-mono font-bold shadow-[2px_2px_0_0_#FFFFFF] md:shadow-[3px_3px_0_0_#FFFFFF]">
                 FONTES VERIFICADAS
               </div>
             </div>
