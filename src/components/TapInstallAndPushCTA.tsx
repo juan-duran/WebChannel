@@ -35,13 +35,13 @@ export function TapInstallAndPushCTA() {
   // iOS web (não standalone): instrução de adicionar à Tela Inicial
   if (ios && !standalone) {
     return (
-      <div className="mb-4 p-3 rounded-xl border border-amber-500/30 bg-amber-500/10 text-sm text-text-primary">
-        <div className="font-semibold mb-1">Quer usar o Quenty como app no iPhone?</div>
-        <div className="mb-2 text-text-secondary">
-          Toque em Compartilhar → <span className="font-semibold text-text-primary">Adicionar à Tela de Início</span>. Depois abra o
+      <div className="mb-4 p-4 bg-white border-[3px] border-black shadow-brutal text-sm">
+        <div className="font-mono font-bold text-black uppercase tracking-wide mb-2">Quer usar o Quenty como app no iPhone?</div>
+        <div className="mb-2 text-gray-700">
+          Toque em Compartilhar → <span className="font-bold text-black">Adicionar à Tela de Início</span>. Depois abra o
           Quenty pelo ícone para ativar notificações.
         </div>
-        <div className="text-xs text-text-muted">
+        <div className="text-xs text-gray-500">
           Enquanto isso, você continua recebendo seu resumo diário pelo WhatsApp.
         </div>
       </div>
@@ -76,11 +76,11 @@ export function TapInstallAndPushCTA() {
   };
 
   return (
-    <div className="mb-4 p-3 rounded-xl bg-dark-secondary border border-border-primary text-sm flex flex-col gap-2">
-      <div className="font-semibold text-text-primary">Facilite seu dia:</div>
+    <div className="mb-4 p-4 bg-white border-[3px] border-black shadow-brutal text-sm flex flex-col gap-3">
+      <div className="font-mono font-bold text-black uppercase tracking-wide">Facilite seu dia:</div>
       {showInstallButton && (
         <button
-          className="self-start px-3 py-1 rounded-lg bg-accent text-dark-primary text-xs font-semibold hover:bg-accent-hover transition-colors"
+          className="self-start px-4 py-2 bg-black border-2 border-black text-white text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
           onClick={onInstall}
           type="button"
         >
@@ -89,7 +89,7 @@ export function TapInstallAndPushCTA() {
       )}
       {showPushButton && (
         <button
-          className="self-start px-3 py-1 rounded-lg bg-dark-tertiary border border-border-secondary text-text-primary text-xs font-semibold hover:bg-dark-elevated transition-colors"
+          className="self-start px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#000000] transition-all"
           onClick={onEnablePush}
           type="button"
         >
