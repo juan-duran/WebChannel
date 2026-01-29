@@ -1408,7 +1408,7 @@ export function TapNavigationPage() {
                         }
                       }}
                       disabled={isLoading || isRefreshing || trendState?.isLoading}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 bg-black border-2 border-black text-white text-sm font-mono font-bold uppercase shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <RefreshCw
                         className={`h-4 w-4 ${trendState?.isLoading ? 'animate-spin' : ''}`}
@@ -1432,30 +1432,32 @@ export function TapNavigationPage() {
   );
 
   const renderSummaryProgress = () => (
-    <div className="rounded-lg border border-accent/30 bg-accent-muted px-3 py-3 text-xs text-text-primary space-y-2">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-accent">
-        <Loader2 className="w-4 h-4 animate-spin" />
-        QUENTY-IA em ação (pode levar ~1–2 minutos)
+    <div className="bg-white border-[3px] border-black p-4 shadow-brutal space-y-3">
+      <div className="flex items-center gap-2 px-3 py-2 bg-brutal-yellow border-2 border-black">
+        <Loader2 className="w-5 h-5 animate-spin text-black" />
+        <span className="text-xs font-mono font-bold text-black uppercase tracking-wide">
+          QUENTY-IA em ação (~1–2 min)
+        </span>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="space-y-2">
         {summarySteps.map((step, idx) => {
           const active = idx === summaryStepIndex;
           const done = idx < summaryStepIndex;
           return (
             <li
               key={step}
-              className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
-                active ? 'bg-dark-tertiary border border-accent/30' : done ? 'text-accent' : 'text-text-secondary'
+              className={`flex items-center gap-2 px-3 py-2 border-2 border-black ${
+                active ? 'bg-brutal-cyan shadow-[2px_2px_0_0_#000000]' : done ? 'bg-green-100' : 'bg-gray-100'
               }`}
             >
               {done ? (
-                <CheckCircle className="w-4 h-4 text-accent" />
+                <CheckCircle className="w-4 h-4 text-green-600" />
               ) : active ? (
-                <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
               ) : (
-                <span className="w-4 h-4 rounded-full border border-border-primary" />
+                <span className="w-4 h-4 border-2 border-black bg-white" />
               )}
-              <span className="text-[12px]">{step}</span>
+              <span className={`text-xs font-mono font-bold ${done ? 'text-green-700' : 'text-black'}`}>{step}</span>
             </li>
           );
         })}
@@ -1656,11 +1658,11 @@ export function TapNavigationPage() {
         : [];
 
     return (
-      <div className="rounded-2xl border border-border-primary bg-dark-secondary shadow-sm flex flex-col h-full">
+      <div className="bg-white border-[3px] border-black shadow-brutal flex flex-col h-full">
         {isMobile && (
           <div
             ref={mobileSummaryTopRef}
-            className="sticky top-0 z-10 flex items-center gap-2 border-b border-border-primary bg-dark-secondary px-4 py-3 scroll-mt-24"
+            className="sticky top-0 z-10 flex items-center gap-2 border-b-[3px] border-black bg-brutal-yellow px-4 py-3 scroll-mt-24"
           >
             <button
               type="button"
@@ -1687,7 +1689,7 @@ export function TapNavigationPage() {
                   });
                 });
               }}
-              className="inline-flex items-center gap-2 rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-dark-elevated focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-sm font-mono font-bold uppercase shadow-[3px_3px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#000000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
               aria-label="Voltar para lista"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -1701,33 +1703,28 @@ export function TapNavigationPage() {
             <div className="space-y-3">
               {isMobile && (
                 <>
-                  <div className="flex items-center gap-2 text-xs text-text-muted">
-                    <span className="font-semibold text-text-secondary">
-                      Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'}
-                      {activeTopic && !isTrendLevel ? ` — Tópico #${activeTopic.number}` : ''}
-                    </span>
+                  <div className="px-3 py-2 bg-black border-2 border-black text-white font-mono text-xs font-bold uppercase tracking-wide">
+                    Assunto #{currentTrend?.position ?? '?'} — {currentTrend?.title ?? 'Assunto'}
+                    {activeTopic && !isTrendLevel ? ` — Tópico #${activeTopic.number}` : ''}
                   </div>
                   {activeTopic && !isTrendLevel && (
                     <>
-                      <div className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2">
-                        <p className="text-xs font-semibold text-text-primary mb-1">Comentário</p>
-                        <p className="text-sm text-text-secondary leading-relaxed">{activeTopic.description}</p>
+                      <div className="bg-white border-[3px] border-black p-4 shadow-[4px_4px_0_0_#000000]">
+                        <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Comentário</p>
+                        <p className="text-sm text-gray-700 leading-relaxed">{activeTopic.description}</p>
                       </div>
-                      <div className="rounded-lg border border-border-primary bg-dark-secondary px-3 py-2 text-sm text-text-secondary space-y-1.5">
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
-                          <span className="font-semibold text-text-primary">
-                            👍 {topicEngagement?.likesLabel ?? 'Não informado'}
+                      <div className="bg-white border-[3px] border-black p-3 shadow-[3px_3px_0_0_#000000]">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold">
+                            👍 {topicEngagement?.likesLabel ?? 'N/A'}
                           </span>
-                          <span className="text-text-muted">(Likes)</span>
-                          <span className="text-text-muted">·</span>
-                          <span className="font-semibold text-text-primary">
-                            💬 {topicEngagement?.repliesLabel ?? 'Sem dados'}
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-brutal-cyan border-2 border-black text-black text-xs font-mono font-bold">
+                            💬 {topicEngagement?.repliesLabel ?? 'N/A'}
                           </span>
-                          <span className="text-text-muted">(Debates do comentário)</span>
                         </div>
                         {activeTopic.posted_at && (
-                          <p className="text-xs text-text-secondary">
-                            <span className="font-semibold text-text-primary">Publicado:</span> {formatDate(activeTopic.posted_at)}
+                          <p className="text-[11px] font-mono text-gray-600 mt-2 uppercase">
+                            Publicado: {formatDate(activeTopic.posted_at)}
                           </p>
                         )}
                       </div>
@@ -1743,22 +1740,22 @@ export function TapNavigationPage() {
                       type="button"
                       onClick={() => currentTrend && fetchSummaryForTopic(currentTrend, activeTopic)}
                       disabled={activeIsLoading || !currentTrend}
-                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                      className="inline-flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-3 bg-black border-2 border-black text-white text-sm font-mono font-bold uppercase shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       <RefreshCw className={`h-4 w-4 ${activeIsLoading ? 'animate-spin' : ''}`} />
                       Gerar resumo
                     </button>
                   )}
                   {hasCachedSummary && (
-                    <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 text-[11px] text-green-400 bg-green-500/10 border border-green-500/30 rounded-full px-3 py-1">
-                      <CheckCircle className="w-3 h-3" />
-                      Resumo em cache
+                    <div className="flex w-full sm:w-auto flex-wrap items-center gap-2 px-3 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#22c55e]">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
+                      RESUMO EM CACHE
                       <button
                         type="button"
                         onClick={() =>
                           currentTrend && fetchSummaryForTopic(currentTrend, activeTopic, { forceRefresh: true })
                         }
-                        className="ml-1 text-accent hover:text-accent-hover underline"
+                        className="ml-1 px-2 py-0.5 bg-brutal-cyan border border-black text-black text-[10px] font-mono font-bold uppercase hover:bg-brutal-yellow transition-colors"
                       >
                         Reprocessar
                       </button>
@@ -1769,8 +1766,8 @@ export function TapNavigationPage() {
 
               {activeIsLoading && renderSummaryProgress()}
               {activeError && !activeIsLoading && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-                  {activeError}
+                <div className="bg-red-50 border-[3px] border-red-500 p-3 shadow-[3px_3px_0_0_#ef4444]">
+                  <p className="text-sm font-mono font-bold text-red-600">{activeError}</p>
                 </div>
               )}
               {activeSummary && !activeIsLoading && !activeError && (
@@ -1788,70 +1785,71 @@ export function TapNavigationPage() {
                       summaryContainerRef.current = el;
                     }
                   }}
-                  className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2 space-y-3"
+                  className="bg-white border-[3px] border-black p-4 shadow-brutal space-y-4"
                 >
-                  <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {summaryTopicName && (
-                        <span className="font-semibold text-text-primary">{summaryTopicName}</span>
+                        <span className="font-mono font-bold text-black text-sm">{summaryTopicName}</span>
                       )}
                       {summaryTrendName && (
-                        <span className="rounded-full bg-dark-elevated px-2 py-0.5 text-[11px] text-text-secondary">
+                        <span className="px-2 py-0.5 bg-gray-200 border border-black text-[11px] font-mono text-black">
                           {summaryTrendName}
                         </span>
                       )}
                       {summaryLikesData && (
-                        <span className="rounded-full bg-accent-muted px-2 py-0.5 text-[11px] text-accent">
+                        <span className="px-2 py-0.5 bg-brutal-orange border border-black text-[11px] font-mono font-bold text-white">
                           {summaryLikesData}
                         </span>
                       )}
                     </div>
-
                   </div>
 
                   {summaryContext.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary mb-1">Contexto</p>
-                      <ul className="space-y-1">
+                    <div className="border-l-4 border-black pl-3">
+                      <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Contexto</p>
+                      <ul className="space-y-2">
                         {summaryContext.map((item, index) => (
-                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-text-secondary leading-relaxed">
-                            • {item}
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-sm text-gray-700 leading-relaxed flex items-start gap-2">
+                            <span className="w-2 h-2 bg-brutal-cyan border border-black mt-1.5 flex-shrink-0"></span>
+                            {item}
                           </li>
                         ))}
                       </ul>
                     </div>
                   )}
 
-                  <div>
-                    <p className="text-sm font-semibold text-text-primary">Resumo</p>
+                  <div className="bg-brutal-yellow/20 border-2 border-black p-3">
+                    <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Resumo</p>
                     {activeSummary.thesis && (
-                      <p className="text-sm text-text-secondary whitespace-pre-line leading-relaxed mt-1">
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">
                         {activeSummary.thesis}
                       </p>
                     )}
                     {!activeSummary.thesis && activeSummary.personalization && (
-                      <p className="text-sm text-text-secondary whitespace-pre-line leading-relaxed mt-1">
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">
                         {activeSummary.personalization}
                       </p>
                     )}
                   </div>
 
                   {activeSummary.personalization && activeSummary.thesis && (
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary mb-1">Personalização</p>
-                      <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">
+                    <div className="bg-brutal-cyan/20 border-2 border-black p-3">
+                      <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Personalização</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
                         {activeSummary.personalization}
                       </p>
                     </div>
                   )}
 
                   {summaryDebate.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary mb-1">Pontos de debate</p>
-                      <ul className="space-y-1">
+                    <div className="border-l-4 border-brutal-orange pl-3">
+                      <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Pontos de debate</p>
+                      <ul className="space-y-2">
                         {summaryDebate.map((item, index) => (
-                          <li key={`${index}-${item.slice(0, 10)}`} className="text-xs text-text-secondary leading-relaxed">
-                            • {item}
+                          <li key={`${index}-${item.slice(0, 10)}`} className="text-sm text-gray-700 leading-relaxed flex items-start gap-2">
+                            <span className="w-2 h-2 bg-brutal-orange border border-black mt-1.5 flex-shrink-0"></span>
+                            {item}
                           </li>
                         ))}
                       </ul>
@@ -1859,21 +1857,21 @@ export function TapNavigationPage() {
                   )}
 
                   {(activeSummary['why-it-matters'] || activeSummary.whyItMatters) && (
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary mb-1">Por que importa</p>
-                      <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">
+                    <div className="bg-gray-100 border-2 border-black p-3">
+                      <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Por que importa</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
                         {activeSummary['why-it-matters'] || activeSummary.whyItMatters}
                       </p>
                     </div>
                   )}
 
                   {Array.isArray(activeSummary.sources) && activeSummary.sources.length > 0 && (
-                    <div>
-                      <p className="text-xs font-semibold text-text-primary mb-1">Fontes</p>
-                      <ul className="space-y-1">
+                    <div className="border-t-2 border-black pt-3">
+                      <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">Fontes</p>
+                      <ul className="space-y-2">
                         {activeSummary.sources.map((source, index) => (
-                          <li key={`${source.url ?? index}`} className="text-xs text-accent underline">
-                            <a href={source.url} target="_blank" rel="noopener noreferrer">
+                          <li key={`${source.url ?? index}`} className="text-xs">
+                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="text-black underline hover:text-brutal-orange font-mono">
                               {source.title || source.url}
                             </a>
                           </li>
