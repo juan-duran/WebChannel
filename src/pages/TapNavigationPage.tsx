@@ -1985,22 +1985,33 @@ export function TapNavigationPage() {
       {/* Hero Section - Neo-Brutalist */}
       <div className="w-full bg-black border-b-[4px] border-black">
         <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-brutal-orange rounded-full animate-pulse"></div>
               <span className="font-mono text-xs font-bold uppercase tracking-widest text-brutal-cyan">
-                AO VIVO
+                MONITORAMENTO 24/7
               </span>
             </div>
             <h1 className="font-mono text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight leading-none">
-              ASSUNTOS QUENTES
+              TOP 15 DO BRASIL
             </h1>
-            <p className="text-white/80 text-sm md:text-base">
-              Quenty AI monitora as redes 24/7 e entrega os 15 assuntos mais quentes do momento.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-2">
+
+            {/* Explanation Box */}
+            <div className="bg-white/10 border-2 border-white/30 p-4 space-y-3">
+              <p className="text-white text-sm md:text-base leading-relaxed">
+                <span className="text-brutal-cyan font-bold">Agentes de IA</span> monitoram as redes sociais brasileiras 24 horas por dia, identificando os assuntos com <span className="text-brutal-yellow font-bold">maior engajamento</span> entre os brasileiros.
+              </p>
+              <div className="flex items-start gap-3 pt-2 border-t border-white/20">
+                <div className="w-8 h-8 flex-shrink-0 bg-brutal-orange border-2 border-white flex items-center justify-center text-white font-mono font-bold text-sm">!</div>
+                <p className="text-white/90 text-xs leading-relaxed">
+                  <span className="font-bold text-white">Importante:</span> Os 15 assuntos são selecionados pelo <span className="text-brutal-cyan font-bold">engajamento nacional</span>, não pelas suas preferências pessoais. Suas configurações de personalização são aplicadas apenas quando você gera um <span className="text-brutal-yellow font-bold">resumo personalizado</span> de cada assunto.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFFFFF]">
-                15 ASSUNTOS
+                15 ASSUNTOS MAIS QUENTES
               </div>
               {formatTimestamp && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFDD00]">
