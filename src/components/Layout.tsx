@@ -11,10 +11,6 @@ type LayoutProps = {
 export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   const [showMenu, setShowMenu] = useState(false);
 
-  const handleLogout = () => {
-    window.location.href = '/logout';
-  };
-
   const navItems = useMemo(
     () => [
       { id: 'tap' as const, icon: RefreshCw, label: 'Tendências' },
@@ -25,40 +21,41 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-dark-primary flex flex-col">
-      <header className="bg-dark-secondary border-b border-border-primary sticky top-0 z-40">
+    <div className="min-h-screen bg-brutal-yellow flex flex-col">
+      <header className="bg-white border-b-[3px] border-black sticky top-0 z-40">
         <div className="max-w-screen-md w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-accent to-accent-hover rounded-xl flex items-center justify-center shadow-md glow-accent">
-                <MessageCircle className="w-6 h-6 text-dark-primary" />
+              <div className="w-10 h-10 bg-brutal-yellow border-2 border-black flex items-center justify-center shadow-[2px_2px_0_0_#000000]">
+                <MessageCircle className="w-6 h-6 text-black" />
               </div>
-              <h1 className="text-xl font-bold text-text-primary">QUENTY AI</h1>
+              <h1 className="text-xl font-mono font-extrabold text-black uppercase tracking-tight">QUENTY AI</h1>
             </div>
 
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="lg:hidden min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-dark-tertiary active:bg-dark-elevated text-text-secondary"
+              className="lg:hidden w-11 h-11 flex items-center justify-center bg-black border-2 border-black text-white shadow-[2px_2px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
               aria-label="Toggle menu"
             >
-              {showMenu ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {showMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
 
-            <nav className="hidden lg:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
+                const isActive = currentPage === item.id;
                 return (
                   <button
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                      currentPage === item.id
-                        ? 'bg-accent-muted text-accent'
-                        : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
+                    className={`flex items-center gap-2 px-4 py-2 border-2 border-black font-mono font-bold text-sm uppercase transition-all ${
+                      isActive
+                        ? 'bg-brutal-yellow text-black shadow-[3px_3px_0_0_#000000]'
+                        : 'bg-white text-black hover:bg-gray-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_#000000]'
                     }`}
                   >
-                    <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
                   </button>
                 );
               })}
@@ -67,10 +64,11 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
 
         {showMenu && (
-          <div className="lg:hidden border-t border-border-primary bg-dark-secondary">
-            <nav className="px-4 py-2 space-y-1">
+          <div className="lg:hidden border-t-[3px] border-black bg-white">
+            <nav className="px-4 py-3 space-y-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
+                const isActive = currentPage === item.id;
                 return (
                   <button
                     key={item.id}
@@ -78,14 +76,14 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
                       onNavigate(item.id);
                       setShowMenu(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      currentPage === item.id
-                        ? 'bg-accent-muted text-accent'
-                        : 'text-text-secondary hover:bg-dark-tertiary hover:text-text-primary'
+                    className={`w-full flex items-center gap-3 px-4 py-3 border-2 border-black font-mono font-bold text-sm uppercase transition-all ${
+                      isActive
+                        ? 'bg-brutal-yellow text-black shadow-[3px_3px_0_0_#000000]'
+                        : 'bg-white text-black hover:bg-gray-100'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="font-medium">{item.label}</span>
+                    <span>{item.label}</span>
                   </button>
                 );
               })}
@@ -107,23 +105,26 @@ export function Layout({ children, currentPage, onNavigate }: LayoutProps) {
         </div>
       </main>
 
-      <nav className="lg:hidden bg-dark-secondary border-t border-border-primary sticky bottom-0">
+      <nav className="lg:hidden bg-white border-t-[3px] border-black sticky bottom-0">
         <div className="max-w-screen-md w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-around items-center h-16">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const isActive = currentPage === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors ${
-                    currentPage === item.id
-                      ? 'text-accent'
-                      : 'text-text-muted hover:text-text-secondary'
+                  className={`flex flex-col items-center gap-1 px-4 py-2 transition-all ${
+                    isActive
+                      ? 'text-black'
+                      : 'text-gray-400 hover:text-black'
                   }`}
                 >
-                  <Icon className="w-6 h-6" />
-                  <span className="text-xs font-medium">{item.label}</span>
+                  <div className={`p-1.5 border-2 ${isActive ? 'border-black bg-brutal-yellow shadow-[2px_2px_0_0_#000000]' : 'border-transparent'}`}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className={`text-xs font-mono font-bold uppercase ${isActive ? 'text-black' : ''}`}>{item.label}</span>
                 </button>
               );
             })}
