@@ -1203,8 +1203,8 @@ export function TapNavigationPage() {
   };
 
   const renderTrendList = () => (
-    <div className="space-y-3">
-      {visibleTrends.map((trend) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {visibleTrends.map((trend, index) => (
         <div
           key={`${trend.position}-${trend.title}`}
           ref={(el) => {
@@ -1213,7 +1213,8 @@ export function TapNavigationPage() {
             }
             trendElementRefs.current[trend.position] = el;
           }}
-          className="scroll-mt-28"
+          className={`scroll-mt-28 animate-card-enter ${index % 2 === 0 ? 'lg:tilt-left' : 'lg:tilt-right'} ${expandedTrendId === trend.position ? 'md:col-span-2 lg:col-span-3' : ''}`}
+          style={{ animationDelay: `${index * 50}ms` }}
         >
           <TrendCard
             trend={trend}
@@ -1569,19 +1570,19 @@ export function TapNavigationPage() {
       <button
         type="button"
         onClick={handleClick}
-        className={`fixed right-4 bottom-20 z-50 flex items-center gap-2 rounded-full px-4 py-3 shadow-lg transition-colors lg:right-6 lg:bottom-6 ${
+        className={`fixed right-4 bottom-20 z-50 flex items-center gap-2 px-5 py-3 border-[3px] border-black font-mono font-bold uppercase tracking-wide transition-all lg:right-6 lg:bottom-6 hover:-translate-x-0.5 hover:-translate-y-0.5 ${
           isReady
-            ? 'bg-accent text-dark-primary hover:bg-accent-hover'
-            : 'bg-amber-500 text-dark-primary hover:bg-amber-600'
+            ? 'bg-accent text-black shadow-[4px_4px_0_0_#000000] hover:shadow-[6px_6px_0_0_#000000]'
+            : 'bg-brutal-orange text-white shadow-[4px_4px_0_0_#000000] hover:shadow-[6px_6px_0_0_#000000]'
         }`}
       >
         {isReady ? (
-          <CheckCircle className="w-4 h-4" />
+          <CheckCircle className="w-5 h-5" />
         ) : (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <Loader2 className="w-5 h-5 animate-spin" />
         )}
-        <span className="text-sm font-semibold">
-          {isReady ? 'Resumo pronto — abrir' : 'Resumo em preparo (QUENTY-IA)'}
+        <span className="text-sm">
+          {isReady ? 'RESUMO PRONTO' : 'PREPARANDO...'}
         </span>
       </button>
     );
@@ -1591,15 +1592,23 @@ export function TapNavigationPage() {
     if (!isRevealingTrends) return null;
 
     return (
-      <div className="fixed right-4 bottom-36 z-40 flex max-w-xs items-start gap-3 rounded-xl border border-accent/30 bg-dark-secondary/95 px-3 py-3 shadow-lg backdrop-blur lg:right-6 lg:bottom-24">
-        <Loader2 className="w-4 h-4 animate-spin text-accent mt-0.5" />
-        <div className="flex-1 space-y-1 text-xs text-text-secondary">
-          <p className="font-semibold text-accent">Quenty AI capturando em tempo real…</p>
-          <p className="text-[12px] text-text-secondary">{captureSteps[captureStepIndex] ?? captureSteps[0]}</p>
+      <div className="fixed right-4 bottom-36 z-40 flex max-w-xs items-start gap-3 bg-white border-[3px] border-black px-4 py-3 shadow-brutal lg:right-6 lg:bottom-24">
+        <Loader2 className="w-5 h-5 animate-spin text-brutal-orange mt-0.5" />
+        <div className="flex-1 space-y-1">
+          <p className="font-mono font-bold text-xs text-black uppercase">CAPTURANDO EM TEMPO REAL</p>
+          <p className="text-[12px] text-gray-700">{captureSteps[captureStepIndex] ?? captureSteps[0]}</p>
           {totalTrends > 0 && (
-            <p className="text-[11px] text-text-muted">
-              {revealedCount}/{totalTrends} assuntos prontos
-            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 h-2 bg-gray-200 border border-black">
+                <div
+                  className="h-full bg-brutal-cyan transition-all duration-300"
+                  style={{ width: `${(revealedCount / totalTrends) * 100}%` }}
+                />
+              </div>
+              <span className="text-[11px] font-mono font-bold text-black">
+                {revealedCount}/{totalTrends}
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -1974,37 +1983,70 @@ export function TapNavigationPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-dark-primary" ref={pageContainerRef}>
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="min-h-screen bg-brutal-yellow" ref={pageContainerRef}>
+      {/* Hero Section - Neo-Brutalist */}
+      <div className="w-full bg-black border-b-[4px] border-black">
+        <div className="max-w-6xl mx-auto px-4 py-8 md:py-12">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-brutal-orange rounded-full animate-pulse"></div>
+              <span className="font-mono text-xs font-bold uppercase tracking-widest text-brutal-cyan">
+                AO VIVO
+              </span>
+            </div>
+            <h1 className="font-mono text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight leading-none">
+              ASSUNTOS<br className="hidden md:block" /> QUENTES
+            </h1>
+            <p className="text-white/80 text-sm md:text-base max-w-md">
+              Quenty AI monitora as redes 24/7 e entrega os 15 assuntos mais quentes do momento.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-2">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFFFFF]">
+                15 ASSUNTOS
+              </div>
+              {formatTimestamp && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFDD00]">
+                  ATUALIZADO: {formatTimestamp}
+                </div>
+              )}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-brutal-cyan border-2 border-black text-black text-xs font-mono font-bold shadow-[3px_3px_0_0_#FFFFFF]">
+                FONTES VERIFICADAS
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {showTapPushCta && (
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 shadow-sm">
+          <div className="bg-white border-[3px] border-black px-4 py-4 shadow-brutal">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-dark-tertiary text-amber-400 shadow-sm">
-                <AlertTriangle className="w-5 h-5" />
+              <div className="flex h-12 w-12 items-center justify-center bg-brutal-orange border-2 border-black text-white shadow-[3px_3px_0_0_#000000]">
+                <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="flex-1 space-y-2">
-                <p className="text-sm font-semibold text-text-primary">
-                  Ative as notificações para receber seu resumo diário.
+                <p className="text-sm font-mono font-bold text-black uppercase">
+                  ATIVE AS NOTIFICAÇÕES
                 </p>
-                <p className="text-xs text-text-secondary">
+                <p className="text-xs text-gray-700">
                   Sem notificações ativas não conseguimos entregar as 15 notícias do dia para você. Habilite o alerta do navegador para ser avisado assim que o resumo ficar pronto.
                 </p>
-                {tapPushError && <p className="text-xs text-red-400">{tapPushError}</p>}
+                {tapPushError && <p className="text-xs text-red-600 font-mono font-bold">{tapPushError}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={handleTapEnablePush}
                     disabled={tapPushLoading}
-                    className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-xs font-semibold text-dark-primary shadow-sm transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-black border-2 border-black text-white text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {tapPushLoading ? 'Ativando...' : 'Ativar notificações'}
+                    {tapPushLoading ? 'ATIVANDO...' : 'ATIVAR NOTIFICAÇÕES'}
                   </button>
                   <button
                     type="button"
                     onClick={dismissTapPush}
-                    className="inline-flex items-center gap-2 rounded-lg border border-amber-500/30 bg-dark-tertiary px-3 py-2 text-xs font-semibold text-amber-400 transition-colors hover:bg-dark-elevated"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold uppercase shadow-[3px_3px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#000000] transition-all"
                   >
-                    Agora não
+                    AGORA NÃO
                   </button>
                 </div>
               </div>
@@ -2013,24 +2055,30 @@ export function TapNavigationPage() {
         )}
 
         {error && (
-          <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex gap-3 animate-fadeIn">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+          <div className="p-4 bg-white border-[3px] border-red-500 flex gap-3 animate-fadeIn shadow-[4px_4px_0_0_#ef4444]">
+            <AlertCircle className="w-6 h-6 text-red-500 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-red-400">Erro</p>
-              <p className="text-sm text-red-300 mt-1">{error}</p>
+              <p className="text-sm font-mono font-bold text-red-600 uppercase">ERRO</p>
+              <p className="text-sm text-gray-700 mt-1">{error}</p>
               <button
                 onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
-                className="mt-2 text-sm text-red-400 font-medium hover:text-red-300"
+                className="mt-2 text-sm font-mono font-bold text-red-600 uppercase underline underline-offset-2 hover:text-red-800"
               >
-                Tentar novamente
+                TENTAR NOVAMENTE
               </button>
             </div>
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2">
+        {/* Category Tabs - Brutalist Style */}
+        <div className="flex flex-wrap gap-3">
           {TABS.map(({ key: cat, label }) => {
             const isActive = currentCategory === cat;
+            const tabIcons: Record<TapCategory, string> = {
+              brasil: '🇧🇷',
+              futebol: '⚽',
+              fofocas: '💬',
+            };
             return (
               <button
                 key={cat}
@@ -2040,10 +2088,17 @@ export function TapNavigationPage() {
                     setCurrentCategory(cat);
                   }
                 }}
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  isActive ? 'bg-accent text-dark-primary shadow-sm' : 'bg-dark-tertiary text-text-secondary hover:bg-dark-elevated'
-                }`}
+                className={`
+                  inline-flex items-center gap-2 px-5 py-3
+                  border-[3px] border-black font-mono font-bold uppercase tracking-wide
+                  transition-all duration-150
+                  ${isActive
+                    ? 'bg-black text-white shadow-[4px_4px_0_0_#FFDD00] -translate-x-0.5 -translate-y-0.5'
+                    : 'bg-white text-black shadow-[4px_4px_0_0_#000000] hover:bg-gray-100 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[6px_6px_0_0_#000000]'
+                  }
+                `}
               >
+                <span className="text-lg">{tabIcons[cat]}</span>
                 {label}
               </button>
             );
@@ -2053,47 +2108,46 @@ export function TapNavigationPage() {
         {isLoading && revealedCount === 0 && totalTrends === 0 ? (
           <TrendSkeleton />
         ) : !isLoading && revealedCount === 0 && !isRevealingTrends && totalTrends === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border-primary bg-dark-secondary px-6 py-12 text-center shadow-sm">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent-muted">
-              <RefreshCw className="h-6 w-6 text-accent" />
+          <div className="bg-white border-[3px] border-black px-6 py-12 text-center shadow-brutal">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-brutal-yellow border-2 border-black shadow-[3px_3px_0_0_#000000]">
+              <RefreshCw className="h-8 w-8 text-black" />
             </div>
-            <h2 className="text-xl font-semibold text-text-primary">Nenhuma tendência disponível</h2>
-            <p className="mt-2 text-sm text-text-secondary">Tente atualizar para carregar as últimas tendências.</p>
+            <h2 className="text-xl font-mono font-bold text-black uppercase">NENHUMA TENDÊNCIA</h2>
+            <p className="mt-2 text-sm text-gray-700">Tente atualizar para carregar as últimas tendências.</p>
             <div className="mt-6 flex justify-center">
               <button
                 type="button"
                 onClick={() => fetchLatestTrends(currentCategory, { isRefresh: true })}
                 disabled={isLoading || isRefreshing}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex items-center gap-2 px-5 py-3 bg-black border-[3px] border-black text-white font-mono font-bold uppercase tracking-wide shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Buscar tendências
+                <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                BUSCAR TENDÊNCIAS
               </button>
             </div>
           </div>
         ) : (
           <>
             {trendsSummary && trends.length > 0 && (
-              <div className="rounded-lg border border-border-primary bg-dark-secondary px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <p className="text-xs font-semibold text-text-primary">Panorama do Dia</p>
-                  {formatTimestamp && (
-                    <span className="text-[11px] text-text-muted">(atualizado em {formatTimestamp})</span>
-                  )}
+              <div className="bg-white border-[3px] border-black p-4 shadow-brutal">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-xs font-mono font-bold text-black uppercase tracking-widest">PANORAMA DO DIA</h3>
+                  <div className="flex-1 h-[2px] bg-black"></div>
                 </div>
-                <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">{trendsSummary}</p>
+                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{trendsSummary}</p>
               </div>
             )}
 
             <TapInstallAndPushCTA />
 
-            <div className="mt-3 mb-2">
-              <h2 className="text-lg font-semibold text-text-primary">
-                Assuntos mais quentes nas redes sociais hoje
+            <div className="flex items-center gap-3 mt-6 mb-4">
+              <div className="w-2 h-8 bg-black"></div>
+              <h2 className="text-xl font-mono font-bold text-black uppercase tracking-tight">
+                TOP 15 AGORA
               </h2>
             </div>
 
-              <div className="lg:hidden relative overflow-hidden rounded-2xl min-h-[520px]">
+              <div className="lg:hidden relative overflow-hidden min-h-[520px]">
                 <div
                   className={`w-full transition-transform duration-300 ease-in-out ${
                     showMobileSummary ? '-translate-x-full' : 'translate-x-0'
@@ -2102,7 +2156,7 @@ export function TapNavigationPage() {
                   <div
                     ref={mobileListContainerRef}
                     onScroll={handleMobileListScroll}
-                    className="space-y-3 pb-8"
+                    className="space-y-4 pb-8"
                   >
                     {renderTrendList()}
                   </div>
@@ -2110,7 +2164,7 @@ export function TapNavigationPage() {
                 {showMobileSummary && (
                 <div
                   ref={mobileSummaryWrapperRef}
-                  className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto"
+                  className="absolute inset-0 w-full transition-transform duration-300 ease-in-out translate-x-0 overflow-y-auto bg-brutal-yellow"
                 >
                   {renderSummaryContent(
                     'mobile',
@@ -2127,7 +2181,7 @@ export function TapNavigationPage() {
             <div className="hidden lg:block">{renderTrendList()}</div>
 
             {!isRevealingTrends && totalTrends > 0 && revealedCount === totalTrends && (
-              <div className="mt-6">
+              <div className="mt-8">
                 <ProfileSurveyBanner />
               </div>
             )}
@@ -2137,13 +2191,15 @@ export function TapNavigationPage() {
       {renderCaptureBubble()}
       {renderSummaryBubble()}
       {!onboardingStatus.loading && !onboardingStatus.complete && (
-        <div className="fixed inset-0 z-40 bg-dark-primary/80 backdrop-blur-[2px] flex items-center justify-center px-4">
-          <div className="max-w-lg w-full bg-dark-secondary border border-accent/30 shadow-xl rounded-2xl p-6 space-y-3 text-center">
+        <div className="fixed inset-0 z-40 bg-black/90 flex items-center justify-center px-4">
+          <div className="max-w-lg w-full bg-white border-[4px] border-black shadow-[8px_8px_0_0_#FFDD00] p-6 space-y-4 text-center">
             <div className="flex justify-center">
-              <AlertCircle className="w-8 h-8 text-accent" />
+              <div className="w-16 h-16 bg-brutal-yellow border-2 border-black flex items-center justify-center shadow-[4px_4px_0_0_#000000]">
+                <AlertCircle className="w-8 h-8 text-black" />
+              </div>
             </div>
-            <h2 className="text-xl font-bold text-text-primary">Finalize sua personalização</h2>
-            <p className="text-sm text-text-secondary">
+            <h2 className="text-xl font-mono font-bold text-black uppercase">FINALIZE SUA PERSONALIZAÇÃO</h2>
+            <p className="text-sm text-gray-700">
               Para explorar os Assuntos Quentes do dia, conclua primeiro a personalização do Quenty AI. Assim
               ajustamos exemplos, linguagem e debates ao seu contexto.
             </p>
@@ -2153,9 +2209,9 @@ export function TapNavigationPage() {
                 window.history.pushState(null, '', '/onboarding');
                 window.dispatchEvent(new PopStateEvent('popstate'));
               }}
-              className="mt-2 inline-flex items-center justify-center rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-dark-primary shadow-sm transition-colors hover:bg-accent-hover"
+              className="mt-2 inline-flex items-center justify-center px-6 py-3 bg-black border-[3px] border-black text-white font-mono font-bold uppercase tracking-wide shadow-brutal-sm hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
             >
-              Ir para Personalização
+              IR PARA PERSONALIZAÇÃO
             </button>
           </div>
         </div>

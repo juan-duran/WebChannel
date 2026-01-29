@@ -1,5 +1,5 @@
 import { useMemo, type MouseEvent, type ReactNode } from 'react';
-import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle } from 'lucide-react';
+import { ChevronDown, Link2, AlertCircle, Clock, MessageCircle, Flame } from 'lucide-react';
 import { DailyTrend, DailyTrendTopic } from '../../types/dailyTrends';
 import { extractTopicEngagement } from '../../utils/topicEngagement';
 import { TopicSkeleton } from './LoadingProgress';
@@ -46,6 +46,17 @@ const deduplicateTopics = (topics: DailyTrendTopic[]) => {
   });
 };
 
+const getCategoryColor = (category?: string | null) => {
+  const cat = category?.toLowerCase() ?? '';
+  if (cat.includes('futebol') || cat.includes('esport')) {
+    return { bg: 'bg-cat-futebol', text: 'text-white', border: 'border-black' };
+  }
+  if (cat.includes('fofoca') || cat.includes('entret')) {
+    return { bg: 'bg-cat-fofocas', text: 'text-white', border: 'border-black' };
+  }
+  return { bg: 'bg-cat-brasil', text: 'text-white', border: 'border-black' };
+};
+
 export function TrendCard({
   trend,
   isExpanded,
@@ -76,14 +87,31 @@ export function TrendCard({
     }
   };
 
-  const engagementValue = trend.value ?? trend.upvotes ?? 'Não informado';
+  const engagementValue = trend.value ?? trend.upvotes ?? 'N/A';
+  const isTopTrend = (trend.position ?? 99) <= 3;
+  const categoryColors = getCategoryColor(trend.category);
 
   return (
     <div
-      className={`bg-dark-secondary rounded-xl border border-border-primary transition-all duration-250 hover:border-border-secondary hover:shadow-md ${
-        allowOverflow ? 'overflow-visible' : 'overflow-hidden'
-      }`}
+      className={`
+        relative
+        bg-white
+        border-[3px] border-black
+        rounded-xl
+        shadow-brutal
+        transition-all duration-200
+        hover:shadow-brutal-lg hover:-translate-x-0.5 hover:-translate-y-0.5
+        ${allowOverflow ? 'overflow-visible' : 'overflow-hidden'}
+        ${isExpanded ? 'ring-2 ring-brutal-yellow ring-offset-2 ring-offset-brutal-yellow' : ''}
+      `}
     >
+      {/* NEW Badge for top 3 trends */}
+      {isTopTrend && !isExpanded && (
+        <div className="absolute -top-2 -right-2 z-10 px-3 py-1 bg-brutal-cyan border-2 border-black text-[10px] font-mono font-extrabold uppercase transform rotate-3 shadow-[2px_2px_0_0_#000000]">
+          HOT
+        </div>
+      )}
+
       <button
         type="button"
         onClick={handleToggle}
@@ -93,62 +121,80 @@ export function TrendCard({
         aria-controls={contentId}
         aria-disabled={disabled || undefined}
       >
-        <div className="flex items-start gap-3">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-accent-muted flex items-center justify-center">
-            <span className="text-sm font-bold text-accent">#{trend.position}</span>
+        <div className="flex items-start gap-4">
+          {/* Position Badge - Square brutalist style */}
+          <div className="flex-shrink-0 w-12 h-12 bg-brutal-yellow border-2 border-black flex items-center justify-center shadow-[3px_3px_0_0_#000000]">
+            <span className="font-mono font-extrabold text-lg text-black">#{trend.position}</span>
           </div>
 
-          <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-accent">
+          <div className="flex-1 min-w-0 space-y-2">
+            {/* Category Tag */}
+            <div className="flex flex-wrap items-center gap-2">
               {trend.category ? (
-                <span className="rounded-full bg-accent-muted px-2 py-1 text-[11px] border border-border-accent">{trend.category}</span>
+                <span className={`${categoryColors.bg} ${categoryColors.text} ${categoryColors.border} border-2 px-3 py-1 text-[11px] font-mono font-bold uppercase tracking-wider`}>
+                  {trend.category}
+                </span>
               ) : (
-                <span className="text-text-muted">Categoria não informada</span>
+                <span className="bg-gray-200 text-gray-600 border-2 border-black px-3 py-1 text-[11px] font-mono font-bold uppercase">
+                  SEM CATEGORIA
+                </span>
               )}
             </div>
-            <h3 className="font-bold text-text-primary text-base leading-tight">{trend.title}</h3>
+
+            {/* Title */}
+            <h3 className="font-bold text-black text-lg leading-tight tracking-tight">
+              {trend.title}
+            </h3>
+
+            {/* Snippet */}
             {trend.snippet && (
-              <p
-                className={`text-sm text-text-secondary ${isExpanded ? 'line-clamp-10' : 'line-clamp-5'}`}
-              >
+              <p className={`text-sm text-gray-700 ${isExpanded ? 'line-clamp-10' : 'line-clamp-3'}`}>
                 {trend.snippet}
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-text-secondary">
-              <span className="font-semibold text-text-primary">Engajamento: {engagementValue}</span>
+            {/* Engagement Badges - Brutalist style */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brutal-orange border-2 border-black text-white text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                <Flame className="w-3.5 h-3.5" aria-hidden="true" />
+                {engagementValue}
+              </div>
               {typeof trend.comments_total === 'number' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-dark-tertiary px-2 py-1">
-                  <MessageCircle className="w-3 h-3" aria-hidden="true" />
-                  Comentários: {trend.comments_total}
-                </span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                  <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                  {trend.comments_total}
+                </div>
               )}
               {typeof trend.comments_last_4h === 'number' && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-dark-tertiary px-2 py-1">
-                  <Clock className="w-3 h-3" aria-hidden="true" />
-                  Últ. 4h: {trend.comments_last_4h}
-                </span>
-              )}
-              {trend.asset_short_url && (
-                <a
-                  href={trend.asset_short_url}
-                  onClick={(e) => e.stopPropagation()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-accent hover:text-accent-hover"
-                  title="Ver matéria completa"
-                >
-                  <Link2 className="w-3 h-3" aria-hidden="true" />
-                  Ver matéria completa
-                </a>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                  {trend.comments_last_4h}
+                </div>
               )}
             </div>
+
+            {/* External Link */}
+            {trend.asset_short_url && !isExpanded && (
+              <a
+                href={trend.asset_short_url}
+                onClick={(e) => e.stopPropagation()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-mono font-bold text-black hover:text-brutal-orange underline underline-offset-2"
+                title="Ver matéria completa"
+              >
+                <Link2 className="w-3 h-3" aria-hidden="true" />
+                VER FONTE
+              </a>
+            )}
+
             {renderInlineCta && <div className="pt-2">{renderInlineCta}</div>}
           </div>
 
-          <div className="flex-shrink-0">
+          {/* Chevron - More prominent */}
+          <div className="flex-shrink-0 w-10 h-10 bg-black flex items-center justify-center rounded">
             <ChevronDown
-              className={`w-5 h-5 text-text-muted transition-transform duration-250 ${
+              className={`w-6 h-6 text-white transition-transform duration-200 ${
                 isExpanded ? 'rotate-180' : ''
               }`}
               aria-hidden="true"
@@ -157,39 +203,52 @@ export function TrendCard({
         </div>
       </button>
 
+      {/* Expanded Content */}
       {isExpanded && (
         <div
           id={contentId}
-          className="px-4 pb-4 pt-2 border-t border-border-primary bg-gradient-to-b from-accent-muted to-transparent animate-fadeIn"
+          className="px-4 pb-4 pt-2 border-t-[3px] border-black bg-brutal-yellow/10 animate-fadeIn"
         >
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {/* CTA Button */}
             {trend.asset_short_url && (
               <a
                 href={trend.asset_short_url}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-dark-primary shadow-sm transition hover:bg-accent-hover"
+                className="inline-flex w-full items-center justify-center gap-2 px-4 py-3 bg-black border-[3px] border-black text-white text-sm font-mono font-bold uppercase tracking-wider shadow-brutal-sm transition-all hover:bg-gray-900 hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-brutal active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
               >
                 <Link2 className="w-4 h-4" aria-hidden="true" />
-                Ver conteúdo do assunto
+                VER CONTEÚDO COMPLETO
               </a>
             )}
+
+            {/* Topics Section */}
             {!hideTopics && uniqueTopics.length > 0 && (
-              <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Tópicos</h4>
-            )}
-            {!hideTopics && topicsSummary && (
-              <div className="rounded-lg border border-border-primary bg-dark-tertiary px-3 py-2">
-                <p className="text-xs font-semibold text-text-primary mb-1">Panorama do Assunto</p>
-                <p className="text-xs text-text-secondary whitespace-pre-line leading-relaxed">{topicsSummary}</p>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs font-mono font-bold text-black uppercase tracking-widest">TÓPICOS</h4>
+                <div className="flex-1 h-[3px] bg-black"></div>
               </div>
             )}
+
+            {/* Topics Summary */}
+            {!hideTopics && topicsSummary && (
+              <div className="border-[3px] border-black bg-white p-4 shadow-[4px_4px_0_0_#000000]">
+                <p className="text-xs font-mono font-bold text-black uppercase tracking-wider mb-2">
+                  PANORAMA DO ASSUNTO
+                </p>
+                <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">{topicsSummary}</p>
+              </div>
+            )}
+
+            {/* Topics List */}
             {!hideTopics &&
               (isLoadingTopics ? (
                 <TopicSkeleton />
               ) : topicsError && uniqueTopics.length === 0 ? (
-                <div className="text-center py-6" role="alert">
-                  <p className="text-sm text-red-400 mb-3 flex items-center justify-center gap-2">
+                <div className="text-center py-6 border-[3px] border-red-500 bg-red-50" role="alert">
+                  <p className="text-sm text-red-600 font-mono font-bold mb-3 flex items-center justify-center gap-2">
                     <AlertCircle className="w-4 h-4" aria-hidden="true" />
                     {topicsError}
                   </p>
@@ -200,16 +259,17 @@ export function TrendCard({
                         event.stopPropagation();
                         onRetryTopics();
                       }}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-accent border border-border-accent rounded-full hover:bg-accent-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-white border-2 border-black text-black text-xs font-mono font-bold uppercase shadow-[2px_2px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[4px_4px_0_0_#000000] transition-all"
                     >
-                      Tentar novamente
+                      TENTAR NOVAMENTE
                     </button>
                   )}
                 </div>
               ) : uniqueTopics.length > 0 ? (
-                <div className="space-y-2">
-                  {uniqueTopics.map((topic) => {
+                <div className="space-y-3">
+                  {uniqueTopics.map((topic, index) => {
                     const { likesLabel, repliesLabel } = extractTopicEngagement(topic);
+                    const rotation = index % 2 === 0 ? 'hover:rotate-[0.5deg]' : 'hover:rotate-[-0.5deg]';
 
                     return (
                       <button
@@ -217,33 +277,38 @@ export function TrendCard({
                         onClick={(event) => onTopicSelect(topic, event)}
                         disabled={disabled}
                         type="button"
-                        className="w-full flex flex-col gap-2 p-3 rounded-lg border border-border-primary bg-dark-tertiary hover:border-cat-futebol hover:bg-cat-futebol/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`
+                          w-full flex flex-col gap-2 p-4
+                          bg-white border-[3px] border-black
+                          shadow-[4px_4px_0_0_#000000]
+                          hover:shadow-[6px_6px_0_0_#000000] hover:-translate-x-0.5 hover:-translate-y-0.5
+                          ${rotation}
+                          transition-all text-left
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-text-primary">
-                            <span className="inline-flex items-center justify-center rounded-full bg-cat-futebol/20 px-2 py-1 text-cat-futebol">
-                              Tópico #{topic.number}
-                            </span>
-                          </div>
+                          <span className="inline-flex items-center justify-center px-3 py-1 bg-cat-futebol border-2 border-black text-white text-xs font-mono font-bold">
+                            TÓPICO #{topic.number}
+                          </span>
                           <ChevronDown
-                            className="w-4 h-4 text-text-muted group-hover:text-cat-futebol flex-shrink-0 -rotate-90"
+                            className="w-5 h-5 text-black -rotate-90"
                             aria-hidden="true"
                           />
                         </div>
-                        <p className="text-sm text-text-secondary">{topic.description}</p>
-                        <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary">
-                          <span className="inline-flex items-center gap-1 rounded-full bg-dark-elevated px-2 py-1 font-semibold text-text-primary">
+                        <p className="text-sm text-gray-800 font-medium">{topic.description}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-brutal-yellow border-2 border-black text-black text-xs font-mono font-bold">
                             👍 {likesLabel}
-                            <span className="text-text-muted font-normal">(Likes)</span>
                           </span>
-                          <span className="text-text-muted">·</span>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-dark-elevated px-2 py-1 font-semibold text-text-primary">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-brutal-cyan border-2 border-black text-black text-xs font-mono font-bold">
                             💬 {repliesLabel}
-                            <span className="text-text-muted font-normal">(Debates do comentário)</span>
                           </span>
                         </div>
                         {topic.posted_at && (
-                          <p className="text-[11px] text-text-muted">Publicado em {formatDate(topic.posted_at)}</p>
+                          <p className="text-[11px] font-mono text-gray-500 uppercase">
+                            Publicado em {formatDate(topic.posted_at)}
+                          </p>
                         )}
                         {renderTopicExtras && <div className="pt-2">{renderTopicExtras(topic)}</div>}
                       </button>

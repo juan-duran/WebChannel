@@ -170,6 +170,27 @@
     }
   }
 
+  /* Neo-Brutalist Animations */
+  @keyframes card-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) rotate(-1deg);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) rotate(0);
+    }
+  }
+
+  @keyframes shimmer-brutal {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+
   .animate-fadeIn {
     animation: fadeIn 300ms ease-in;
   }
@@ -192,6 +213,17 @@
     animation: pulse-glow 2s ease-in-out infinite;
   }
 
+  /* Neo-Brutalist Animation Classes */
+  .animate-card-enter {
+    animation: card-enter 0.4s ease-out forwards;
+  }
+
+  .animate-shimmer-brutal {
+    background: linear-gradient(90deg, #e5e5e5 0%, #f5f5f5 50%, #e5e5e5 100%);
+    background-size: 400% 100%;
+    animation: shimmer-brutal 1.5s linear infinite;
+  }
+
   .transition-250 {
     transition-duration: 250ms;
   }
@@ -212,6 +244,49 @@
 
   .text-glow-accent {
     text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+  }
+
+  /* Neo-Brutalist Utilities */
+  .border-brutal {
+    border: 3px solid #000000;
+  }
+
+  .shadow-brutal-hover {
+    box-shadow: 8px 8px 0 0 #000000;
+    transform: translate(-2px, -2px);
+  }
+
+  .card-brutal {
+    @apply bg-white border-[3px] border-black rounded-lg shadow-brutal transition-all duration-200;
+  }
+
+  .card-brutal:hover {
+    @apply shadow-brutal-lg -translate-x-0.5 -translate-y-0.5;
+  }
+
+  .btn-brutal {
+    @apply font-mono font-bold uppercase tracking-wide border-[3px] border-black shadow-brutal-sm transition-all duration-150;
+  }
+
+  .btn-brutal:hover {
+    @apply -translate-x-0.5 -translate-y-0.5 shadow-brutal;
+  }
+
+  .btn-brutal:active {
+    @apply translate-x-0.5 translate-y-0.5 shadow-none;
+  }
+
+  .badge-brutal {
+    @apply inline-flex items-center px-3 py-1 border-2 border-black font-mono text-xs font-bold uppercase;
+  }
+
+  /* Rotation utilities for playful brutalist feel */
+  .tilt-left {
+    transform: rotate(-0.5deg);
+  }
+
+  .tilt-right {
+    transform: rotate(0.5deg);
   }
 }
 
