@@ -1995,7 +1995,7 @@ export function TapNavigationPage() {
               </span>
             </div>
             <h1 className="font-mono text-3xl md:text-5xl font-extrabold text-white uppercase tracking-tight leading-none">
-              ASSUNTOS<br className="hidden md:block" /> QUENTES
+              ASSUNTOS QUENTES
             </h1>
             <p className="text-white/80 text-sm md:text-base max-w-md">
               Quenty AI monitora as redes 24/7 e entrega os 15 assuntos mais quentes do momento.
