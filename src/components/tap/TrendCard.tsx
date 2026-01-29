@@ -162,33 +162,24 @@ export function TrendCard({
               </p>
             )}
 
-            {/* Engagement Stats - Orange box with labels */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Engagement Stats - Single row with abbreviations */}
+            <div className="flex items-center gap-2">
               {engagementValue && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-brutal-orange border-2 border-black text-white text-xs font-mono shadow-[2px_2px_0_0_#000000]">
-                  <TrendingUp className="w-4 h-4" aria-hidden="true" />
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-extrabold">{formatNumber(engagementValue)}</span>
-                    <span className="text-[9px] opacity-80">likes</span>
-                  </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-brutal-orange border-2 border-black text-white text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                  <TrendingUp className="w-3.5 h-3.5" aria-hidden="true" />
+                  {formatNumber(engagementValue)} likes
                 </div>
               )}
               {typeof trend.comments_total === 'number' && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-white border-2 border-black text-black text-xs font-mono shadow-[2px_2px_0_0_#000000]">
-                  <MessageCircle className="w-4 h-4" aria-hidden="true" />
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-extrabold">{formatNumber(trend.comments_total)}</span>
-                    <span className="text-[9px] text-gray-500">comentários</span>
-                  </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                  <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                  {formatNumber(trend.comments_total)} com.
                 </div>
               )}
               {typeof trend.comments_last_4h === 'number' && trend.comments_last_4h > 0 && (
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-brutal-cyan border-2 border-black text-black text-xs font-mono shadow-[2px_2px_0_0_#000000]">
-                  <Clock className="w-4 h-4" aria-hidden="true" />
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-extrabold">+{trend.comments_last_4h}</span>
-                    <span className="text-[9px]">últimas 4h</span>
-                  </div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-brutal-cyan border-2 border-black text-black text-xs font-mono font-bold shadow-[2px_2px_0_0_#000000]">
+                  <Clock className="w-3.5 h-3.5" aria-hidden="true" />
+                  +{trend.comments_last_4h} 4h
                 </div>
               )}
             </div>
