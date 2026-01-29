@@ -157,7 +157,7 @@ export function TrendCard({
 
             {/* Snippet */}
             {trend.snippet && (
-              <p className={`text-sm text-gray-600 ${isExpanded ? 'line-clamp-10' : 'line-clamp-2'}`}>
+              <p className={`text-sm text-gray-600 ${isExpanded ? 'line-clamp-10' : 'line-clamp-4'}`}>
                 {trend.snippet}
               </p>
             )}
@@ -169,7 +169,7 @@ export function TrendCard({
                   <TrendingUp className="w-4 h-4" aria-hidden="true" />
                   <div className="flex flex-col leading-tight">
                     <span className="font-extrabold">{formatNumber(engagementValue)}</span>
-                    <span className="text-[9px] opacity-80">engajamento</span>
+                    <span className="text-[9px] opacity-80">likes</span>
                   </div>
                 </div>
               )}
@@ -193,14 +193,14 @@ export function TrendCard({
               )}
             </div>
 
-            {/* VER FONTE - Primary CTA Button */}
+            {/* VER FONTE - Primary CTA Button - Full Width */}
             {trend.asset_short_url && !isExpanded && (
               <a
                 href={trend.asset_short_url}
                 onClick={(e) => e.stopPropagation()}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-1 px-4 py-2 bg-black border-2 border-black text-white text-xs font-mono font-bold uppercase tracking-wide shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
+                className="flex items-center justify-center gap-2 w-full mt-2 px-4 py-3 bg-black border-2 border-black text-white text-sm font-mono font-bold uppercase tracking-wide shadow-[3px_3px_0_0_#FFDD00] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_#FFDD00] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none transition-all"
               >
                 <Link2 className="w-4 h-4" aria-hidden="true" />
                 VER FONTE
